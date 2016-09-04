@@ -25,7 +25,9 @@
   git filter-branch --prune-empty --subdirectory-filter dir1 master
   git reset --hard original/refs/heads/master
 
-6 Create a new folder, move files into it, add and commit. 
+6. Create a new folder, move files into it, add and commit.
+
+7. then create a remote repo and push changes. 
  
   
   
