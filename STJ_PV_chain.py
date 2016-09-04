@@ -2,24 +2,18 @@ import numpy as np
 import scipy.io as io
 import pdb
 import os		
-from SetDefaults import GetDiri
-from cmip5.common.atmos import ertelPV, ipv, theta
-from EDJ import Directory
-from EDJ_surface_wind import plot_map
-from PV_STJ import STJFromPV
-from common_modules import openNetCDF4_get_data
-from CommonFunctions import MeanOverDim,FindClosestElem,addToList
 import collections
-import cmip5.common.epv
 import matplotlib.pyplot as plt
-from plot_routines import get_cmap_for_maps, cbar_Maher
 import matplotlib as mpl
-from cmip5.common import  staticParams
-from scipy import interpolate
-import cmip5.common.interp
 import platform
+
+#personal
+from GetDirectoryPath import GetDiri, Directory
+from general_functions import openNetCDF4_get_data,OpenPickle, SavePickle
+
+from PV_STJ import STJFromPV
 import IPV_2max
-from instability import OpenPickle, SavePickle
+
 
 data_name = collections.namedtuple('data_name', 'letter label')
 metric = collections.namedtuple('metric', 'name hemisphere intensity position')
@@ -116,10 +110,6 @@ def main():
     var  = openNetCDF4_get_data(filename)
     pdb.set_trace()	
 
-
-  #PV ionstead of IPV - testing only
-  #STJ_PV.GetPV()
-  #STJ_PV.PlotPV()
 
   
     

@@ -1,28 +1,18 @@
 import numpy as np
 import scipy.io as io
 import pdb
-import os		
-from SetDefaults import GetDiri
-from cmip5.common.atmos import ertelPV, ipv, theta
-from EDJ import Directory
-from EDJ_surface_wind import plot_map
-from common_modules import openNetCDF4_get_data
-from CommonFunctions import MeanOverDim,FindClosestElem,addToList
 import collections
-import cmip5.common.epv
 import matplotlib.pyplot as plt
-from plot_routines import get_cmap_for_maps, cbar_Maher
 import matplotlib as mpl
-from cmip5.common import  staticParams
 from scipy import interpolate
-import cmip5.common.interp
-from scipy.signal import argrelextrema
-from instability import OpenPickle, SavePickle
-from MomentumConservation import TropopauseHeightLevel
-from scipy import interpolate
-#import cmip5.common.interp
-#from common_modules  import 
-#from plot_routines import
+
+#personalised
+import general_functions 
+import calc_ipv import ipv
+from general_plotting import plot_map, get_cmap_for_maps, cbar_Maher
+from thermal_tropopause import TropopauseHeightLevel
+
+
 
 __author__ = "Penelope Maher" 
 
@@ -87,7 +77,7 @@ class STJFromPV(object):
     print 'Finished opening data'
 
   def GetIPV(self): 
-    'IPV code interpolates on theta levels as defined in staticParams.py'
+    'IPV code interpolates on theta levels'
 
     #calculate IPV using mikes code
     IPV,self.p_lev,self.u_th   = ipv(self.u,self.v,self.t,self.p,self.lat,self.lon)
@@ -95,13 +85,13 @@ class STJFromPV(object):
     self.IPV = IPV * 1e6 #units in IPVU
 
     #310K isopleth often of interest - not currently used
-    theta_level_310_K   = np.where(staticParams.th_levels_trop == 310)[0][0]
+    theta_level_310_K   = np.where(get_ipv.th_levels_trop == 310)[0][0]
     self.p_310          = self.p_lev[:,theta_level_310_K,:,:]
     self.p_310_bar      = MeanOverDim(data=self.p_310[0,:,:], dim=1) 
 
     self.ipv_310 = self.IPV[:,theta_level_310_K,:,:]
     self.ipv_310_bar = MeanOverDim(data=self.ipv_310, dim=0) 
-    self.theta_lev = staticParams.th_levels_trop
+    self.theta_lev = get_ipv.th_levels_trop
 
     print 'Finished calculating IPV'
 
@@ -240,7 +230,7 @@ class STJ_Post_Processing(object):
     array_shape_interp = output_plotting['NH','ipv_zonal_interp_0'].shape
     array_shape = output_plotting['NH','ipv_zonal_0'].shape
     lat_array = self.lat[np.newaxis, :] + np.zeros(array_shape)
-    theta_lev_array = staticParams.th_levels_trop[:,np.newaxis] + np.zeros(array_shape)
+    theta_lev_array = get_ipv.th_levels_trop[:,np.newaxis] + np.zeros(array_shape)
 
     #Map of 310 IPV on standard map projection
     filename='/home/links/pm366/Documents/Plot/Jet/IPV_testing_vertical.eps'
@@ -254,7 +244,7 @@ class STJ_Post_Processing(object):
     bounds =  np.arange(-20,22,2.0)
     cmap = plt.cm.RdBu_r
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
-    ax1.pcolormesh(lat_array,staticParams.th_levels_trop,output_plotting['NH','ipv_zonal_0'],cmap=cmap,norm=norm)
+    ax1.pcolormesh(lat_array,get_ipv.th_levels_trop,output_plotting['NH','ipv_zonal_0'],cmap=cmap,norm=norm)
     plt.ylim(300,400)
     ax1.set_xlim(-90,90)
     ax_cb=fig2.add_axes([0.1, 0.1, 0.80, 0.05])
@@ -370,11 +360,6 @@ class STJ_Post_Processing(object):
     #list(set(wh_lat_pos).intersection(wh_theta_250_to_400))
 
 
-  def GetPV(self):
-
-    self.PV = ertelPV(u=self.u, v=self.v, t=self.t, p=self.p, lat=self.lat, lon=self.lon)
-    self.PV_zonal = MeanOverDim(data=self.PV, dim=3)
-    pdb.set_trace()
 
   def ConvertPVUnits(self):
     'PV SI units m2 s-1K kg-1. 1 PVU = 1.0 x 10-6 m2 s-1K kg-1'

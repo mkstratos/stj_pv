@@ -1,29 +1,16 @@
 import numpy as np
-import scipy.io as io
-import pdb
-import os		
-from SetDefaults import GetDiri
-from cmip5.common.atmos import ertelPV, ipv, theta
-from EDJ import Directory
-from EDJ_surface_wind import plot_map
-from common_modules import openNetCDF4_get_data,apply_mask_inf
-from CommonFunctions import MeanOverDim,FindClosestElem,addToList
-import collections
-import cmip5.common.epv
-import matplotlib.pyplot as plt
-from plot_routines import get_cmap_for_maps, cbar_Maher,draw_map_model
-import matplotlib as mpl
-from cmip5.common import  staticParams
-from scipy import interpolate
-import cmip5.common.interp
-from scipy.signal import argrelmin, argrelmax,argrelextrema
 from numpy.polynomial import chebyshev as cby
-import copy as copy
+import scipy.io as io
+from scipy.signal import argrelmin, argrelmax, argrelextrema
 import time
 import matplotlib.ticker as ticker
-#import cmip5.common.interp
-#from common_modules  import 
-#from plot_routines import
+import pdb
+import os		
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+#Personalised
+from general_functions import MeanOverDim, FindClosestElem
+
 
 
 class Plotting(object):

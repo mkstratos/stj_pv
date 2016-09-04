@@ -1,32 +1,21 @@
 import numpy as np
-import scipy.io as io
 import pdb
-import os		
-from SetDefaults import GetDiri
-from cmip5.common.atmos import ertelPV, ipv, theta
-from EDJ import Directory
-from EDJ_surface_wind import plot_map
-from common_modules import openNetCDF4_get_data,apply_mask_inf
-from CommonFunctions import MeanOverDim,FindClosestElem,addToList
 import collections
-import cmip5.common.epv
-import matplotlib.pyplot as plt
-from plot_routines import get_cmap_for_maps, cbar_Maher,draw_map_model
-import matplotlib as mpl
-from cmip5.common import  staticParams
 from scipy import interpolate
-import cmip5.common.interp
 from scipy.signal import argrelmin, argrelmax,argrelextrema
 from numpy.polynomial import chebyshev as cby
 import copy as copy
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+#In addition to libraries
+from GetDirectoryPath import GetDiri, Directory
+from plotting import draw_map_model
+from general_functions import openNetCDF4_get_data,apply_mask_inf,MeanOverDim,FindClosestElem
+import calc_ipv  #assigns th_levels_trop
 from IPV_plots import Plotting
-import scipy.signal as signal
-import scipy.interpolate as inter
-from scipy.optimize import curve_fit
 
-#import cmip5.common.interp
-#from common_modules  import 
-#from plot_routines import
+
+
 
 __author__ = "Penelope Maher" 
 
@@ -35,6 +24,7 @@ __author__ = "Penelope Maher"
 
 data_name = collections.namedtuple('data_name', 'letter label')
 metric = collections.namedtuple('metric', 'name hemisphere intensity position')
+
 
 
 
@@ -232,34 +222,7 @@ class Method_2PV_STJ(object):
     d2tdphi2_val    = cby.chebval(self.phi_2PV, d2tdphi2_cby)
 
 
-    #Plot the fit
-#    plt.plot(self.phi_2PV, self.theta_2PV/100., c='k',marker='x', markersize=8,linestyle = '-',label='Data scaled z1/100')
-#    plt.plot(self.phi_2PV, theta_cby_val/100., c='r',marker='.', markersize=8,linestyle = '-',label='cby fit  scaled z1/100')
-#    plt.legend()
-#    plt.ylim(300,380)
-#    plt.show() 
 
-    #-----------------------------------------------
-
-#    #values of the fit for theta instead of phi
-#    pv_cby_val = cby.chebval(staticParams.th_levels_trop, theta_cby)
-#    #values of the derivative d theta_2PV d theta
-#    dtpv_dth_cby    = cby.chebder(pv_cby_val)
-#    dtpv_dth_val    = cby.chebval(staticParams.th_levels_trop,  dtpv_dth_cby)
-#    dtpv2_dth2_cby  = cby.chebder(dtpv_dth_cby)
-#    dtpv2_dth2_val  = cby.chebval(staticParams.th_levels_trop, dtpv2_dth2_cby)
-
-
-    #Plot the fit
-#    plt.plot(pv_cby_val/1e16, dtdphi_val,   c='b',marker='.', markersize=8,linestyle = '-',label='cby fit scaled x10^16')
-#    plt.plot(dtpv_dth_val/1e134 ,dtdphi_val, c='r',marker='x', markersize=8,linestyle = '-',label='d theta_PV / d theta  x10^134')
-#    plt.plot(dtpv2_dth2_val/1e133,dtdphi_val,c='k',marker='x', markersize=8,linestyle = '-',label='d2 theta_PV / d2 theta  x10^133')
-#    plt.legend()
-#    plt.ylim(300,380)
-#    plt.show() 
-   #d 2PV /d theta
-#    dtdphi_cby    = cby.chebder(theta_cby)
-#    dtdphi_val    = cby.chebval(self.phi_2PV, dtdphi_cby)
 
 
 
@@ -545,7 +508,7 @@ class Method_2PV_STJ(object):
   def TropopauseTheta(self):
 
     #Find the tropopause height
-    #theta_level_310_K   = np.where(staticParams.th_levels_trop == 310)[0][0]
+    #theta_level_310_K   = np.where(get_ipv.th_levels_trop == 310)[0][0]
     #ipv_310 = MeanOverDim(data=self.IPV[time_loop,theta_level_310_K,:,:], dim=1)
 
     Rd = 287.0
@@ -558,7 +521,7 @@ class Method_2PV_STJ(object):
 
   def AttemptMeanFind(self,hemi,time_loop):
     #Isolate data between first and last peak
-    detrended = signal.detrend(self.dtdphi_val[self.elem],type='linear')
+    detrended = scipy.signal.detrend(self.dtdphi_val[self.elem],type='linear')
 
     max_peaks = argrelmax(detrended)[0].tolist()
     min_peaks = argrelmin(detrended)[0].tolist()
@@ -746,7 +709,7 @@ class Method_2PV_STJ(object):
     u_plot   = MeanOverDim(data = u_th[time_loop,:,:,:], dim=2)
     array_shape = u_plot.shape
     lat_array = self.lat[np.newaxis, :] + np.zeros(array_shape)
-    theta_lev_array = staticParams.th_levels_trop[:,np.newaxis] + np.zeros(array_shape)
+    theta_lev_array = get_ipv.th_levels_trop[:,np.newaxis] + np.zeros(array_shape)
 
     array_shape_interp = ipv_interp.shape
     lat_array_interp = lat[np.newaxis, :]      + np.zeros(array_shape_interp)
