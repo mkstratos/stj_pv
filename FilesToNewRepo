@@ -1,0 +1,32 @@
+1. Clone a clean repo
+
+2. remove the connection to the remote repo
+  git remote show
+  git remote rm origin 
+
+3. make a folder of all the files to move
+
+4. then move them using git
+   git mv IPV_2max.py /home/pm366/Documents/STJ_code/code/STJ_2pv_metric/
+
+   See history after code has been moved and comitted:
+   git log --follow filename.py
+
+   
+5. remove anything from the git history that is not in dir1
+
+  git filter-branch --subdirectory-filter dir1 -- --all
+  git reset --hard
+  git gc --aggressive
+  git prune
+  
+  Alternate option:
+  If you wanted to preserve the history of files outside of dir1
+  git filter-branch --prune-empty --subdirectory-filter dir1 master
+  git reset --hard original/refs/heads/master
+
+6 Create a new folder, move files into it, add and commit. 
+ 
+  
+  
+  
