@@ -8,10 +8,10 @@ import pdb
 import os		
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-#Personalised
+#Dependent code
 from general_functions import MeanOverDim, FindClosestElem
 
-
+__author__ = "Penelope Maher" 
 
 class Plotting(object):
 

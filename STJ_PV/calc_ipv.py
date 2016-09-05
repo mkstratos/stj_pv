@@ -2,10 +2,11 @@ import numpy as np
 import pdb
 
 
-
+#specify the range and increment over which to calculate IPV
 th_levels_trop   = np.arange(300,501,5)
-
-
+rad              = np.pi/180.0  # radians per degree
+Om               = 7.292e-5  # Angular rotation rate of earth    [rad]
+g                = 9.81      # Acceleration due to gravity       [m/s^2]
 __author__ = "Michael Kelleher" 
 
 def ipv(u, v, t, p, lat, lon):

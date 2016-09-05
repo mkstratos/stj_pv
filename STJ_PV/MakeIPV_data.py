@@ -5,26 +5,27 @@ import collections
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy import interpolate
-
-#personalised
+#Dependent code
 import general_functions 
-import calc_ipv import ipv
+from calc_ipv import *
 from general_plotting import plot_map, get_cmap_for_maps, cbar_Maher
 from thermal_tropopause import TropopauseHeightLevel
+from general_functions import openNetCDF4_get_data,MeanOverDim
 
 
 
 __author__ = "Penelope Maher" 
 
-#file purpose:  Calculate the subtropical jet strength and position
-#using the 2PV contour.
+#file purpose:  Calculate the subtropical jet using the 2PV contour.
 
-data_name = collections.namedtuple('data_name', 'letter label')
+
+#created named tuples to manage storage of index
 metric = collections.namedtuple('metric', 'name hemisphere intensity position')
 
 
-class STJFromPV(object):
+class Generate_IPV_Data(object):
   def __init__(self,Exp):
+    'To avoid calling object within object assign vars of use to this routine'
     self.time_units  = Exp.time_units
     self.diri        = Exp.diri
     self.u_fname     = Exp.u_fname     
@@ -34,73 +35,57 @@ class STJFromPV(object):
     self.var_names   = Exp.var_names  
     self.start_time  = Exp.start_time  
     self.end_time    = Exp.end_time  
-    self.lat_extreme = Exp.lat_extreme   
-    self.threshold_lat = Exp.threshold_lat   
-
  
   def OpenFile(self):
+    'Data assumed to be of the format [time, pressure,lat,lon]'
 
     var_dict= vars(self)
 
     for fname in var_dict.keys():
       if fname.endswith('fname'):
-
-        var  = openNetCDF4_get_data(var_dict[fname])
+        #open file and extract data
+        var     = openNetCDF4_get_data(var_dict[fname])
+        #use the label from named tuple
         label   = self.var_names[fname[0]].label
         label_p = self.var_names['p'].label
 
         #Ensure surface is the 0'th element 
-
         wh_max_p  = np.where (var[label_p] == var[label_p].max())[0][0]
-
-        #test if surface first or last element
         flip_pressure = False 
-        if wh_max_p != 0 : 
+        if wh_max_p != 0 :        #if surface is not 0th element then flip data
           flip_pressue = True
           var[label_p] = var[label_p][::-1]
           var[label] = var[label][:,::-1,:,:]
 
+        #add the data to the object
         setattr(self,fname[0],var[label])
 
+    #lon and lat assumed to be on the same grid for each variable
     self.lon = var['lon']
     self.lat = var['lat']
 
-    #input pressure in pascal
+    #check that input pressure is in pascal
     if var[label_p].max()< 90000.0: 
       var[label_p] = var[label_p]*100.0
-  
     self.p = var[label_p]
+
+    #restruct data in time from first month to last month. See function PathFilenameERA
     self.t = self.t[self.start_time:self.end_time,:,:,:]
     self.u = self.u[self.start_time:self.end_time,:,:,:]
     self.v = self.v[self.start_time:self.end_time,:,:,:]
 
+    self.time = var['time'][self.start_time:self.end_time]
+
     print 'Finished opening data'
 
-  def GetIPV(self): 
-    'IPV code interpolates on theta levels'
 
-    #calculate IPV using mikes code
-    IPV,self.p_lev,self.u_th   = ipv(self.u,self.v,self.t,self.p,self.lat,self.lon)
-    
-    self.IPV = IPV * 1e6 #units in IPVU
-
-    #310K isopleth often of interest - not currently used
-    theta_level_310_K   = np.where(get_ipv.th_levels_trop == 310)[0][0]
-    self.p_310          = self.p_lev[:,theta_level_310_K,:,:]
-    self.p_310_bar      = MeanOverDim(data=self.p_310[0,:,:], dim=1) 
-
-    self.ipv_310 = self.IPV[:,theta_level_310_K,:,:]
-    self.ipv_310_bar = MeanOverDim(data=self.ipv_310, dim=0) 
-    self.theta_lev = get_ipv.th_levels_trop
-
-    print 'Finished calculating IPV'
-
-  def GetTropopause(self):
-
-    print 'Open calculating tropopause height'
-    # 
-    #T_spline and p_spline from surface to aloft
-    #TropopauseHeightLevel(T_spline = T_spline, P_spline=P_flip,tck=tck, T_orig=T[time,:,lat],p_orig=level,lat = var['lat'][lat] ) 
+  def GetThermalTropopause(self):
+    'Calculate the thermal definition of the tropopause height'
+ 
+    print 'Start calculating tropopause height'
+   
+    #Spline fit the temperature in 10hPa intervals from surface to aloft (data must be monotonic increasing)  
+    #call the external function TropopauseHeightLeve to calculate H
 
     TropH           = np.zeros([self.end_time,len(self.lat)])
     TropH_pressure  = np.zeros([self.end_time,len(self.lat)])
@@ -108,15 +93,17 @@ class STJFromPV(object):
 
 
     t_zonal = MeanOverDim(data=self.t, dim=3)  #[time,level,lat]
-    P_spline = np.arange(10,1001,10)
+    P_spline = np.arange(10,1001,10)           #pressured between 10hPa and 1000 hPa
 
     for time in xrange(self.end_time): 
       for lat in xrange(len(self.lat)):
-        tck = interpolate.splrep(self.p[::-1]/100,t_zonal[time,:,lat][::-1])
+        tck = interpolate.splrep(self.p[::-1]/100,t_zonal[time,:,lat][::-1]) #use hPa instead of Pa
         T_spline = interpolate.splev(P_spline,tck,der=0)
-
-        #data from surface to aloft so flip it
-        TropH[time,lat], TropH_pressure[time,lat],TropH_temp[time,lat] = TropopauseHeightLevel(T_spline = T_spline[::-1], P_spline=P_spline[::-1],tck=tck, T_orig=None,p_orig=None,lat = self.lat )
+        
+        TropH[time,lat], TropH_pressure[time,lat],TropH_temp[time,lat] = \
+           TropopauseHeightLevel(T_spline = T_spline[::-1],  #data from surface to aloft so flip it
+                                 P_spline=P_spline[::-1],
+                                 tck=tck, T_orig=None,p_orig=None,lat = self.lat )
 
     self.TropH          = TropH
     self.TropH_pressure = TropH_pressure
@@ -124,27 +111,149 @@ class STJFromPV(object):
 
     print 'Finished calculating tropopause height'
 
-  def SaveIPV(self,filePickle):
+  def GetIPV(self): 
+    'IPV code interpolates on theta levels'
 
+    print 'Starting IPV calculation'
+
+    #calculate IPV.
+    IPV,self.p_lev,self.u_th   = ipv(self.u,self.v,self.t,self.p,self.lat,self.lon)
+    
+    self.IPV = IPV * 1e6 #units in IPVU
+
+    #310K isopleth often of interest - not currently used
+    theta_level_310_K   = np.where(th_levels_trop == 310)[0][0]
+    self.p_310          = self.p_lev[:,theta_level_310_K,:,:]
+    self.p_310_bar      = MeanOverDim(data=self.p_310[0,:,:], dim=1) 
+
+    self.ipv_310     = self.IPV[:,theta_level_310_K,:,:]
+    self.ipv_310_bar = MeanOverDim(data=self.ipv_310, dim=0) 
+    self.theta_lev   = th_levels_trop
+
+    print 'Finished calculating IPV'
+
+  def SaveIPV(self,filename_1, filename_2, file_type):
+    'Save output as nc or pickle'
+   
     print 'Saving ipv data'
 
-    output = {}
-    output['lat']            = self.lat       
-    output['lon']            = self.lon            
-    output['theta_lev']      = self.theta_lev       
-    output['threshold_lat']  = self.threshold_lat   
-    output['lat_extreme']    = self.lat_extreme     
-    output['IPV']            = self.IPV        
-    output['u']              = self.u_th  
-    output['IPV_310']        = self.ipv_310
-    output['TropH']          = self.TropH
-    output['TropH_p']        = self.TropH_pressure
-    output['TropH_temp']     = self.TropH_temp
+
+    if file_type == '.p':
+      output = {}
+
+      output['lat']            = self.lat       
+      output['lon']            = self.lon            
+      output['time']           = self.time
+      output['theta_lev']      = self.theta_lev       
+
+      output['IPV']            = self.IPV        
+      output['IPV_310']        = self.ipv_310
+
+      output['u']              = self.u_th  
+
+      output['TropH']          = self.TropH
+      output['TropH_p']        = self.TropH_pressure
+      output['TropH_temp']     = self.TropH_temp
+
+      tmp = SavePickle(filenamePickle=filename_1 + file_type, data=output) 
 
 
-    tmp = SavePickle(filenamePickle=filePickle, data=output) 
+    if file_type == '.nc':
+
+      f = io.netcdf.netcdf_file(filename_1+file_type, mode='w')
+
+      #set up dimensions of arrays
+
+      #time 
+      f.createDimension('time', len(self.time))
+      time    = f.createVariable('time','f',('time',))
+      time[:] = self.time
+
+      #lat
+      f.createDimension('lat', len(self.lat))
+      lat    = f.createVariable('lat','f',('lat',))
+      lat[:] = self.lat
+
+      #lon 
+      f.createDimension('lon', len(self.lon))
+      lon    = f.createVariable('lon','f',('lon',))
+      lon[:] = self.lon
+
+      #theta 
+      f.createDimension('theta_lev', len(self.theta_lev)) 
+      theta_lev    = f.createVariable('theta_lev','i',('theta_lev',))
+      theta_lev[:] = self.theta_lev
+
+      #assign variables
+
+      #IPV
+      IPV    = f.createVariable('IPV','f',('time','theta_lev','lat','lon',))
+      IPV[:,:,:,:] = self.IPV
+
+      f.close()    
+
+      #code was not compatible saving both IPV and u_th so created two files
+
+      f = io.netcdf.netcdf_file(filename_2+file_type, mode='w')
+
+      #set up dimensions of arrays
+
+      #time 
+      f.createDimension('time', len(self.time))
+      time    = f.createVariable('time','f',('time',))
+      time[:] = self.time
+
+      #lat
+      f.createDimension('lat', len(self.lat))
+      lat    = f.createVariable('lat','f',('lat',))
+      lat[:] = self.lat
+
+      #lon 
+      f.createDimension('lon', len(self.lon))
+      lon    = f.createVariable('lon','f',('lon',))
+      lon[:] = self.lon
+
+      #theta 
+      f.createDimension('theta_lev', len(self.theta_lev)) 
+      theta_lev    = f.createVariable('theta_lev','i',('theta_lev',))
+      theta_lev[:] = self.theta_lev
+
+      #u wind on theta level
+      uwnd    = f.createVariable('uwnd','f',('time','theta_lev','lat','lon',))
+      uwnd[:,:,:,:] = self.u_th
 
 
+      #IPV - 310 isopleth
+      IPV_310    = f.createVariable('IPV_310','f',('time','lat','lon',))
+      IPV_310[:,:,:] = self.ipv_310
+
+      #H
+      TropH      = f.createVariable('TropH','f',('time','lat',))
+      TropH[:,:]   = self.TropH
+
+      #H p
+      TropH_p    = f.createVariable('TropH_p','f',('time','lat',))
+      TropH_p[:,:] = self.TropH_pressure
+
+      #H t
+      TropH_temp    = f.createVariable('TropH_temp','f',('time','lat',))
+      TropH_temp[:,:] = self.TropH_temp
+
+      f.close()    
+
+    print 'created files: ',filename+file_type, 'and', filename+'_u_H'+file_type
+
+  def open_ipv_data(self,filename_1, filename_2,file_type):
+
+    if file_type == '.p':
+      IPV_data = OpenPickle(filename_1+file_type)
+    if file_type == '.nc':
+      IPV_data = openNetCDF4_get_data(filename_1+file_type)
+      IPV_data_2 = openNetCDF4_get_data(filename_2+file_type)
+      IPV_data.update(IPV_data_2)
+
+    self.IPV_data = IPV_data
+    
   def Get_uwind_strength(self):
 
     time_len = self.IPV.shape[0]
@@ -230,7 +339,7 @@ class STJ_Post_Processing(object):
     array_shape_interp = output_plotting['NH','ipv_zonal_interp_0'].shape
     array_shape = output_plotting['NH','ipv_zonal_0'].shape
     lat_array = self.lat[np.newaxis, :] + np.zeros(array_shape)
-    theta_lev_array = get_ipv.th_levels_trop[:,np.newaxis] + np.zeros(array_shape)
+    theta_lev_array = th_levels_trop[:,np.newaxis] + np.zeros(array_shape)
 
     #Map of 310 IPV on standard map projection
     filename='/home/links/pm366/Documents/Plot/Jet/IPV_testing_vertical.eps'
@@ -244,7 +353,7 @@ class STJ_Post_Processing(object):
     bounds =  np.arange(-20,22,2.0)
     cmap = plt.cm.RdBu_r
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
-    ax1.pcolormesh(lat_array,get_ipv.th_levels_trop,output_plotting['NH','ipv_zonal_0'],cmap=cmap,norm=norm)
+    ax1.pcolormesh(lat_array,th_levels_trop,output_plotting['NH','ipv_zonal_0'],cmap=cmap,norm=norm)
     plt.ylim(300,400)
     ax1.set_xlim(-90,90)
     ax_cb=fig2.add_axes([0.1, 0.1, 0.80, 0.05])

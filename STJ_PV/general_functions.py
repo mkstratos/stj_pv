@@ -1,6 +1,7 @@
 from netCDF4 import Dataset
 import numpy.ma as ma
 import pickle
+import numpy as np
 
 def openNetCDF4_get_data(filename):
   'Key names are in unicode'
@@ -8,14 +9,12 @@ def openNetCDF4_get_data(filename):
   f = Dataset(filename, mode='r')
   print 'opened: ',filename
 
-
   var_names = f.variables.keys()
  
   for i in var_names:
      var[i]=f.variables[i][:] 
 
   f.close()
-
 
   return var
 
@@ -115,6 +114,12 @@ def openfile_get_data(filename):
 def MeanOverDim(data,dim):
   'Assumed data is masked with nans for missing values - if inf then mask first'
   return np.nansum(data,axis=dim)/np.sum(np.isfinite(data),axis=dim)
+
+def FindClosest(in_val, in_list):
+  'Find the element of in_list that is closest to the value of in_val.'
+  closest=lambda num,collection:min(collection,key=lambda x:abs(x-num))
+
+  return closest(in_val,in_list)
 
 def FindClosestElem(in_val, in_list):
   'Find the location of the elements in in_list that is closest to in_val'

@@ -198,3 +198,26 @@ def cbar_Maher(fig,cmap,norm,bounds,cbar_title,ax_cb):
 
     return cbar
 
+    
+def log_axis(ax,y,labelFontSize):
+  
+    ax.set_ylabel('Pressure [hPa]')
+    ax.set_yscale('log')
+    ax.set_ylim(1000,100)     # avoid truncation of 1000 hPa and flips axis
+ 
+    #Set up plot domain to be a log scale
+    subs = [1,2,5]
+    if y.max()/y.min() < 30.:
+       subs = [1,2,3,4,5,6,7,8,9]
+    y1loc = mpl.ticker.LogLocator(base=10., subs=subs)
+    ax.yaxis.set_major_locator(y1loc)
+    
+    #Format the labels so they are 1000 and not 10^3
+    fmt = mpl.ticker.FormatStrFormatter("%g")
+    ax.yaxis.set_major_formatter(fmt)
+    #Change the font so they don't overlap
+    for t in ax.get_yticklabels():
+        t.set_fontsize(labelFontSize)
+
+    return()
+

@@ -7,39 +7,31 @@ from numpy.polynomial import chebyshev as cby
 import copy as copy
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-#In addition to libraries
-from GetDirectoryPath import GetDiri, Directory
-from plotting import draw_map_model
+#Dependent code
+from STJ_PV_main import Directory
+from general_plotting import draw_map_model
 from general_functions import openNetCDF4_get_data,apply_mask_inf,MeanOverDim,FindClosestElem
 import calc_ipv  #assigns th_levels_trop
 from IPV_plots import Plotting
 
 
 
-
 __author__ = "Penelope Maher" 
-
-#file purpose:  Calculate the subtropical jet strength and position
-#using the 2PV contour.
-
-data_name = collections.namedtuple('data_name', 'letter label')
-metric = collections.namedtuple('metric', 'name hemisphere intensity position')
-
-
 
 
 
 class Method_2PV_STJ(object):
   'Input data of the form self.IPV[time,theta,lat,lon]'
 
-  def __init__(self,IPV_data,threshold_lat):
+  def __init__(self,IPV_data):
 
+    pdb.set_trace()
 
     self.lat             = IPV_data['lat']
     self.lon             = IPV_data['lon']
     self.theta_lev       = IPV_data['theta_lev']
-    self.threshold_lat   = threshold_lat
-    self.lat_extreme     = IPV_data['lat_extreme']
+    self.threshold_lat   = 0.0
+    self.lat_extreme     = 90.0
     self.IPV             = IPV_data['IPV']
     self.TropH_p         = IPV_data['TropH_p']
     self.TropH_temp      = IPV_data['TropH_temp']
@@ -416,8 +408,6 @@ class Method_2PV_STJ(object):
          STJ_seasons[count_SON,:,3]   = STJ_array[i,:]
          cross_seasons[count_SON,:,3] = crossing_lat[i,:]
          count_SON = count_SON + 1
-#      if i%3 == 0 and i !=0:
-#        count = count + 1
 
     output = {}
     output['DJF'] = STJ_seasons[:,:,0] #month,hemi,season
@@ -914,9 +904,11 @@ def MakeOutfileSavez_derived(filename, phi_2PV,theta_2PV,dth,dth_lat,d2th):
   pdb.set_trace()
 
 
-def main(IPV_data,count,threshold_lat):
+def calc_metric(IPV_data):
     'Input assumed to be a dictionary'
- 
+
+    pdb.set_trace() 
+
     output_plotting = {}
 
     Method = Method_2PV_STJ(IPV_data,threshold_lat)
@@ -1074,7 +1066,7 @@ def main(IPV_data,count,threshold_lat):
           input_string = str(hemi)+str(':  ')+str(time_loop)
           Method.validate_near_mean(hemi_count,seasons[time_loop],input_string,hemi,time_loop)
 
-    print count
+
     pdb.set_trace() 
 
 
@@ -1121,8 +1113,4 @@ def main(IPV_data,count,threshold_lat):
   
     return output_plotting
        
-if __name__ == "__main__" : 
-
-  main()
-
 
