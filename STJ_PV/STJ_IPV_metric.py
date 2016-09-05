@@ -162,13 +162,13 @@ class Method_2PV_STJ(object):
     x2 = self.phi_2PV
     y2 = self.d2tdphi2_val
 
-    elem, local_elem, local_elem_2,   x_peak, y_peak , x2_peak, y2_peak  = IsolatePeaks(hemi,x,y,y2,time_loop,cross_lat,print_messages=True)
+    elem, local_elem, local_elem_2,   x_peak, y_peak , x2_peak, y2_peak  = IsolatePeaks(hemi,x,y,y2,time_loop,cross_lat,print_messages)
 
     #using the finite dif method
     a1 = self.dTHdlat_lat
     b1 = self.dTHdlat
 
-    elem_finite, local_elem_finite, tmp,  x_peak_finite, y_peak_finite, tmp , tmp  = IsolatePeaks(hemi,a1,b1,None,time_loop,cross_lat,print_messages=False)
+    elem_finite, local_elem_finite, tmp,  x_peak_finite, y_peak_finite, tmp , tmp  = IsolatePeaks(hemi,a1,b1,None,time_loop,cross_lat,print_messages)
    
     #assignment
     self.elem,       self.elem_finite       = elem, elem_finite
@@ -203,7 +203,42 @@ class Method_2PV_STJ(object):
       self.peak_mag = (self.dtdphi_val_peak).max()
 
     if (print_messages == True) : print 'Where are peaks: ', self.STJ_lat_sort[:]            
- 
+
+  def MaxShear(self,hemi,u_zonal,lat_elem):
+    'Assign the STJ to the peak with wit most shear'
+
+    lat_hemi = self.lat[lat_elem]
+
+    loop_len   = len(self.phi_2PV[self.local_elem])
+    shear      = np.zeros(loop_len)
+    shear_elem = np.zeros(loop_len)
+
+    for i in xrange(loop_len):
+
+      shear_elem[i] = FindClosestElem(self.phi_2PV[self.local_elem][i],self.lat[lat_elem])[0]
+
+      #restrict data between the surface and the level of the 2.0 PV line      
+      upper_lev     = FindClosestElem(self.theta_2PV[self.local_elem][i],self.theta_lev)[0]
+      lower_lev     = 0 
+
+      shear[i]      = u_zonal[:,lat_elem][upper_lev,0,shear_elem[i]] - u_zonal[:,lat_elem][lower_lev,0,shear_elem[i]]
+
+      test_shear = False
+      if test_shear == True:
+        plt.plot(self.lat[lat_elem][shear_elem[i]],self.theta_lev[upper_lev] , linestyle=' ',c='green',marker='x', markersize=10,label='dTh/dy peaks')
+        print 'shear:', shear[i],  self.phi_2PV[self.local_elem][i]
+
+    self.shear_elem = shear_elem.tolist()
+
+    #max shear line
+    self.shear_max_elem = np.where(shear == shear.max())[0]  
+    
+    self.best_guess = self.phi_2PV[self.local_elem][FindClosestElem(self.lat[lat_elem][self.shear_elem][self.shear_max_elem],self.phi_2PV[self.local_elem])]
+
+    testing = False
+    if testing == True:
+      test_max_shear_across_lats(self.phi_2PV,self.theta_2PV,self.lat, lat_elem,self.theta_lev,u_zonal)
+
 
   def PolyFit2PV_near_mean(self,print_messages,STJ_mean,EDJ_mean):
     'Find the peaks that are closest to known mean position. Tests if ordered or ID peaks different.'
@@ -237,13 +272,25 @@ class Method_2PV_STJ(object):
     self.STJ_lat_near_mean = STJ_lat_near_mean
     self.EDJ_lat_near_mean = EDJ_lat_near_mean 
     self.Additional_lat = Additional_lat
+    if (print_messages == True) :
+      if self.STJ_lat_sort[0] != self.STJ_lat_near_mean:
+        print 'STJ_lat_sort[0] != STJ_lat', self.STJ_lat_sort[0], self.STJ_lat_near_mean
+
+    peaks         = self.dtdphi_val_peak
+    peak_elem     = np.where(peaks == self.peak_mag)[0]
+    peak_lat      = self.phi_2PV.tolist()[peak_elem] 
+    peak_lat_sort = peaks[self.sort_index]
+
 
   def SeasonalPeaks(self,seasons, STJ_array,crossing_lat):
 
+    #this is an overkill way to treat the seasons but has reduced risk of mixing them up
+
     STJ_seasons   = np.zeros([STJ_array.shape[0]/4,STJ_array.shape[1],4])
     cross_seasons = np.zeros([crossing_lat.shape[0]/4,crossing_lat.shape[1],4])
-    #this is an overkil way to treat the seasons but has reduced risk of mixing up seasons
+
     count_DJF,count_MAM,count_JJA,count_SON = 0,0,0,0
+
     for i in xrange(STJ_array.shape[0]):
       if seasons[i] == 'DJF':
          STJ_seasons[count_DJF,:,0]   = STJ_array[i,:]
@@ -279,52 +326,10 @@ class Method_2PV_STJ(object):
     self.STJ_seasons = output    
     self.cross_seasons = cross    
 
-
-    print '--------------------------------Assess data---------------------------------------------'
-    print ' DJF NH: ', output['DJF'][:,0].min(), output['DJF'][:,0].max(), output['DJF'][:,0].mean()
-    print ' DJF SH: ', output['DJF'][:,1].min(), output['DJF'][:,1].max(), output['DJF'][:,1].mean()
-    print ' MAM NH: ', output['MAM'][:,0].min(), output['MAM'][:,0].max(), output['MAM'][:,0].mean()
-    print ' MAM SH: ', output['MAM'][:,1].min(), output['MAM'][:,1].max(), output['MAM'][:,1].mean()
-    print ' JJA NH: ', output['JJA'][:,0].min(), output['JJA'][:,0].max(), output['JJA'][:,0].mean()
-    print ' JJA SH: ', output['JJA'][:,1].min(), output['JJA'][:,1].max(), output['JJA'][:,1].mean()
-    print ' SON NH: ', output['SON'][:,0].min(), output['SON'][:,0].max(), output['SON'][:,0].mean()
-    print ' SON SH: ', output['SON'][:,1].min(), output['SON'][:,1].max(), output['SON'][:,1].mean()
-
-
-
-    fig = plt.figure(figsize=(14,8))
-    ax = fig.add_axes([0.1,0.2,0.8,0.75])
-    ax.plot(output['DJF'][:,0],'blue',   label='NH Winter'+('  {0:.2f}').format(output['DJF'][:,0].mean()), ls = ' ', marker='x')
-    ax.plot(output['JJA'][:,1],'blue',   label='SH Winter'+(' {0:.2f}').format(output['JJA'][:,1].mean()), ls = ' ', marker='x')
-    ax.plot(output['MAM'][:,0],'green',  label='NH Spring'+('  {0:.2f}').format(output['MAM'][:,0].mean()), ls = ' ', marker='x')
-    ax.plot(output['SON'][:,1],'green',  label='SH Spring'+(' {0:.2f}').format(output['SON'][:,1].mean()), ls = ' ', marker='x')
-    ax.plot(output['SON'][:,0],'orange', label='NH Autumn'+('  {0:.2f}').format(output['SON'][:,0].mean()), ls = ' ', marker='x')
-    ax.plot(output['MAM'][:,1],'orange', label='SH Autumn'+(' {0:.2f}').format(output['MAM'][:,1].mean()), ls = ' ', marker='x')
-    ax.plot(output['JJA'][:,0],'red',    label='NH Summer'+('  {0:.2f}').format(output['JJA'][:,0].mean()), ls = ' ', marker='x')
-    ax.plot(output['DJF'][:,1],'red',    label='SH Summer'+(' {0:.2f}').format(output['DJF'][:,1].mean()), ls = ' ', marker='x')
-    plt.legend(loc=7,ncol=4,bbox_to_anchor=(1.0, -0.1))
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/index_ts.eps')
-    plt.show()
-
-
-    #plot the crossing points
-
-    fig = plt.figure(figsize=(14,8))
-    ax = fig.add_axes([0.1,0.2,0.8,0.75])
-    ax.plot(cross['DJF'][:,0],'blue',   label='NH Winter', ls = ' ', marker='x')
-    ax.plot(cross['JJA'][:,1],'blue',   label='SH Winter', ls = ' ', marker='x')
-    ax.plot(cross['MAM'][:,0],'green',  label='NH Spring', ls = ' ', marker='x')
-    ax.plot(cross['SON'][:,1],'green',  label='SH Spring', ls = ' ', marker='x')
-    ax.plot(cross['SON'][:,0],'orange', label='NH Autumn', ls = ' ', marker='x')
-    ax.plot(cross['MAM'][:,1],'orange', label='SH Autumn', ls = ' ', marker='x')
-    ax.plot(cross['JJA'][:,0],'red',    label='NH Summer', ls = ' ', marker='x')
-    ax.plot(cross['DJF'][:,1],'red',    label='SH Summer', ls = ' ', marker='x')
-    ax.set_ylim(-25, 25)
-    plt.legend(loc=7,ncol=4,bbox_to_anchor=(1.0, -0.1))
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/cross.png')
-    plt.show()
-
-    pdb.set_trace()
+    testing = True
+    if testing == True:
+      print_min_max_mean(output)
+      plot_seasonal_stj_ts(output,cross)  
 
   def validate_near_mean(self,hemi_count,season,input_string,hemi, time_loop):
 
@@ -363,23 +368,6 @@ class Method_2PV_STJ(object):
 
 
   
-
-  def PolyFit2PV_testing(self, PlottingObject,hemi,u_zonal,time_loop):
-
-
-    if self.STJ_lat_sort[0] != self.STJ_lat_near_mean:
-      print 'STJ_lat_sort[0] != STJ_lat', self.STJ_lat_sort[0], self.STJ_lat_near_mean
-
-    peaks         = self.dtdphi_val_peak
-    peak_elem     = np.where(peaks == self.peak_mag)[0]
-    peak_lat      = self.phi_2PV.tolist()[peak_elem] 
-    peak_lat_sort = peaks[self.sort_index]
-
-    #plot the poly fit and the 2PV line
-    
-    best_guess_jet = PlottingObject.poly_2PV_line(hemi,u_zonal,time_loop,pause = True)
-
-    return best_guess_jet
 
   def PlotTesting(self,time_loop):
 
@@ -751,6 +739,16 @@ def calc_metric(IPV_data):
           #find the peak closest to estimated mean - used for testing
           Method.PolyFit2PV_near_mean(print_messages,STJ_mean,EDJ_mean)
 
+          u_zonal = MeanOverDim(data=Method.u[time_loop,:,:,:],dim=2)   
+
+          if hemi == 'NH':
+            lat_elem =  np.where (Method.lat >= 0)
+          else:
+            lat_elem =  np.where (Method.lat <= 0)
+
+          #test the shear of the peaks and assign the STJ to peak with most shear
+          Method.MaxShear(hemi,u_zonal,lat_elem)
+
           #vars of interest outside of loop
           phi_2PV_out  [time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.phi_2PV
           theta_2PV_out[time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.theta_2PV 
@@ -759,26 +757,18 @@ def calc_metric(IPV_data):
           d2th_out     [time_loop,hemi_count,0:len(Method.d2tdphi2_val[Method.elem])]  =  Method.d2tdphi2_val[Method.elem]
           crossing_lat[time_loop, hemi_count]                         = Method.cross_lat
           mask_jet_number[time_loop,hemi_count]                       = len(Method.local_elem)
+          jet_best_guess[time_loop,lon_loop,hemi_count]               = Method.best_guess
 
- 
-          #get the zonal wind 
-          u_zonal             = MeanOverDim(data=Method.u[time_loop,:,:,:],dim=2)   
-
-          #test with plotting
-          if time_loop >=0 :
-            test_with_plots = True
-          else:
-            test_with_plots = False
-
+          test_with_plots = False
           if test_with_plots == True:
             print 'plot for: hemi', hemi, ', time: ', time_loop
+            #get the zonal wind for plotting purposes
             PlottingObject = Plotting(Method) 
-            jet_best_guess[time_loop,lon_loop,hemi_count] = Method.PolyFit2PV_testing(PlottingObject,hemi,u_zonal, time_loop)
+            PlottingObject.poly_2PV_line(hemi,u_zonal,lat_elem,time_loop,pause = False, click=False)
 
-    if save_file == True:  
+    if testing_make_output == True:  
       filename = '/home/links/pm366/Documents/Data/STJ_PV_metric_derived.npz'
       MakeOutfileSavez_derived(filename, phi_2PV_out,theta_2PV_out,dth_out,dth_lat_out,d2th_out)
-
 
     #seasonally seperate the data
     Method.SeasonalPeaks(seasons, jet_best_guess[:,0,:],crossing_lat)
@@ -907,5 +897,105 @@ def AttemptMeanFind(hemi,time_loop,dtdphi_val,elem,phi_2PV):
   plt.plot(phi_2PV[peak_sig],dtdphi_val_normal[peak_sig], c='r',marker='.', markersize=8,linestyle = ' ',label='peaks')
   plt.plot(phi_2PV[local_elem],dtdphi_val_normal[local_elem], c='r',marker='x', markersize=8,linestyle = ' ',label=' allpeaks')
   plt.show() 
+
+
+def test_max_shear_across_lats(phi_2PV,theta_2PV, lat, lat_elem,theta_lev,u_zonal):
+  #where is the max shear between surface and 2 pv line?
+
+  fig = plt.figure(figsize=(12,12))
+  ax = fig.add_axes([0.07,0.2,0.8,0.75])
+
+  #plot the zonal mean
+  cmap     = plt.cm.RdBu_r
+  bounds   =  np.arange(-50,51,5.0)
+  norm     = mpl.colors.BoundaryNorm(bounds, cmap.N)
+  #u wind as a contour
+  ax.pcolormesh(lat[lat_elem],theta_lev,u_zonal[:,lat_elem][:,0,:],cmap=cmap,norm=norm)
+  ax.set_ylabel('Wind Theta (contour)')
+  ax.set_ylim(300,400)
+  ax_cb=fig.add_axes([0.1, 0.1, 0.80, 0.05])
+  cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap,norm=norm,ticks=bounds, orientation='horizontal')
+  cbar.set_label(r'$\bar{u} ms^{-1}$')
+
+  ax2 = ax.twinx()
+
+  #which of the peaks (from 2pv line and not uwind grid) is closest.
+  shear_each_2PV     = np.zeros(len(phi_2PV))
+  closest_lat_elem   = np.zeros(len(phi_2PV))
+  closest_theta_elem = np.zeros(len(phi_2PV))
+
+  for i in xrange(len(phi_2PV)):
+    current_lat           = phi_2PV[i]      
+    current_theta         = theta_2PV[i]   
+    closest_lat_elem[i]   = FindClosestElem(current_lat  ,lat[lat_elem])[0]   
+    closest_theta_elem[i] = FindClosestElem(current_theta,theta_lev)[0]   
+    shear_each_2PV[i]     = u_zonal[:,lat_elem][closest_theta_elem[i],0,closest_lat_elem[i]] - u_zonal[:,lat_elem][0,0,closest_lat_elem[i]]
+      
+    ax2.plot(lat[lat_elem][closest_lat_elem[i]],theta_lev[closest_theta_elem[i]] , linestyle=' ',c='orange',marker='x', markersize=10)
+
+  #because the grid scales are different - more than one orange cross occurs per theta level. So just select mean on them    
+  max_elem = np.where(shear_each_2PV == shear_each_2PV.max())[0]
+   
+  ax2.set_ylim(300,400)
+
+ 
+  xx = [lat[lat_elem][max_elem].mean(), lat[lat_elem][max_elem].mean()]
+  yy = [theta_lev[0],theta_lev[-1]]
+  ax2.plot(xx,yy, linestyle='-',c='orange',marker='o', markersize=10,linewidth=2)
+  print 'shear from 2pv line max:', shear_each_2PV[max_elem].mean()
+
+  ax2.plot(phi_2PV,theta_2PV, linestyle='-', c='k',marker='x', markersize=8, label='2PV line - Dynamical Tropopause')
+
+  plt.show()
+
+  pdb.set_trace()
+
+
+def print_min_max_mean(output):
+
+    print '--------------------------------Assess data---------------------------------------------'
+    print ' DJF NH: ', output['DJF'][:,0].min(), output['DJF'][:,0].max(), output['DJF'][:,0].mean()
+    print ' DJF SH: ', output['DJF'][:,1].min(), output['DJF'][:,1].max(), output['DJF'][:,1].mean()
+    print ' MAM NH: ', output['MAM'][:,0].min(), output['MAM'][:,0].max(), output['MAM'][:,0].mean()
+    print ' MAM SH: ', output['MAM'][:,1].min(), output['MAM'][:,1].max(), output['MAM'][:,1].mean()
+    print ' JJA NH: ', output['JJA'][:,0].min(), output['JJA'][:,0].max(), output['JJA'][:,0].mean()
+    print ' JJA SH: ', output['JJA'][:,1].min(), output['JJA'][:,1].max(), output['JJA'][:,1].mean()
+    print ' SON NH: ', output['SON'][:,0].min(), output['SON'][:,0].max(), output['SON'][:,0].mean()
+    print ' SON SH: ', output['SON'][:,1].min(), output['SON'][:,1].max(), output['SON'][:,1].mean()
+
+def plot_seasonal_stj_ts(output,cross):  
+
+    fig = plt.figure(figsize=(14,8))
+    ax = fig.add_axes([0.1,0.2,0.8,0.75])
+    ax.plot(output['DJF'][:,0],'blue',   label='NH Winter'+('  {0:.2f}').format(output['DJF'][:,0].mean()), ls = ' ', marker='x')
+    ax.plot(output['JJA'][:,1],'blue',   label='SH Winter'+(' {0:.2f}').format(output['JJA'][:,1].mean()), ls = ' ', marker='x')
+    ax.plot(output['MAM'][:,0],'green',  label='NH Spring'+('  {0:.2f}').format(output['MAM'][:,0].mean()), ls = ' ', marker='x')
+    ax.plot(output['SON'][:,1],'green',  label='SH Spring'+(' {0:.2f}').format(output['SON'][:,1].mean()), ls = ' ', marker='x')
+    ax.plot(output['SON'][:,0],'orange', label='NH Autumn'+('  {0:.2f}').format(output['SON'][:,0].mean()), ls = ' ', marker='x')
+    ax.plot(output['MAM'][:,1],'orange', label='SH Autumn'+(' {0:.2f}').format(output['MAM'][:,1].mean()), ls = ' ', marker='x')
+    ax.plot(output['JJA'][:,0],'red',    label='NH Summer'+('  {0:.2f}').format(output['JJA'][:,0].mean()), ls = ' ', marker='x')
+    ax.plot(output['DJF'][:,1],'red',    label='SH Summer'+(' {0:.2f}').format(output['DJF'][:,1].mean()), ls = ' ', marker='x')
+    plt.legend(loc=7,ncol=4,bbox_to_anchor=(1.0, -0.1))
+    plt.savefig('/home/links/pm366/Documents/Plot/Jet/index_ts.eps')
+    plt.show()
+
+    #plot the crossing points
+
+    fig = plt.figure(figsize=(14,8))
+    ax = fig.add_axes([0.1,0.2,0.8,0.75])
+    ax.plot(cross['DJF'][:,0],'blue',   label='NH Winter', ls = ' ', marker='x')
+    ax.plot(cross['JJA'][:,1],'blue',   label='SH Winter', ls = ' ', marker='x')
+    ax.plot(cross['MAM'][:,0],'green',  label='NH Spring', ls = ' ', marker='x')
+    ax.plot(cross['SON'][:,1],'green',  label='SH Spring', ls = ' ', marker='x')
+    ax.plot(cross['SON'][:,0],'orange', label='NH Autumn', ls = ' ', marker='x')
+    ax.plot(cross['MAM'][:,1],'orange', label='SH Autumn', ls = ' ', marker='x')
+    ax.plot(cross['JJA'][:,0],'red',    label='NH Summer', ls = ' ', marker='x')
+    ax.plot(cross['DJF'][:,1],'red',    label='SH Summer', ls = ' ', marker='x')
+    ax.set_ylim(-25, 25)
+    plt.legend(loc=7,ncol=4,bbox_to_anchor=(1.0, -0.1))
+    plt.savefig('/home/links/pm366/Documents/Plot/Jet/cross.png')
+    plt.show()
+
+
 
 

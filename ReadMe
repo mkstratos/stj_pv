@@ -1,0 +1,35 @@
+Information on how to run the code.
+
+The fortran code needs to be compiled so if can be called from python routine:
+
+f2py -m -c interp interp.f90
+f2py -m -c epv epv.f90 
+
+
+The highest level code is STJ_PV_main.py. Within this file the following changes are required:
+1. Directory object: 
+  a) Requires environment variable BASE to be defined
+  b) Remove existing if statements and add a new one for where your data and working location is
+
+2. Experiment object: 
+  a) Assign a RunOpt, depending on if you want to save the output from calculating IPV or open a previouly saved file
+  b) set the file_loc for where your data is. This will break an assert statement your working from the wrong location
+  c) the function PathFilenameERA is written to open era-int data. Add a function for each datatype you wish to use and add
+     a flag to the data_options within the _init_
+
+
+MakeIPV_data.py
+  This file is used to calculate the thermal tropopause and IPV.
+  The thermal tropopause functions are in the file thermal_tropopause.py.
+  The IPV code works in the following way:
+   a) The Experiment object funtion GetIPV is an interface between the data and the code
+   b) within GetIPV the function ipv is called (calc_ipv.py)
+   c) within the ipv function the ipv is calculate. It is within this function that the fortran code is called.
+   d) the only choice made to date is the levels to calculate IPV on  - which is 300 to 500 in 5K increments.
+   
+
+After the STJ_PV_main.py code has been run and the IPV data has been outputted the code then calculates the metric. 
+This is done within the file STJ_IPV_metric.py and the main function is calc_metric
+
+calc_metric.py
+
