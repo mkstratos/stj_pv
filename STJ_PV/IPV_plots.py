@@ -349,5 +349,8 @@ def MakeOutputFile(filename,data,dim_name,var_name,var_type):
         tmp[:] =  data[var_name[i]]
 
   f.close()    
-
   print 'created file: ',filename
+
+
+
+

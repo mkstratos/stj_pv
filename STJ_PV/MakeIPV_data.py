@@ -16,8 +16,6 @@ from general_functions import openNetCDF4_get_data,MeanOverDim
 
 __author__ = "Penelope Maher" 
 
-#file purpose:  Calculate the subtropical jet using the 2PV contour.
-
 
 #created named tuples to manage storage of index
 metric = collections.namedtuple('metric', 'name hemisphere intensity position')
@@ -255,6 +253,7 @@ class Generate_IPV_Data(object):
     self.IPV_data = IPV_data
     
   def Get_uwind_strength(self):
+    'When metric is working then calculate strength'
 
     time_len = self.IPV.shape[0]
     STJ_int = np.zeros(time_len)

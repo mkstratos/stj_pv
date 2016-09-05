@@ -143,12 +143,11 @@ def main():
     
     #Now that IPV has been calculated - calculate the STJ metric
     STJ_IPV_metric.calc_metric(STJ_PV.IPV_data)
-
-
     
- #   STJ_NH,STJ_SH = STJ_PV.Get_uwind_strength()
+    pdb.set_trace()
+    STJ_NH,STJ_SH = STJ_PV.Get_uwind_strength()
  
-    #Processing results
+    #Save results
     STJ_Post_Proc = STJ_Post_Processing()
     STJ_Post_Proc.SaveSTJMetric(STJ_NH,STJ_SH)
     STJ_Post_Proc.PlotIPV(output_plotting)
