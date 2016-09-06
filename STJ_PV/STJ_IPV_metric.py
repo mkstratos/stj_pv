@@ -80,7 +80,6 @@ class Method_2PV_STJ(object):
     #  2.1 interpolate onto new lat and theta
     ipv_domain    = ipv_function(self.lat_hemi,self.theta_domain)
 
-
     #Step 3: Find the element location closest to +-2.0 PV line 
     # - code for monotonic increase theta and phi. 
     # - actual_ipv_values is used to locic test the 2pv line
@@ -124,14 +123,29 @@ class Method_2PV_STJ(object):
       Poly_testing(phi_2PV,theta_2PV,theta_cby_val,dtdphi_val,d2tdphi2_val)
 
 
-  def unique_elements(self):
+  def unique_elements(self,hemi,time_loop):
     'Cby fit can return repeated pairs of theta and phi. Remove them.' 
 
     #Remove repeated elements.
     phi_2PV, phi_idx = np.unique(self.phi_2PV, return_index=True)
 
     #sort the elements to ensure the array order is the same then apply to all arrays 
-    phi_idx            = np.sort(phi_idx)
+    phi_idx            = (np.sort(phi_idx)).tolist()
+
+    #test that each 2PV point on the line is increasing in phi for NH (visa versa).
+    i = 0
+    while i <= (len(self.phi_2PV[phi_idx])-2):
+      dphi = self.phi_2PV[phi_idx][i+1]-self.phi_2PV[phi_idx][i] 
+      if hemi == 'NH' and dphi > 0:
+        #remove the element i
+        phi_idx.remove(phi_idx[i+1]) 
+        i = i-1 
+      if hemi == 'SH' and dphi < 0:
+        phi_idx.remove(phi_idx[i])  
+        i = i-1 
+      i = i+1
+
+    
     self.phi_2PV       = self.phi_2PV[phi_idx]
     self.theta_2PV     = self.theta_2PV[phi_idx]
     self.dtdphi_val    = self.dtdphi_val[phi_idx]
@@ -140,6 +154,7 @@ class Method_2PV_STJ(object):
 
     #test if there are two d_theta values that are the same next to each other and if so remove one.
     theta_2PV_test1, idx_test1,idx_test2 = np.unique(self.theta_2PV, return_inverse=True,return_index  =True)
+
 
     if len(self.theta_2PV) != len(theta_2PV_test1):
       #catch if the dimensions are different
@@ -151,8 +166,9 @@ class Method_2PV_STJ(object):
 
     #find the point where the thermodynamic and 2.0 pv line (dynamic tropopause) intersect. 
     #Use this crossing point as an equatorial minimum condition for where the jet lat can occur.
-    cross_lat = TropoCrossing(hemi,self.TropH_theta[time_loop,:],self.lat,self.theta_2PV,self.phi_2PV,time_loop)
+    cross_lat,cross_lev = TropoCrossing(hemi,self.TropH_theta[time_loop,:],self.lat,self.theta_2PV,self.phi_2PV,time_loop)
     self.cross_lat = cross_lat
+    self.cross_lev = cross_lev
 
     #polynomial first derivative
     x = self.phi_2PV
@@ -240,6 +256,21 @@ class Method_2PV_STJ(object):
       test_max_shear_across_lats(self.phi_2PV,self.theta_2PV,self.lat, lat_elem,self.theta_lev,u_zonal)
 
 
+  def JetIntensity(self,hemi,u_zonal,lat_elem):
+    'At the best guess lat find the spline fitted u wind'
+
+    #spline fit zonal mean onto same grid as 2PV
+    function  = interpolate.interp2d(self.lat[lat_elem], self.theta_lev, u_zonal[:,lat_elem][:,0,:], kind='cubic')  
+    self.u_fitted  =  function(self.lat_hemi,self.theta_domain)
+
+    #At the jet latitude find the maximum uwind
+    elem                   = np.where(self.best_guess == self.lat_hemi)[0]
+    slice_at_jet           = self.u_fitted[:,elem][:,0]
+    jet_max_wind_elem      = np.where(slice_at_jet == slice_at_jet.max())[0]
+    self.jet_max_wind      = slice_at_jet[jet_max_wind_elem] 
+    #The level of the max wind - for plotting
+    self.jet_max_theta     = self.theta_domain[jet_max_wind_elem]
+    
   def PolyFit2PV_near_mean(self,print_messages,STJ_mean,EDJ_mean):
     'Find the peaks that are closest to known mean position. Tests if ordered or ID peaks different.'
 
@@ -527,12 +558,13 @@ def TropoCrossing(hemi, H,H_lat, theta_IPV,phi_IPV,time_loop):
   diff = np.abs(h_spline_fit - IPV_spline_fit)
   loc = np.where(diff == diff.min())[0]
   cross_lat = new_lat[loc]
+  cross_lev = IPV_spline_fit[loc]
 
   testing = False
   if testing == True:
     test_crossing_lat(H_lat_hemi, H_hemi, new_lat,h_spline_fit,phi_IPV,theta_IPV,IPV_spline_fit,cross_lat)
 
-  return cross_lat
+  return cross_lat,cross_lev
 
 
 def IsolatePeaks(hemi,x,y,y2,time_loop,cross_lat,print_messages): 
@@ -546,7 +578,7 @@ def IsolatePeaks(hemi,x,y,y2,time_loop,cross_lat,print_messages):
         elem_lower         = np.where((x >= cross_lat))[0]
         elem               = np.where((x[elem_lower] <= 90.))[0]     #if an upper threshold is needed. Place it here.
         #do not keep first or last two points. Magnitude of derivative oftern large 
-        elem               = elem[2:-2]
+        #elem               = elem[2:-2]
         #find the local maxima in NH
         local_elem         = elem[(argrelmin(y[elem])[0])].tolist()
         if y2 != None: #find the second derivative local peaks
@@ -555,7 +587,7 @@ def IsolatePeaks(hemi,x,y,y2,time_loop,cross_lat,print_messages):
         elem_lower         = np.where((x  <= cross_lat) )[0]
         elem               = np.where((x[elem_lower] >= -90.))[0] #if an upper threshold is needed. Place it here.
         #do not keep first or last two points. Magnitude of derivative oftern large 
-        elem               = elem[2:-2]
+        #elem               = elem[2:-2]
         #find the local minima in SH (due to -ve lat)
         local_elem         = elem[(argrelmax(y[elem])[0])].tolist()
         if y2 != None:
@@ -728,7 +760,7 @@ def calc_metric(IPV_data):
 
 
           #Remove any repeated theta and phi pairs if they exist
-          Method.unique_elements()
+          Method.unique_elements(hemi,time_loop)
 
           #Find peaks in poly-fitted data of 2 pv line 
           Method.PolyFit2PV_peaks(print_messages, hemi,time_loop)
@@ -749,6 +781,8 @@ def calc_metric(IPV_data):
           #test the shear of the peaks and assign the STJ to peak with most shear
           Method.MaxShear(hemi,u_zonal,lat_elem)
 
+          Method.JetIntensity(hemi,u_zonal,lat_elem)
+
           #vars of interest outside of loop
           phi_2PV_out  [time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.phi_2PV
           theta_2PV_out[time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.theta_2PV 
@@ -759,12 +793,17 @@ def calc_metric(IPV_data):
           mask_jet_number[time_loop,hemi_count]                       = len(Method.local_elem)
           jet_best_guess[time_loop,lon_loop,hemi_count]               = Method.best_guess
 
-          test_with_plots = False
+          if Method.best_guess > np.abs(40):
+              test_with_plots = True
+          else:
+            test_with_plots = False
+
+ 
           if test_with_plots == True:
             print 'plot for: hemi', hemi, ', time: ', time_loop
             #get the zonal wind for plotting purposes
             PlottingObject = Plotting(Method) 
-            PlottingObject.poly_2PV_line(hemi,u_zonal,lat_elem,time_loop,pause = False, click=False)
+            PlottingObject.poly_2PV_line(hemi,u_zonal,lat_elem,time_loop,pause = False, click=True)
 
     if testing_make_output == True:  
       filename = '/home/links/pm366/Documents/Data/STJ_PV_metric_derived.npz'

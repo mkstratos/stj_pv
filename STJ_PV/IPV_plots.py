@@ -8,9 +8,13 @@ import pdb
 import os		
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.colors import LinearSegmentedColormap  
+from colormap import Colormap
 #Dependent code
 from general_functions import MeanOverDim, FindClosestElem
 
+#see also https://pypi.python.org/pypi/colour
+#see https://pypi.python.org/pypi/colormap
 __author__ = "Penelope Maher" 
 
 class Plotting(object):
@@ -44,7 +48,14 @@ class Plotting(object):
     self.shear_max_elem  = data.shear_max_elem
 
     self.best_guess      = data.best_guess
+    self.jet_max_theta   = data.jet_max_theta
+    self.u_fitted        = data.u_fitted
+    self.lat_hemi        = data.lat_hemi
+    self.theta_domain    = data.theta_domain
+    self.cross_lev    = data.cross_lev
 
+
+  
   def compare_finite_vs_poly(self):
 
     plt.plot(self.dTHdlat_lat,self.dTHdlat, linestyle='-', c='k',marker='x', markersize=8, label='dTh/dy finite diff')
@@ -57,7 +68,7 @@ class Plotting(object):
 
   def test_second_der(self):
     fig = plt.figure(figsize=(6,6))
-    ax = fig.add_axes([0.1,0.2,0.8,0.75])
+    ax = fig.add_axes([0.1,0.2,0.78,0.75])
 
     ax.plot(self.phi_2PV, self.dtdphi_val, linestyle='-', c='r',marker='.', markersize=8,label='dTh/dy from fit')
     ax.plot(self.phi_2PV, self.d2tdphi2_val, linestyle='-', c='b',marker='.', markersize=8,label='d2Th/dy2 from fit')
@@ -79,51 +90,75 @@ class Plotting(object):
     wind_on_plot = True
 
     fig = plt.figure(figsize=(12,12))
-    ax = fig.add_axes([0.07,0.2,0.8,0.75])
+    ax = fig.add_axes([0.06,0.1,0.85,0.88])
     #plot the zonal mean
+    plot_raw_data = False
     if  wind_on_plot == True:
-      cmap     = plt.cm.RdBu_r
-      bounds   =  np.arange(-50,51,5.0)
-      norm     = mpl.colors.BoundaryNorm(bounds, cmap.N)
-      #u wind as a contour
-      ax.pcolormesh(self.lat[lat_elem],self.theta_lev,u_zonal[:,lat_elem][:,0,:],cmap=cmap,norm=norm)
-      ax.set_ylabel('Theta')
-      ax.set_ylim(300,400)
-      ax_cb=fig.add_axes([0.1, 0.1, 0.80, 0.05])
-      cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap,norm=norm,ticks=bounds, orientation='horizontal')
-      cbar.set_label(r'$\bar{u} (ms^{-1})$')
+      if plot_raw_data == True:
+        cmap     = plt.cm.RdBu_r
+        bounds   = np.arange(-50,51,5.0)
+        norm     = mpl.colors.BoundaryNorm(bounds, cmap.N)
+        #u wind as a contour
+        ax.pcolormesh(self.lat[lat_elem],self.theta_lev,u_zonal[:,lat_elem][:,0,:],cmap=cmap,norm=norm)
+        ax.set_ylabel('Theta')
+        ax.set_ylim(300,400)
+        ax_cb=fig.add_axes([0.09, 0.05, 0.60, 0.02])
+        cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap,norm=norm,ticks=bounds, orientation='horizontal')
+        cbar.set_label(r'$\bar{u} (ms^{-1})$')
+      else:
+        #contour
 
-    #ax2 = ax.twinx()
-    line6=ax.plot(self.phi_2PV,self.theta_2PV, linestyle='-', c='k',marker='x', markersize=8, label='2PV line - Dynamical Tropopause')
-    line7=ax.plot(self.lat, self.TropH_theta[time_loop,:],linestyle='-',c='k',marker='o',label='Tropopause height Lapse rate ')
+        cm = Colormap()
+        mycmap = cm.cmap_linear('#0033ff', '#FFFFFF', '#990000')  #(neg)/white/(pos)
+        levels = np.arange(-60,61,5).tolist()
+        ax.contourf(self.lat[lat_elem],self.theta_lev,u_zonal[:,lat_elem][:,0,:], levels, cmap=mycmap)  
+        ax.set_ylim(300,400)
+        ax_cb=fig.add_axes([0.09, 0.05, 0.80, 0.02])
+        norm     = mpl.colors.BoundaryNorm(levels, mycmap.N)
+        cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=mycmap,norm=norm,ticks=levels, orientation='horizontal')
+        cbar.set_label(r'$\bar{u} (ms^{-1})$',fontsize=16)
+        ax.set_ylabel('Theta')
 
-    #ax2.set_ylabel('2PV line and H Theta ')
-    #ax2.set_ylim(300,400)
+
+    line6=ax.plot(self.phi_2PV,self.theta_2PV, linestyle='-', c='k',marker='x', markersize=8, label='dynamical tropopause')
+    line7=ax.plot(self.lat, self.TropH_theta[time_loop,:],linestyle='-',c='k',marker='.',markersize=4,label='thermodynamic tropopause')
+    line8=ax.plot(self.cross_lat,self.cross_lev, linestyle=' ',marker='x',markersize=10,mew=2,c='#009900',label='tropopause crossing')
+    line9=ax.plot(self.best_guess,self.jet_max_theta, linestyle=' ',marker = 'o',c='#ff3300',markersize=16,markeredgecolor='none',label='Subtropical jet')
+
 
     ax3 = ax.twinx()
+    #move axis off main
     #ax3.spines['right'].set_position(('axes', 1.07))
     #ax3.set_frame_on(True)
     #ax3.patch.set_visible(False)
 
-    line1=ax3.plot(self.phi_2PV[self.elem], self.dtdphi_val[self.elem], linestyle='-', c='blue',marker='.', markersize=8,label='dTh/dy from fit')
-    line2=ax3.plot(self.phi_2PV[self.local_elem],self.dtdphi_val[self.local_elem] , linestyle=' ',c='blue',marker='x', markersize=10,label='dTh/dy peaks')
- #   ax3.plot(self.phi_2PV[self.peak_sig],self.dtdphi_val[self.peak_sig] , linestyle=' ',c='r',marker='o', markersize=10,label='dTh/dy peaks')
-    #line3=ax3.plot(self.phi_2PV[self.local_elem_2],self.d2tdphi2_val[self.local_elem_2] , linestyle=' ',c='b',marker='x', markersize=10,label='d2Th/dy2 peaks')
-  # line4=ax3.plot(self.phi_2PV,self.d2tdphi2_val , linestyle='-',c='b',label='d2Th/dy2 ')
-    line8=ax3.plot([self.cross_lat,self.cross_lat],[-10,10], linestyle=':',c='k',label='Tropo cross')
+    line1=ax3.plot(self.phi_2PV[self.elem], self.dtdphi_val[self.elem], linestyle='-', linewidth=1,c='#0033ff',label=r'$\frac{d \theta}{d \phi}$')
+    line2=ax3.plot(self.phi_2PV[self.local_elem],self.dtdphi_val[self.local_elem] , linestyle=' ',mew=2,c='#0033ff',marker='x', markersize=12,label=r'peaks')
+    ax3.set_ylim(-15,15)
+
+    lines = line1+line2
+    labels = [l.get_label() for l in lines]
+    loc = (0.65,0.925)
+    legend =ax3.legend(lines, labels,loc=loc, fontsize=14, ncol=2,frameon=False,numpoints=1)
+    legend.legendHandles[1]._legmarker.set_markersize(8)  #crossing marker size in legend
+    #make maths larger
+    text = legend.get_texts()[0]
+    props = text.get_font_properties().copy()
+    text.set_fontproperties(props)
+    text.set_size(20)
+
+    ax3.set_ylabel(r'$\frac{d \theta}{d \phi}$',fontsize=26)
 
 
-    ax3.set_ylabel('Derivatived from fit (Blue line)')
-
-    xx = [self.lat[lat_elem][self.shear_elem][self.shear_max_elem],self.lat[lat_elem][self.shear_elem][self.shear_max_elem]]
-    yy = [self.theta_lev[0],self.theta_lev[-1]]
-    ax.plot(xx,yy, linestyle='-',c='green',linewidth=2,label='dTh/dy peak max shear')
-
-    #lines = line1+line2+line3+line4+line5+line6+line7+line9
-    lines = line1+line2+line6+line7+line8
+    lines = line6+line7+line8+line9
 
     labels = [l.get_label() for l in lines]
-    ax.legend(lines, labels,loc=0)
+    loc = (0.65,0.825)
+    legend=ax.legend(lines, labels,loc=loc, fontsize=14,frameon=False,numpoints=1)
+    #set marker size in legend
+    legend.legendHandles[2]._legmarker.set_markersize(8)  #crossing marker size in legend
+    legend.legendHandles[3]._legmarker.set_markersize(8)  #STJ marker size in legend
+
 
     if hemi == 'NH':
       start, end, inc = 0,91,5
