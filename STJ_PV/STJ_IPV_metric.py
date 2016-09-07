@@ -205,7 +205,7 @@ class Method_2PV_STJ(object):
     if testing == True:
       #test if peaks are different to mean
       AttemptMeanFind(hemi,time_loop,dtdphi_val,elem,phi_2PV)
-
+ 
   def PolyFit2PV_SortedLat(self,hemi,print_messages):
     'Sort the peaks from 0-90 in NH and -90-0 in SH'
 
@@ -260,11 +260,18 @@ class Method_2PV_STJ(object):
         plt.plot(self.lat[lat_elem][shear_elem[i]],self.theta_lev[upper_lev] , linestyle=' ',c='green',marker='x', markersize=10,label='dTh/dy peaks')
         print 'shear:', shear[i],  self.phi_2PV[local_elem][i]
 
+    #Check for repeated shear_elem
+    shear_elem , idx = np.unique(shear_elem, return_index=True)
+    shear = shear[idx]
+
     shear_elem = shear_elem.tolist()
 
     #max shear line
     shear_max_elem = np.where(shear == shear.max())[0]  
-    
+    if len(shear_max_elem) > 1:
+        pdb.set_trace()
+
+
     best_guess = self.phi_2PV[local_elem][FindClosestElem(self.lat[lat_elem][shear_elem][shear_max_elem],self.phi_2PV[local_elem])]
 
     testing = False
@@ -321,7 +328,7 @@ class Method_2PV_STJ(object):
       additional_lat  = local_lat
 
     else:
-      EDJ_lat_near_mean , Additional_lat = None,None
+      EDJ_lat_near_mean , additional_lat = None,None
 
            
     if (print_messages == True) : print 'Testing near mean position: ', STJ_lat_near_mean , ',    EDJ: ', EDJ_lat_near_mean, ',    Other: ', additional_lat
@@ -351,19 +358,19 @@ class Method_2PV_STJ(object):
 
     for i in xrange(STJ_array.shape[0]):
       if seasons[i] == 'DJF':
-         STJ_seasons[count_DJF,:,0]   = STJ_array[i,:]
+         STJ_seasons[count_DJF,:,0]   = STJ_array[i,:,0]
          cross_seasons[count_DJF,:,0] = crossing_lat[i,:]
          count_DJF = count_DJF + 1
       if seasons[i] == 'MAM':
-         STJ_seasons[count_MAM,:,1]   = STJ_array[i,:]
+         STJ_seasons[count_MAM,:,1]   = STJ_array[i,:,0]
          cross_seasons[count_MAM,:,1] = crossing_lat[i,:]
          count_MAM = count_MAM + 1
       if seasons[i] == 'JJA':
-         STJ_seasons[count_JJA,:,2]   = STJ_array[i,:]
+         STJ_seasons[count_JJA,:,2]   = STJ_array[i,:,0]
          cross_seasons[count_JJA,:,2] = crossing_lat[i,:]
          count_JJA = count_JJA + 1
       if seasons[i] == 'SON':
-         STJ_seasons[count_SON,:,3]   = STJ_array[i,:]
+         STJ_seasons[count_SON,:,3]   = STJ_array[i,:,0]
          cross_seasons[count_SON,:,3] = crossing_lat[i,:]
          count_SON = count_SON + 1
 
@@ -600,25 +607,32 @@ def IsolatePeaks(hemi,x,y,y2,time_loop,cross_lat,print_messages):
         Peaks can not be first or last two points.
     """
 
+    #for peak fining allow the element before the crossing point to be included in case its a peak
+    cross_lat_elem = FindClosestElem(cross_lat ,x)[0] 
+    elem = np.arange(len(x)).tolist()
+
+    list_elem = [0,cross_lat_elem+2]
+    x = x[list_elem[0]:list_elem[1]]
+    y = y[list_elem[0]:list_elem[1]]
+    elem = elem[list_elem[0]:list_elem[1]]
+    
     #isolate data poleward of the crossing latitude and equatorward of the upper limit (currently 90 deg)
     if hemi == 'NH':
-        elem_lower         = np.where((x >= cross_lat))[0]
-        elem               = np.where((x[elem_lower] <= 90.))[0]     #if an upper threshold is needed. Place it here.
         #do not keep first or last two points. Magnitude of derivative oftern large 
         #elem               = elem[2:-2]
         #find the local maxima in NH
-        local_elem         = elem[(argrelmin(y[elem])[0])].tolist()
+        local_elem         = np.array(elem)[(argrelmin(y)[0])].tolist()
         if y2 != None: #find the second derivative local peaks
-          local_elem_2     = (argrelmin(y2[elem])[0]).tolist()  
+          y2 = y2[list_elem[0]:list_elem[1]]
+          local_elem_2     = np.array(elem)[(argrelmin(y2)[0])].tolist()
     else:
-        elem_lower         = np.where((x  <= cross_lat) )[0]
-        elem               = np.where((x[elem_lower] >= -90.))[0] #if an upper threshold is needed. Place it here.
         #do not keep first or last two points. Magnitude of derivative oftern large 
         #elem               = elem[2:-2]
         #find the local minima in SH (due to -ve lat)
-        local_elem         = elem[(argrelmax(y[elem])[0])].tolist()
+        local_elem         =  np.array(elem)[(argrelmax(y)[0])].tolist()
         if y2 != None:
-          local_elem_2     = (argrelmax(y2[elem])[0]).tolist()
+          y2 = y2[list_elem[0]:list_elem[1]]
+          local_elem_2     =np.array(elem)[(argrelmax(y2)[0])].tolist()
 
     #assign the local maxima
     x_peak, y_peak     = x[local_elem], y[local_elem] 
@@ -837,12 +851,12 @@ def calc_metric(IPV_data):
           jet_best_guess[time_loop,lon_loop,hemi_count,0]             = Method.best_guess_cby
           jet_best_guess[time_loop,lon_loop,hemi_count,1]             = Method.best_guess_fd
 
-          if Method.best_guess_cby > np.abs(40):
+          if (hemi == 'NH' and Method.best_guess_cby > 45) or (hemi == 'SH' and Method.best_guess_cby <-40):
               test_with_plots = True
           else:
             test_with_plots = False
 
-          test_with_plots = True
+          #test_with_plots = True
  
           if test_with_plots == True:
             #pick method to plot 

@@ -22,6 +22,8 @@ class Plotting(object):
   def __init__(self,data, Method_choice):
 
     if Method_choice == 'cby':
+      #value of fit
+      self.pv_fit         = data.theta_cby_val
       self.dxdy            = data.dtdphi_val
       self.dy              = data.phi_2PV
 
@@ -157,6 +159,7 @@ class Plotting(object):
     line7=ax.plot(self.lat, self.TropH_theta[time_loop,:],linestyle='-',c='k',marker='.',markersize=4,label='thermodynamic tropopause')
     line8=ax.plot(self.cross_lat,self.cross_lev, linestyle=' ',marker='x',markersize=10,mew=2,c='#009900',label='tropopause crossing')
     line9=ax.plot(self.STJ_lat,self.jet_max_theta, linestyle=' ',marker = 'o',c='#ff3300',markersize=16,markeredgecolor='none',label='Subtropical jet')
+    line10=ax.plot(self.phi_2PV, self.pv_fit, linestyle='-', linewidth=1,c='yellow',label='Poly fit')
 
 
     ax3 = ax.twinx()
@@ -165,8 +168,9 @@ class Plotting(object):
     #ax3.set_frame_on(True)
     #ax3.patch.set_visible(False)
 
-    line1=ax3.plot(self.dy[self.elem], self.dxdy[self.elem], linestyle='-', linewidth=1,c='#0033ff',label=r'$\frac{d \theta}{d \phi}$')
+    line1=ax3.plot(self.dy, self.dxdy, linestyle='-', linewidth=1,c='#0033ff',label=r'$\frac{d \theta}{d \phi}$')
     line2=ax3.plot(self.dy[self.local_elem],self.dxdy[self.local_elem] , linestyle=' ',mew=2,c='#0033ff',marker='x', markersize=12,label=r'peaks')
+
     ax3.set_ylim(-15,15)
 
     lines = line1+line2
@@ -183,10 +187,10 @@ class Plotting(object):
     ax3.set_ylabel(r'$\frac{d \theta}{d \phi}$',fontsize=26)
 
 
-    lines = line6+line7+line8+line9
+    lines = line6+line7+line8+line9+line10
 
     labels = [l.get_label() for l in lines]
-    loc = (0.65,0.825)
+    loc = (0.65,0.8)
     legend=ax.legend(lines, labels,loc=loc, fontsize=14,frameon=False,numpoints=1)
     #set marker size in legend
     legend.legendHandles[2]._legmarker.set_markersize(8)  #crossing marker size in legend
