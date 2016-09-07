@@ -98,7 +98,7 @@ class Method_2PV_STJ(object):
     self.ipv_zonal            = ipv_zonal                     # zonal mean of original grid IPV
 
 
-  def PolyFit2PV_der(self):
+  def PolyFit2PV_der(self,time_loop):
     'Calculate the chebyshev polynomial fit of the 2.0 PV line and its first two derivatives'
 
     #find the chebyshev polynomial fit
@@ -117,14 +117,18 @@ class Method_2PV_STJ(object):
     d2tdphi2_cby    = cby.chebder(dtdphi_cby)
     self.d2tdphi2_val    = cby.chebval(self.phi_2PV, d2tdphi2_cby)
 
-    #test the poly fit
+    #if time_loop == 73:
+    #  testing = True
+    #else:
+    #  testing = False
     testing = False
+    #test the poly fit
     if testing == True:
-      Poly_testing(phi_2PV,theta_2PV,theta_cby_val,dtdphi_val,d2tdphi2_val)
-
+      Poly_testing(self.phi_2PV,self.theta_2PV,self.theta_cby_val,self.dtdphi_val,self.d2tdphi2_val)
+      pdb.set_trace()
 
   def unique_elements(self,hemi,time_loop):
-    'Cby fit can return repeated pairs of theta and phi. Remove them.' 
+    'Remove repeated pairs of theta and phi from 2 pv line.' 
 
     #Remove repeated elements.
     phi_2PV, phi_idx = np.unique(self.phi_2PV, return_index=True)
@@ -145,12 +149,10 @@ class Method_2PV_STJ(object):
         i = i-1 
       i = i+1
 
-    
+    #data
     self.phi_2PV       = self.phi_2PV[phi_idx]
     self.theta_2PV     = self.theta_2PV[phi_idx]
-    self.dtdphi_val    = self.dtdphi_val[phi_idx]
-    self.d2tdphi2_val  = self.d2tdphi2_val[phi_idx]
-    self.theta_cby_val = self.theta_cby_val[phi_idx]
+
 
     #test if there are two d_theta values that are the same next to each other and if so remove one.
     theta_2PV_test1, idx_test1,idx_test2 = np.unique(self.theta_2PV, return_inverse=True,return_index  =True)
@@ -187,17 +189,17 @@ class Method_2PV_STJ(object):
     elem_finite, local_elem_finite, tmp,  x_peak_finite, y_peak_finite, tmp , tmp  = IsolatePeaks(hemi,a1,b1,None,time_loop,cross_lat,print_messages)
    
     #assignment
-    self.elem,       self.elem_finite       = elem, elem_finite
-    self.local_elem, self.local_elem_finite = local_elem, local_elem_finite 
-    self.local_elem_2                       = local_elem_2
+    self.elem_cby,       self.elem_fd       = elem, elem_finite
+    self.local_elem_cby, self.local_elem_fd = local_elem, local_elem_finite 
+    self.local_elem_2_cby                   = local_elem_2
 
     #assignment from poly fit difference 
-    self.phi_2PV_peak,    self.dtdphi_val_peak      = x_peak, y_peak 
-    self.phi_2PV_peak_dt2,self.dtdphi_val_peak_dt2  = x2_peak, y2_peak
+    self.phi_2PV_peak_cby,    self.dtdphi_val_peak_cby  = x_peak, y_peak 
+    self.phi_2PV_peak_dt2,self.dtdphi_val_peak_dt2      = x2_peak, y2_peak
 
     #assignment from finite difference 
-    self.elem_finite, self.local_elem_finite = elem_finite, local_elem_finite 
-    self.x_peak_finite, self.y_peak_finite   = x_peak_finite, y_peak_finite
+    self.elem_fd, self.local_elem_fd                = elem_finite, local_elem_finite 
+    self.phi_2PV_peak_fd, self.dtdphi_val_peak_fd   = x_peak_finite, y_peak_finite
 
     testing = False
     if testing == True:
@@ -208,33 +210,47 @@ class Method_2PV_STJ(object):
     'Sort the peaks from 0-90 in NH and -90-0 in SH'
 
     if hemi == 'NH':
-      self.sort_index = np.argsort(self.phi_2PV_peak)
-      self.STJ_lat_sort = np.sort(self.phi_2PV_peak) 
+      #cby fit
+      self.sort_index_cby   = np.argsort(self.phi_2PV_peak_cby)
+      self.STJ_lat_sort_cby = np.sort(self.phi_2PV_peak_cby) 
       #use unsorted array     
-      self.peak_mag = (self.dtdphi_val_peak).min()
+      self.peak_mag_cby     = (self.dtdphi_val_peak_cby).min()
+
+      #finite diff
+      self.sort_index_fd   = np.argsort(self.phi_2PV_peak_fd)
+      self.STJ_lat_sort_fd = np.sort(self.phi_2PV_peak_fd)  
+      self.peak_mag_fd     = (self.dtdphi_val_peak_fd).min()
+
     else:
-      self.sort_index = np.argsort(self.phi_2PV_peak)[::-1]
-      self.STJ_lat_sort = np.sort(self.phi_2PV_peak)[::-1]
-      #use unsorted array     
-      self.peak_mag = (self.dtdphi_val_peak).max()
+      #cby fit
+      self.sort_index_cby   = np.argsort(self.phi_2PV_peak_cby)[::-1]
+      self.STJ_lat_sort_cby = np.sort(self.phi_2PV_peak_cby)[::-1]
+      self.peak_mag_cby     = (self.dtdphi_val_peak_cby).max()
 
-    if (print_messages == True) : print 'Where are peaks: ', self.STJ_lat_sort[:]            
+      #finite diff
+      self.sort_index_fd   = np.argsort(self.phi_2PV_peak_fd)[::-1]
+      self.STJ_lat_sort_fd = np.sort(self.phi_2PV_peak_fd)[::-1]
+      self.peak_mag_fd     = (self.dtdphi_val_peak_fd).max()
 
-  def MaxShear(self,hemi,u_zonal,lat_elem):
+
+    if (print_messages == True) : print 'Where are peaks: cby ', self.STJ_lat_sort_cby[:]            
+    if (print_messages == True) : print 'Where are peaks: f_d ', self.STJ_lat_sort_fd[:]            
+
+  def MaxShear(self,hemi,u_zonal,lat_elem,local_elem):
     'Assign the STJ to the peak with wit most shear'
 
     lat_hemi = self.lat[lat_elem]
 
-    loop_len   = len(self.phi_2PV[self.local_elem])
+    loop_len   = len(self.phi_2PV[local_elem])
     shear      = np.zeros(loop_len)
     shear_elem = np.zeros(loop_len)
 
     for i in xrange(loop_len):
 
-      shear_elem[i] = FindClosestElem(self.phi_2PV[self.local_elem][i],self.lat[lat_elem])[0]
+      shear_elem[i] = FindClosestElem(self.phi_2PV[local_elem][i],self.lat[lat_elem])[0]
 
       #restrict data between the surface and the level of the 2.0 PV line      
-      upper_lev     = FindClosestElem(self.theta_2PV[self.local_elem][i],self.theta_lev)[0]
+      upper_lev     = FindClosestElem(self.theta_2PV[local_elem][i],self.theta_lev)[0]
       lower_lev     = 0 
 
       shear[i]      = u_zonal[:,lat_elem][upper_lev,0,shear_elem[i]] - u_zonal[:,lat_elem][lower_lev,0,shear_elem[i]]
@@ -242,18 +258,20 @@ class Method_2PV_STJ(object):
       test_shear = False
       if test_shear == True:
         plt.plot(self.lat[lat_elem][shear_elem[i]],self.theta_lev[upper_lev] , linestyle=' ',c='green',marker='x', markersize=10,label='dTh/dy peaks')
-        print 'shear:', shear[i],  self.phi_2PV[self.local_elem][i]
+        print 'shear:', shear[i],  self.phi_2PV[local_elem][i]
 
-    self.shear_elem = shear_elem.tolist()
+    shear_elem = shear_elem.tolist()
 
     #max shear line
-    self.shear_max_elem = np.where(shear == shear.max())[0]  
+    shear_max_elem = np.where(shear == shear.max())[0]  
     
-    self.best_guess = self.phi_2PV[self.local_elem][FindClosestElem(self.lat[lat_elem][self.shear_elem][self.shear_max_elem],self.phi_2PV[self.local_elem])]
+    best_guess = self.phi_2PV[local_elem][FindClosestElem(self.lat[lat_elem][shear_elem][shear_max_elem],self.phi_2PV[local_elem])]
 
     testing = False
     if testing == True:
       test_max_shear_across_lats(self.phi_2PV,self.theta_2PV,self.lat, lat_elem,self.theta_lev,u_zonal)
+
+    return shear_elem, shear_max_elem, best_guess
 
 
   def JetIntensity(self,hemi,u_zonal,lat_elem):
@@ -263,19 +281,27 @@ class Method_2PV_STJ(object):
     function  = interpolate.interp2d(self.lat[lat_elem], self.theta_lev, u_zonal[:,lat_elem][:,0,:], kind='cubic')  
     self.u_fitted  =  function(self.lat_hemi,self.theta_domain)
 
-    #At the jet latitude find the maximum uwind
-    elem                   = np.where(self.best_guess == self.lat_hemi)[0]
+    #At the jet latitude find the maximum uwind - cby
+    elem                   = np.where(self.best_guess_cby == self.lat_hemi)[0]
     slice_at_jet           = self.u_fitted[:,elem][:,0]
     jet_max_wind_elem      = np.where(slice_at_jet == slice_at_jet.max())[0]
-    self.jet_max_wind      = slice_at_jet[jet_max_wind_elem] 
+    self.jet_max_wind_cby  = slice_at_jet[jet_max_wind_elem] 
     #The level of the max wind - for plotting
-    self.jet_max_theta     = self.theta_domain[jet_max_wind_elem]
-    
-  def PolyFit2PV_near_mean(self,print_messages,STJ_mean,EDJ_mean):
+    self.jet_max_theta_cby = self.theta_domain[jet_max_wind_elem]
+
+    #fd    
+    elem_fd                = np.where(self.best_guess_fd == self.lat_hemi)[0]
+    slice_at_jet_fd        = self.u_fitted[:,elem_fd][:,0]
+    jet_max_wind_elem_fd   = np.where(slice_at_jet_fd == slice_at_jet_fd.max())[0]
+    self.jet_max_wind_fd   = slice_at_jet_fd[jet_max_wind_elem_fd] 
+    self.jet_max_theta_fd  = self.theta_domain[jet_max_wind_elem_fd]
+
+
+  def PolyFit2PV_near_mean(self,print_messages,STJ_mean,EDJ_mean, phi_val,local_elem,STJ_lat_sort,y_peak,peak_mag,sort_index):
     'Find the peaks that are closest to known mean position. Tests if ordered or ID peaks different.'
 
-    local_lat          = self.phi_2PV_peak.tolist()
-    local_elem_cp      =  copy.deepcopy(self.local_elem)
+    local_lat         =  phi_val.tolist()
+    local_elem_cp     =  copy.deepcopy(local_elem)
 
     #find the peaks closest to know location
     STJ_elem           =  FindClosestElem(STJ_mean,np.array(local_lat))
@@ -292,25 +318,26 @@ class Method_2PV_STJ(object):
       local_elem_cp.remove(local_elem_cp[EDJ_elem])
       local_lat.remove(local_lat[EDJ_elem])
 
-      Additional_lat  = local_lat
+      additional_lat  = local_lat
 
     else:
       EDJ_lat_near_mean , Additional_lat = None,None
 
            
-    if (print_messages == True) : print 'Testing near mean position: ', STJ_lat_near_mean , ',    EDJ: ', EDJ_lat_near_mean, ',    Other: ', Additional_lat
+    if (print_messages == True) : print 'Testing near mean position: ', STJ_lat_near_mean , ',    EDJ: ', EDJ_lat_near_mean, ',    Other: ', additional_lat
 
-    self.STJ_lat_near_mean = STJ_lat_near_mean
-    self.EDJ_lat_near_mean = EDJ_lat_near_mean 
-    self.Additional_lat = Additional_lat
     if (print_messages == True) :
-      if self.STJ_lat_sort[0] != self.STJ_lat_near_mean:
-        print 'STJ_lat_sort[0] != STJ_lat', self.STJ_lat_sort[0], self.STJ_lat_near_mean
+      if STJ_lat_sort[0] != STJ_lat_near_mean:
+        print 'STJ_lat_sort[0] != STJ_lat', STJ_lat_sort[0], STJ_lat_near_mean
 
-    peaks         = self.dtdphi_val_peak
-    peak_elem     = np.where(peaks == self.peak_mag)[0]
-    peak_lat      = self.phi_2PV.tolist()[peak_elem] 
-    peak_lat_sort = peaks[self.sort_index]
+    #peaks         = y_peak
+    #peak_elem     = np.where(peaks == peak_mag)[0]
+    #peak_lat      = self.phi_2PV.tolist()[peak_elem] 
+    #peak_lat_sort = peaks[sort_index]
+
+
+    return STJ_lat_near_mean, EDJ_lat_near_mean, additional_lat
+
 
 
   def SeasonalPeaks(self,seasons, STJ_array,crossing_lat):
@@ -470,7 +497,7 @@ class Method_2PV_STJ(object):
       test_finite_difference(phi_2PV,theta_2PV,dTHdlat_lat,dTHdlat)
 
  
-    self.dTHdlat_lat  = dTHdlat_lat 
+    self.dTHdlat_lat  = dTHdlat_lat   #note this is no longer self.phi_2PV as it is now centred on a grid centre not edge
     self.dTHdlat      = dTHdlat 
 
 
@@ -699,7 +726,7 @@ def calc_metric(IPV_data):
     d2th_out           = np.zeros([Method.IPV.shape[0],2,Method.theta_domain.shape[0]])
     dth_lat_out        = np.zeros([Method.IPV.shape[0],2,Method.theta_domain.shape[0]])
 
-    jet_best_guess    = np.zeros([Method.IPV.shape[0],len(Method.lon_loc),2]) #STJ metric
+    jet_best_guess    = np.zeros([Method.IPV.shape[0],len(Method.lon_loc),2,2]) #STJ metric [time_loop,lon_loop,hemi_count,cby or fd] 
     mask_jet_number   = np.zeros([Method.IPV.shape[0],2])   #how many peaks were found
     crossing_lat      = np.zeros([Method.IPV.shape[0],2])   #point where two tropopause definitions cross paths
 
@@ -752,15 +779,15 @@ def calc_metric(IPV_data):
 
           Method.get_phi_theta_2PV(time_loop,hemi,slide_method,lon_elem)
 
-          #finite difference derivative - for testing only
+          #Remove any repeated theta and phi pairs if they exist
+          Method.unique_elements(hemi,time_loop)
+
+
+          #finite difference derivative
           Method.PV_differentiate()
 
           #polynomial fit and derivative twice
-          Method.PolyFit2PV_der()
-
-
-          #Remove any repeated theta and phi pairs if they exist
-          Method.unique_elements(hemi,time_loop)
+          Method.PolyFit2PV_der(time_loop)
 
           #Find peaks in poly-fitted data of 2 pv line 
           Method.PolyFit2PV_peaks(print_messages, hemi,time_loop)
@@ -769,7 +796,18 @@ def calc_metric(IPV_data):
           Method.PolyFit2PV_SortedLat(hemi,print_messages) 
 
           #find the peak closest to estimated mean - used for testing
-          Method.PolyFit2PV_near_mean(print_messages,STJ_mean,EDJ_mean)
+          #cby
+          Method.STJ_lat_near_mean_cby, Method.EDJ_lat_near_mean_cby, Method.Additional_lat_cby = Method.PolyFit2PV_near_mean(
+                       print_messages,STJ_mean,EDJ_mean,Method.phi_2PV_peak_cby,
+                       Method.local_elem_cby,Method.STJ_lat_sort_cby,Method.dtdphi_val_peak_cby,
+                       Method.peak_mag_cby,Method.sort_index_cby
+                       )
+          #finite
+          Method.STJ_lat_near_mean_fd, Method.EDJ_lat_near_mean_fd, Method.Additional_lat_fd =  Method.PolyFit2PV_near_mean(
+                       print_messages,STJ_mean,EDJ_mean,Method.phi_2PV_peak_fd,
+                       Method.local_elem_fd,Method.STJ_lat_sort_fd,Method.dtdphi_val_peak_fd,
+                       Method.peak_mag_fd,Method.sort_index_fd
+                       )
 
           u_zonal = MeanOverDim(data=Method.u[time_loop,:,:,:],dim=2)   
 
@@ -779,30 +817,40 @@ def calc_metric(IPV_data):
             lat_elem =  np.where (Method.lat <= 0)
 
           #test the shear of the peaks and assign the STJ to peak with most shear
-          Method.MaxShear(hemi,u_zonal,lat_elem)
+          Method.shear_elem_cby, Method.shear_max_elem_cby, Method.best_guess_cby = Method.MaxShear(hemi,u_zonal,lat_elem,Method.local_elem_cby)
+          Method.shear_elem_fd,  Method.shear_max_elem_fd,  Method.best_guess_fd  = Method.MaxShear(hemi,u_zonal,lat_elem,Method.local_elem_fd)
+
 
           Method.JetIntensity(hemi,u_zonal,lat_elem)
 
           #vars of interest outside of loop
           phi_2PV_out  [time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.phi_2PV
           theta_2PV_out[time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.theta_2PV 
-          dth_out      [time_loop,hemi_count,0:len(Method.elem)]      =  Method.dtdphi_val[Method.elem] 
-          dth_lat_out  [time_loop,hemi_count,0:len(Method.elem)]      =  Method.phi_2PV[Method.elem]
-          d2th_out     [time_loop,hemi_count,0:len(Method.d2tdphi2_val[Method.elem])]  =  Method.d2tdphi2_val[Method.elem]
-          crossing_lat[time_loop, hemi_count]                         = Method.cross_lat
-          mask_jet_number[time_loop,hemi_count]                       = len(Method.local_elem)
-          jet_best_guess[time_loop,lon_loop,hemi_count]               = Method.best_guess
+          # restricted in phi
+          #dth_lat_out  [time_loop,hemi_count,0:len(Method.elem)]      =  Method.phi_2PV[Method.elem]
+          #dth_out      [time_loop,hemi_count,0:len(Method.elem)]      =  Method.dtdphi_val[Method.elem] 
+          #d2th_out     [time_loop,hemi_count,0:len(Method.d2tdphi2_val[Method.elem])]  =  Method.d2tdphi2_val[Method.elem]
 
-          if Method.best_guess > np.abs(40):
+          #properties of the method
+          crossing_lat[time_loop, hemi_count]                         = Method.cross_lat
+          #mask_jet_number[time_loop,hemi_count]                       = len(Method.local_elem_cby)
+          jet_best_guess[time_loop,lon_loop,hemi_count,0]             = Method.best_guess_cby
+          jet_best_guess[time_loop,lon_loop,hemi_count,1]             = Method.best_guess_fd
+
+          if Method.best_guess_cby > np.abs(40):
               test_with_plots = True
           else:
             test_with_plots = False
 
+          test_with_plots = True
  
           if test_with_plots == True:
+            #pick method to plot 
+            Method_opt = ['cby', 'fd']
+            Method_choice =  Method_opt[0]
             print 'plot for: hemi', hemi, ', time: ', time_loop
             #get the zonal wind for plotting purposes
-            PlottingObject = Plotting(Method) 
+            PlottingObject = Plotting(Method,Method_choice) 
             PlottingObject.poly_2PV_line(hemi,u_zonal,lat_elem,time_loop,pause = False, click=True)
 
     if testing_make_output == True:  
@@ -862,7 +910,7 @@ def Poly_testing(phi_2PV,theta_2PV,theta_cby_val,dtdphi_val,d2tdphi2_val):
   plt.plot(phi_2PV, theta_2PV, c='k',marker='x', markersize=8,linestyle = '-',label='Data')
   plt.plot(phi_2PV, theta_cby_val, c='r',marker='.', markersize=8,linestyle = '-',label='cby')
   plt.legend()
-  plt.ylim(300,380)
+  plt.ylim(300,420)
   plt.savefig('/home/links/pm366/Documents/Plot/Jet/cbyfit_10.eps')
   plt.show()
 
@@ -870,11 +918,9 @@ def Poly_testing(phi_2PV,theta_2PV,theta_cby_val,dtdphi_val,d2tdphi2_val):
   plt.plot(phi_2PV, dtdphi_val,   label='dTh/dy')
   plt.plot(phi_2PV, d2tdphi2_val, label='d2Th/dy2')
   plt.legend()
-  plt.ylim(-10,10)
+  plt.ylim(-20,20)
   plt.savefig('/home/links/pm366/Documents/Plot/Jet/cbyfit_10_derivative.eps')
   plt.show()
-
-  pdb.set_trace()
 
 
 def test_crossing_lat(H_lat_hemi, H_hemi, new_lat,h_spline_fit,phi_IPV,theta_IPV,IPV_spline_fit,cross_lat):

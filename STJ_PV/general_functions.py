@@ -2,6 +2,7 @@ from netCDF4 import Dataset
 import numpy.ma as ma
 import pickle
 import numpy as np
+import pdb
 
 def openNetCDF4_get_data(filename):
   'Key names are in unicode'

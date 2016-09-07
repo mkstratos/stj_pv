@@ -19,46 +19,78 @@ __author__ = "Penelope Maher"
 
 class Plotting(object):
 
-  def __init__(self,data):
+  def __init__(self,data, Method_choice):
+
+    if Method_choice == 'cby':
+      self.dxdy            = data.dtdphi_val
+      self.dy              = data.phi_2PV
+
+      #local peaks      
+      self.local_elem      = data.local_elem_cby
+
+      #elements to poleward side of tropopause crossing
+      self.elem            = data.elem_cby
+
+      #second derivative for cby only
+      self.local_elem_2    = data.local_elem_2_cby
+      self.d2tdphi2_val    = data.d2tdphi2_val
+
+      #STJ lat
+      self.STJ_lat         = data.best_guess_cby
+      self.STJ_lat_sort    = data.STJ_lat_sort_cby
+
+      self.shear_elem      = data.shear_elem_cby
+      self.shear_max_elem  = data.shear_max_elem_cby
+      self.jet_max_theta   = data.jet_max_theta_cby
+
+    if Method_choice == 'fd':
+      self.dxdy          = data.dTHdlat
+      self.dy            = data.dTHdlat_lat
+
+      #local peaks      
+      self.local_elem      = data.local_elem_fd
+
+      #elements to poleward side of tropopause crossing
+      self.elem            = data.elem_fd
+
+      #second derivative for cby only
+      self.local_elem_2    = None
+      self.d2tdphi2_val    = None
+
+      #STJ lat
+      self.STJ_lat         = data.best_guess_fd
+      self.STJ_lat_sort    = data.STJ_lat_sort_fd
+
+      self.shear_elem      = data.shear_elem_fd
+      self.shear_max_elem  = data.shear_max_elem_fd
+      self.jet_max_theta   = data.jet_max_theta_fd
 
 
-    self.dTHdlat_lat     = data.dTHdlat_lat
-    self.dtdphi_val      = data.dtdphi_val
+
+
+    #2pv line data
     self.phi_2PV         = data.phi_2PV
     self.theta_2PV       = data.theta_2PV
-    self.local_elem      = data.local_elem
-    self.elem            = data.elem
-    #self.peak_sig        = data.peak_sig
+
     self.lat             = data.lat
     self.theta_lev       = data.theta_lev
     self.TropH_theta     = data.TropH_theta
+    self.theta_domain    = data.theta_domain
+    self.u_fitted        = data.u_fitted
 
-    #second derivative
-    self.local_elem_2    = data.local_elem_2
-    self.d2tdphi2_val    = data.d2tdphi2_val
-    #STJ lat
-    self.STJ_lat         = data.STJ_lat_sort[0]
-    self.STJ_lat_all     = data.STJ_lat_sort
     self.cross_lat       = data.cross_lat
+    self.cross_lev       = data.cross_lev
 
     self.lat_NH          = data.lat_NH
     self.lat_SH          = data.lat_SH
-
-    self.shear_elem      = data.shear_elem
-    self.shear_max_elem  = data.shear_max_elem
-
-    self.best_guess      = data.best_guess
-    self.jet_max_theta   = data.jet_max_theta
-    self.u_fitted        = data.u_fitted
     self.lat_hemi        = data.lat_hemi
-    self.theta_domain    = data.theta_domain
-    self.cross_lev    = data.cross_lev
+
 
 
   
   def compare_finite_vs_poly(self):
 
-    plt.plot(self.dTHdlat_lat,self.dTHdlat, linestyle='-', c='k',marker='x', markersize=8, label='dTh/dy finite diff')
+    plt.plot(self.y,self.dTHdlat, linestyle='-', c='k',marker='x', markersize=8, label='dTh/dy finite diff')
     plt.plot(self.phi_2PV, self.dtdphi_val, linestyle='-', c='r',marker='.', markersize=8,label='dTh/dy from fit')
     plt.legend()
     plt.ylim(-10,10)
@@ -86,6 +118,7 @@ class Plotting(object):
     plt.show() 
 
   def poly_2PV_line(self,hemi,u_zonal,lat_elem,time_loop,pause, click):
+
 
     wind_on_plot = True
 
@@ -123,7 +156,7 @@ class Plotting(object):
     line6=ax.plot(self.phi_2PV,self.theta_2PV, linestyle='-', c='k',marker='x', markersize=8, label='dynamical tropopause')
     line7=ax.plot(self.lat, self.TropH_theta[time_loop,:],linestyle='-',c='k',marker='.',markersize=4,label='thermodynamic tropopause')
     line8=ax.plot(self.cross_lat,self.cross_lev, linestyle=' ',marker='x',markersize=10,mew=2,c='#009900',label='tropopause crossing')
-    line9=ax.plot(self.best_guess,self.jet_max_theta, linestyle=' ',marker = 'o',c='#ff3300',markersize=16,markeredgecolor='none',label='Subtropical jet')
+    line9=ax.plot(self.STJ_lat,self.jet_max_theta, linestyle=' ',marker = 'o',c='#ff3300',markersize=16,markeredgecolor='none',label='Subtropical jet')
 
 
     ax3 = ax.twinx()
@@ -132,8 +165,8 @@ class Plotting(object):
     #ax3.set_frame_on(True)
     #ax3.patch.set_visible(False)
 
-    line1=ax3.plot(self.phi_2PV[self.elem], self.dtdphi_val[self.elem], linestyle='-', linewidth=1,c='#0033ff',label=r'$\frac{d \theta}{d \phi}$')
-    line2=ax3.plot(self.phi_2PV[self.local_elem],self.dtdphi_val[self.local_elem] , linestyle=' ',mew=2,c='#0033ff',marker='x', markersize=12,label=r'peaks')
+    line1=ax3.plot(self.dy[self.elem], self.dxdy[self.elem], linestyle='-', linewidth=1,c='#0033ff',label=r'$\frac{d \theta}{d \phi}$')
+    line2=ax3.plot(self.dy[self.local_elem],self.dxdy[self.local_elem] , linestyle=' ',mew=2,c='#0033ff',marker='x', markersize=12,label=r'peaks')
     ax3.set_ylim(-15,15)
 
     lines = line1+line2
