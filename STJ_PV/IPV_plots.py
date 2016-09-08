@@ -12,7 +12,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from colormap import Colormap
 #Dependent code
 from general_functions import MeanOverDim, FindClosestElem,openNetCDF4_get_data
-from general_plotting import draw_map_model
+from general_plotting import draw_map_model,draw_deg,gfdl_lat_change_map
 #see also https://pypi.python.org/pypi/colour
 #see https://pypi.python.org/pypi/colormap
 __author__ = "Penelope Maher" 
@@ -315,21 +315,44 @@ def plot_u(fname):
   lev250  = FindClosestElem(25000,var['lev'])[0]
   t_elem = [0,5,6,7,11,12,13,16,155,168]
   for t in xrange(len(t_elem)):
-    u = var['var131'][t_elem[t],lev250,:,:]
+    uwnd = var['var131'][t_elem[t],lev250,:,:]
     #from running the code i know where the jet is. Plot it on a map as a sanity check
     jet_NH = [25.8,34.6,39,41,28.4,25.4,27.4,24]
     jet_SH = [-32,-28.8,-28.6,-28.6,-31.4,-33.2,-33.4,-27.8,-20.4,-42.6]
-    fname_out = '/home/links/pm366/Documents/Plot/Jet/uwind_'+str(t_elem[t])+'.eps'
+    fname_out = '/home/links/pm366/Documents/Plot/Jet/uwind_'+str(t_elem[t])+'_with_wind.eps'
+
+    #gs = mpl.gridspec.GridSpec(2,2, height_ratios=[0.4,0.1,0.2], width_ratios=[4,1.25,0.1])  #wide[plot,plot,space]
+    #gs.update(left=0.05, right=0.95, bottom=0.08, top=0.93, wspace=0.02, hspace=0.03)
+    #ax1 = plt.subplot(gs[0])
+    #ax2 = plt.subplot(gs[1])
+    #ax_cb = plt.subplot(gs[2])
+
+    #wind plot
+    ax1 =   plt.subplot2grid((10,20), (0,0), colspan=16,rowspan=9)
+    #zonal mean
+    ax2 =   plt.subplot2grid((10,20), (0,16), colspan=5,rowspan=9)
+    #colour bar
+    ax_cb = plt.subplot2grid((10,20), (9,0), colspan=20)
+
     bounds = np.arange(-50,51,5)
-    plt,ax = draw_map_model(u,var['lon'],var['lat'],'','','BuRd',bounds,fname_out,True,domain=None, name_cbar=None,coastline=True)
+    draw_map_model(plt,ax1,ax_cb,uwnd,var['lon'],var['lat'],'','','BuRd',bounds,fname_out,True,domain=None, name_cbar=None,coastline=True)
     #add jet positon to plots
-    ax.plot([0,360],[jet_SH[t],jet_SH[t]],c='yellow')
+    ax1.plot([0,360],[jet_SH[t],jet_SH[t]],c='yellow')
     if t_elem[t] < 150:
-      ax.plot([0,360],[jet_NH[t],jet_NH[t]],c='yellow')
+      ax1.plot([0,360],[jet_NH[t],jet_NH[t]],c='yellow')
+    ax1.xaxis.tick_top()
+
+    #plot u wind
+    uzonal = MeanOverDim(data=uwnd, dim=1)
+    ax2.plot(uzonal,var['lat'],c='k')
+    fix_ax_label = gfdl_lat_change_map(ax=ax2)
+    #ax2.set_ylim(-90,90)
+    ax2.yaxis.tick_right()
+    plt.setp(ax2.get_xticklabels(), visible=False)
 
     plt.savefig(fname_out)
-    #plt.show()
+    plt.show()
     plt.close()
-  pdb.set_trace()
+    pdb.set_trace()
 
 

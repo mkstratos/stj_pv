@@ -65,15 +65,16 @@ After the STJ_PV_main.py code has been run and the IPV data has been outputted t
          i)    Interpolate the zonal mean IPV to 0.2deg lat and 1.0K theta.
          ii)   For each lat, find the theta level closest to 2.0 IPV. 
          iii)  Test for unique elements of lat for the 2PV line and remove any repeats. Test that latitude is increasing and remove any elements which are not. This removes points on the 2PV line that look like a Z in the vertical.
-         iv)   Differentiate the 2.0 IPV line using both finite difference and the chebyshev polynomial fit. The finite difference does not do a good enough job and was used during testing only.
-               The degree of the polynomial fit is 10. Lower values for the fit were tested but were not able to capture the shape of the 2PV line. The second derivative is also calculated but was used only for testing.
-         v)    Interpolate the thermal tropopause and dynamic tropopause to every 0.2 in latitude. 
-         vi)   Find the intersection of the thermal tropopause and dynamic tropopause (2.0 PV line). Subtract the two tropopause arrays and the minimum value is the intersection.
+         iv)   Polynomial fit the 2.0PV line. The degree of the polynomial fit is 10. Lower values for the fit were tested but were not able to capture the shape of the 2PV line. 
+         v)    Differentiate the 2.0 IPV line using both finite difference and the chebyshev polynomial fit. The finite difference does not do a good enough job and was used during testing only.
+               The second derivative is also calculated but was used only for testing.
+         vi)    Interpolate the thermal tropopause and dynamic tropopause to every 0.2 in latitude. 
+         vii)   Find the intersection of the thermal tropopause and dynamic tropopause (2.0 PV line). Subtract the two tropopause arrays and the minimum value is the intersection.
                The intersection is called the crossing point and will be a equatorial cutoff latitude for the STJ. 
-         vii)  Isolate the peaks of the 2.0PV line derivative. The goal is to find the maximum slope of the 2.0 PV line and hence the turning points of the first derivative. 
+         viii)  Isolate the peaks of the 2.0PV line derivative. The goal is to find the maximum slope of the 2.0 PV line and hence the turning points of the first derivative. 
                Between the crossing latitude and the pole find the local minima (maxima is SH). Sort the peaks in increasing lat.
-         viii) For testing purposed only, identify if the peaks are near the estimated annual mean of the subtropical and eddy driven jets.
-         viv)  In order to reduce the number of peaks and isolate the STJ, find the shear between the 2.0PV line and surface at each peak identified. The STJ latitude is then the peak with the maximum shear.
+         viv) For testing purposed only, identify if the peaks are near the estimated annual mean of the subtropical and eddy driven jets.
+         x)  In order to reduce the number of peaks and isolate the STJ, find the shear between the 2.0PV line and surface at each peak identified. The STJ latitude is then the peak with the maximum shear.
 
   5.3. At the STJ latitude find its intensity. 
    a) Interpolate zonal mean zonal wind to 0.2 deg and 1K. 

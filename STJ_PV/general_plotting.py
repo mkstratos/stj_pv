@@ -26,24 +26,28 @@ mpl.rc('text', usetex=False)  #turning this flag on/off changes g=hatching with 
  
 
 
-def draw_map_model(data,lon,lat,title,cbar_title,colour,bounds,file_name,show_plot,domain=None, name_cbar=None,coastline=False):
+def draw_map_model(plt,ax,ax_cb,data,lon,lat,title,cbar_title,colour,bounds,file_name,show_plot,domain=None, name_cbar=None,coastline=False):
     'Plot a map, latex flags off when using unicode for deg' 
 
      #Define basic plot parameters
-    fig = plt.figure(figsize=(8,6))
-    ax = fig.add_axes([0.1,0.15,0.85,0.85])
+
 
     ax.set_title(title)
     #ax.set_title(' %s C' % deg)  #%s means string
     
-    m = Basemap(projection='cyl',llcrnrlat=-88,urcrnrlat=86, llcrnrlon=0,urcrnrlon=360,resolution='c')
-    m.drawparallels(np.arange(-90.,91.,30.), labels=[0,0,0,0])
-    m.drawmeridians(np.arange(0,361.,60.), labels=[0,0,0,0])
+    #m = Basemap(projection='cyl',llcrnrlat=-88,urcrnrlat=86, llcrnrlon=0,urcrnrlon=360,resolution='c')
+    m = Basemap(projection='cyl',llcrnrlon=0,urcrnrlon=360,resolution='c',ax=ax)
+
+    #m.drawmeridians(np.arange(0,361.,60.), labels=[0,0,0,0])
+    #m.drawparallels(np.arange(-90.,91.,30.), labels=[0,0,0,0])
+
     ax.set_xlim(1.5,360)
     ax.set_ylim(-88,86)
 
-    if coastline == True:
-      m.drawcoastlines()
+   # if coastline == True:
+   #   m.drawcoastlines(zorder=0)
+  
+    #m.ax = ax
 
     #Note: pcolormesh plots the lower lat and lower lon, not the centre!
     lon,lat=fix_pcolormesh_for_maps(x=lon,y=lat)
@@ -58,10 +62,10 @@ def draw_map_model(data,lon,lat,title,cbar_title,colour,bounds,file_name,show_pl
 
     
     #make the plot
-    img=pylab.pcolormesh(x,y,data,cmap=cmap,norm=norm)#, latlon=False)
+    img=ax.pcolormesh(x,y,data,cmap=cmap,norm=norm)#, latlon=False)
+
     #ax_cb=fig.add_axes([0.05, 0.15, 0.92, 0.05])
     #cbar=cbar_Maher(fig,cmap,norm,bounds,cbar_title,ax_cb)
-    ax_cb=fig.add_axes([0.1, 0.1, 0.80, 0.05])
     cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap,norm=norm,ticks=bounds, orientation='horizontal')
     cbar.set_label(cbar_title)
     
@@ -84,9 +88,6 @@ def draw_map_model(data,lon,lat,title,cbar_title,colour,bounds,file_name,show_pl
     #  plt.show()
  
     #print 'Saved plot: ',file_name
-
-
-    return plt,ax
 
 def plot_map(lon_in,lat_in,colour,bounds,model_type,data,cbar_units,filename,show_plot=None):
 
