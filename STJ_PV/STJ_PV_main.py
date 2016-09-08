@@ -10,6 +10,7 @@ import platform
 from general_functions import openNetCDF4_get_data,OpenPickle, SavePickle
 from MakeIPV_data import Generate_IPV_Data
 import STJ_IPV_metric
+from IPV_plots import plot_u
 
 
 #file purpose:  Calculate the subtropical jet position using the 2PV contour.
@@ -117,6 +118,10 @@ def main():
   else:
     print 'Currently code only works for Era-Int data format'
     pdb.set_trace()
+
+  plot_u_wind = False
+  if plot_u_wind == True:
+    plot_u(Exp.u_fname)
 
   file_type_opt = ['.nc','.p']      #nc file or pickle
   file_type = file_type_opt[0]

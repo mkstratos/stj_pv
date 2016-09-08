@@ -78,15 +78,15 @@ def draw_map_model(data,lon,lat,title,cbar_title,colour,bounds,file_name,show_pl
       cbar.set_ticklabels(name_cbar)
 
 
-    plt.savefig(file_name)
+    #plt.savefig(file_name)
     
-    if show_plot == True:
-      plt.show()
+    #if show_plot == True:
+    #  plt.show()
  
-    print 'Saved plot: ',file_name
+    #print 'Saved plot: ',file_name
 
 
-    return ()
+    return plt,ax
 
 def plot_map(lon_in,lat_in,colour,bounds,model_type,data,cbar_units,filename,show_plot=None):
 
@@ -197,6 +197,18 @@ def cbar_Maher(fig,cmap,norm,bounds,cbar_title,ax_cb):
     cbar.set_label(cbar_title)
 
     return cbar
+
+def draw_deg(label):
+    'deg symbol'
+    deg=u'\u00B0'
+    label_string=[]
+    num=len(label)
+    for i in label:
+        label_string.append(str(i)+ '%s' % deg)  #to ass E or W etc use '%sE' % deg
+        
+    #convert list of unicode to array of unicode
+    label_string = np.array(label_string)
+    return label_string
 
     
 def log_axis(ax,y,labelFontSize):

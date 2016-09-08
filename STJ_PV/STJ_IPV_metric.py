@@ -237,7 +237,7 @@ class Method_2PV_STJ(object):
     if (print_messages == True) : print 'Where are peaks: f_d ', self.STJ_lat_sort_fd[:]            
 
   def MaxShear(self,hemi,u_zonal,lat_elem,local_elem):
-    'Assign the STJ to the peak with wit most shear'
+    'Assign the STJ to the peak with the most shear'
 
     lat_hemi = self.lat[lat_elem]
 
@@ -427,11 +427,7 @@ class Method_2PV_STJ(object):
     kappa = Rd / Cp  
    
     self.TropH_theta = self.TropH_temp* (1000.0/self.TropH_p) ** kappa
-    
-
-
-
-
+   
   
 
   def PlotTesting(self,time_loop):
@@ -785,7 +781,6 @@ def calc_metric(IPV_data):
             Method.pv2 = -2.0
             hemi_count = 1
             STJ_mean, EDJ_mean = -30.,-50.
-
    
           if slide_method == 'lon_slices': lon_elem = Method.lon_loc[lon_loop]
 
@@ -854,7 +849,10 @@ def calc_metric(IPV_data):
           if (hemi == 'NH' and Method.best_guess_cby > 45) or (hemi == 'SH' and Method.best_guess_cby <-40):
               test_with_plots = True
           else:
-            test_with_plots = False
+            if (hemi == 'SH' and Method.best_guess_cby >-25):
+              test_with_plots = True
+            else:
+              test_with_plots = False
 
           #test_with_plots = True
  

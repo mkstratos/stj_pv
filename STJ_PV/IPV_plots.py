@@ -11,8 +11,8 @@ import matplotlib as mpl
 from matplotlib.colors import LinearSegmentedColormap  
 from colormap import Colormap
 #Dependent code
-from general_functions import MeanOverDim, FindClosestElem
-
+from general_functions import MeanOverDim, FindClosestElem,openNetCDF4_get_data
+from general_plotting import draw_map_model
 #see also https://pypi.python.org/pypi/colour
 #see https://pypi.python.org/pypi/colormap
 __author__ = "Penelope Maher" 
@@ -310,6 +310,26 @@ def MakeOutputFile(filename,data,dim_name,var_name,var_type):
   f.close()    
   print 'created file: ',filename
 
+def plot_u(fname):
+  var     = openNetCDF4_get_data(fname)
+  lev250  = FindClosestElem(25000,var['lev'])[0]
+  t_elem = [0,5,6,7,11,12,13,16,155,168]
+  for t in xrange(len(t_elem)):
+    u = var['var131'][t_elem[t],lev250,:,:]
+    #from running the code i know where the jet is. Plot it on a map as a sanity check
+    jet_NH = [25.8,34.6,39,41,28.4,25.4,27.4,24]
+    jet_SH = [-32,-28.8,-28.6,-28.6,-31.4,-33.2,-33.4,-27.8,-20.4,-42.6]
+    fname_out = '/home/links/pm366/Documents/Plot/Jet/uwind_'+str(t_elem[t])+'.eps'
+    bounds = np.arange(-50,51,5)
+    plt,ax = draw_map_model(u,var['lon'],var['lat'],'','','BuRd',bounds,fname_out,True,domain=None, name_cbar=None,coastline=True)
+    #add jet positon to plots
+    ax.plot([0,360],[jet_SH[t],jet_SH[t]],c='yellow')
+    if t_elem[t] < 150:
+      ax.plot([0,360],[jet_NH[t],jet_NH[t]],c='yellow')
 
+    plt.savefig(fname_out)
+    #plt.show()
+    plt.close()
+  pdb.set_trace()
 
 
