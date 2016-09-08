@@ -314,12 +314,15 @@ def plot_u(fname):
   var     = openNetCDF4_get_data(fname)
   lev250  = FindClosestElem(25000,var['lev'])[0]
   t_elem = [0,5,6,7,11,12,13,16,155,168]
+
   for t in xrange(len(t_elem)):
     uwnd = var['var131'][t_elem[t],lev250,:,:]
     #from running the code i know where the jet is. Plot it on a map as a sanity check
     jet_NH = [25.8,34.6,39,41,28.4,25.4,27.4,24]
     jet_SH = [-32,-28.8,-28.6,-28.6,-31.4,-33.2,-33.4,-27.8,-20.4,-42.6]
     fname_out = '/home/links/pm366/Documents/Plot/Jet/uwind_'+str(t_elem[t])+'_with_wind.eps'
+
+    fig = plt.figure(figsize=(10,5))
 
     #gs = mpl.gridspec.GridSpec(2,2, height_ratios=[0.4,0.1,0.2], width_ratios=[4,1.25,0.1])  #wide[plot,plot,space]
     #gs.update(left=0.05, right=0.95, bottom=0.08, top=0.93, wspace=0.02, hspace=0.03)
@@ -337,18 +340,49 @@ def plot_u(fname):
     bounds = np.arange(-50,51,5)
     draw_map_model(plt,ax1,ax_cb,uwnd,var['lon'],var['lat'],'','','BuRd',bounds,fname_out,True,domain=None, name_cbar=None,coastline=True)
     #add jet positon to plots
-    ax1.plot([0,360],[jet_SH[t],jet_SH[t]],c='yellow')
+    ax1.plot([0,360],[jet_SH[t],jet_SH[t]],c='#0033ff',linewidth=2)
     if t_elem[t] < 150:
-      ax1.plot([0,360],[jet_NH[t],jet_NH[t]],c='yellow')
+      ax1.plot([0,360],[jet_NH[t],jet_NH[t]],c='#0033ff',linewidth=2)
     ax1.xaxis.tick_top()
 
     #plot u wind
     uzonal = MeanOverDim(data=uwnd, dim=1)
+    # and the jet location
+    ax2.plot([0,uzonal.max()],[jet_SH[t],jet_SH[t]],c='#0033ff',linewidth=2)
+    if t_elem[t] < 150:
+      ax2.plot([0,uzonal.max()],[jet_NH[t],jet_NH[t]],c='#0033ff',linewidth=2)
+
+    ax2.set_ylim(-90,90)
     ax2.plot(uzonal,var['lat'],c='k')
     fix_ax_label = gfdl_lat_change_map(ax=ax2)
     #ax2.set_ylim(-90,90)
     ax2.yaxis.tick_right()
     plt.setp(ax2.get_xticklabels(), visible=False)
+
+    #set plot colour
+    #ax2.patch.set_facecolor('#CCCCCC')
+
+    plt.tight_layout()
+ 
+    #reshape plots so on same horizontal
+    pos1 = ax1.get_position()
+    pos2 = ax2.get_position()
+    pos3 = ax_cb.get_position()
+
+
+    print 'ax2:', ax2.get_position(), pos2.width, pos2.height
+    print 'ax1 before:', ax1.get_position(), pos1.width, pos1.height
+
+
+    new_height = pos1.height  #height = y1-y0
+    y0 = pos1.y0 - 0.045
+    ax1.set_position([pos1.x0,y0,pos1.width,new_height])  #[Left,Bottom,Width,Hight]
+
+    ax2.set_position([pos2.x0-0.03,pos2.y0,pos2.width,pos2.height-0.09])  #[Left,Bottom,Width,Hight]
+    print 'ax1 after :', ax1.get_position(), pos2.width, pos2.height
+
+    ax_cb.set_position([pos3.x0,pos3.y0+0.025,pos3.width-0.182,pos3.height])  #[Left,Bottom,Width,Hight]
+    ax_cb.set_xlabel(r'$\bar{u}$ $(ms^{-1})$')
 
     plt.savefig(fname_out)
     plt.show()

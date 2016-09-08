@@ -35,19 +35,19 @@ def draw_map_model(plt,ax,ax_cb,data,lon,lat,title,cbar_title,colour,bounds,file
     ax.set_title(title)
     #ax.set_title(' %s C' % deg)  #%s means string
     
-    #m = Basemap(projection='cyl',llcrnrlat=-88,urcrnrlat=86, llcrnrlon=0,urcrnrlon=360,resolution='c')
-    m = Basemap(projection='cyl',llcrnrlon=0,urcrnrlon=360,resolution='c',ax=ax)
+    m = Basemap(projection='cyl',llcrnrlat=-90,urcrnrlat=90, llcrnrlon=0,urcrnrlon=360,resolution='c',ax=ax)
+    #m = Basemap(projection='cyl',llcrnrlon=0,urcrnrlon=360,resolution='c',ax=ax)
 
-    #m.drawmeridians(np.arange(0,361.,60.), labels=[0,0,0,0])
-    #m.drawparallels(np.arange(-90.,91.,30.), labels=[0,0,0,0])
+    m.drawmeridians(np.arange(0,361.,60.), labels=[0,0,0,0])
+    m.drawparallels(np.arange(-90.,91.,30.), labels=[0,0,0,0])
 
     ax.set_xlim(1.5,360)
-    ax.set_ylim(-88,86)
+    ax.set_ylim(-90,90)
 
-   # if coastline == True:
-   #   m.drawcoastlines(zorder=0)
+    if coastline == True:
+      m.drawcoastlines()
   
-    #m.ax = ax
+    m.ax = ax
 
     #Note: pcolormesh plots the lower lat and lower lon, not the centre!
     lon,lat=fix_pcolormesh_for_maps(x=lon,y=lat)
