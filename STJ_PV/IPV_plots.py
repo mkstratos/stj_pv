@@ -313,13 +313,13 @@ def MakeOutputFile(filename,data,dim_name,var_name,var_type):
 def plot_u(fname):
   var     = openNetCDF4_get_data(fname)
   lev250  = FindClosestElem(25000,var['lev'])[0]
-  t_elem = [0,5,6,7,11,12,13,16,155,168]
+  t_elem = [0,5,6,7,10,11,12,13,16,155,168]
 
   for t in xrange(len(t_elem)):
     uwnd = var['var131'][t_elem[t],lev250,:,:]
     #from running the code i know where the jet is. Plot it on a map as a sanity check
-    jet_NH = [25.8,34.6,39,41,28.4,25.4,27.4,24]
-    jet_SH = [-32,-28.8,-28.6,-28.6,-31.4,-33.2,-33.4,-27.8,-20.4,-42.6]
+    jet_NH = [25.8,34.6,39,41,30,28.4,25.4,27.4,24]
+    jet_SH = [-32,-28.8,-28.6,-28.6,-28.4,-31.4,-33.2,-33.4,-27.8,-20.4,-42.6]
     fname_out = '/home/links/pm366/Documents/Plot/Jet/uwind_'+str(t_elem[t])+'_with_wind.eps'
 
     fig = plt.figure(figsize=(10,5))
@@ -348,9 +348,9 @@ def plot_u(fname):
     #plot u wind
     uzonal = MeanOverDim(data=uwnd, dim=1)
     # and the jet location
-    ax2.plot([0,uzonal.max()],[jet_SH[t],jet_SH[t]],c='#0033ff',linewidth=2)
+    ax2.plot([uzonal.min(),uzonal.max()],[jet_SH[t],jet_SH[t]],c='#0033ff',linewidth=2)
     if t_elem[t] < 150:
-      ax2.plot([0,uzonal.max()],[jet_NH[t],jet_NH[t]],c='#0033ff',linewidth=2)
+      ax2.plot([uzonal.min(),uzonal.max()],[jet_NH[t],jet_NH[t]],c='#0033ff',linewidth=2)
 
     ax2.set_ylim(-90,90)
     ax2.plot(uzonal,var['lat'],c='k')
@@ -369,24 +369,133 @@ def plot_u(fname):
     pos2 = ax2.get_position()
     pos3 = ax_cb.get_position()
 
-
-    print 'ax2:', ax2.get_position(), pos2.width, pos2.height
-    print 'ax1 before:', ax1.get_position(), pos1.width, pos1.height
-
-
     new_height = pos1.height  #height = y1-y0
     y0 = pos1.y0 - 0.045
     ax1.set_position([pos1.x0,y0,pos1.width,new_height])  #[Left,Bottom,Width,Hight]
 
     ax2.set_position([pos2.x0-0.03,pos2.y0,pos2.width,pos2.height-0.09])  #[Left,Bottom,Width,Hight]
-    print 'ax1 after :', ax1.get_position(), pos2.width, pos2.height
 
     ax_cb.set_position([pos3.x0,pos3.y0+0.025,pos3.width-0.182,pos3.height])  #[Left,Bottom,Width,Hight]
     ax_cb.set_xlabel(r'$\bar{u}$ $(ms^{-1})$')
 
     plt.savefig(fname_out)
+#    plt.show()
+    plt.close()
+  pdb.set_trace()
+
+
+def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,mean_val):
+
+    months = ['J','F','M','A','M','J','J','A','S','O','N','D']   
+    colour_mark  = ['r','b']  
+
+    fig     = plt.figure(figsize=(12,6))
+    #position
+    ax1 =   plt.subplot2grid((3,3), (0,0), colspan=3)
+    #intensity
+    ax2 =   plt.subplot2grid((3,3), (1,0), colspan=3)
+    #theta
+    ax3 =   plt.subplot2grid((3,3), (2,0), colspan=3)
+
+
+    ax1.set_xlim(0,11)
+    ax1.set_ylabel(r'$\phi$  ',rotation=0)
+    ax2.set_xlim(0,11)
+    ax2.set_ylabel(r'$I$  ',rotation=0)
+    ax3.set_xlim(0,11)
+    ax3.set_ylabel(r'$\theta$  ',rotation=0)
+
+    hemi = ['NH','SH']
+    for hemi_count in xrange(2):
+      #position
+      ax1.plot(np.arange(0,12,1),np.abs(STJ_cal_mean[:,hemi_count]), c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-')
+      lat_mean = [mean_val['DJF','lat'][hemi_count], mean_val['MAM','lat'][hemi_count],
+                  mean_val['JJA','lat'][hemi_count], mean_val['SON','lat'][hemi_count]]
+      ax1.plot([0,3,6,9],np.abs(lat_mean), c=colour_mark[hemi_count],marker='o', markersize=8,linestyle = ' ')
+
+      #Intensity
+      ax2.plot(np.arange(0,12,1),STJ_cal_int_mean[:,hemi_count], c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-')
+      I_mean = [mean_val['DJF','I'][hemi_count], mean_val['MAM','I'][hemi_count],
+                mean_val['JJA','I'][hemi_count], mean_val['SON','I'][hemi_count]]
+      ax2.plot([0,3,6,9],I_mean, c=colour_mark[hemi_count],marker='o', markersize=8,linestyle = ' ')
+
+      ax3.plot(np.arange(0,12,1),STJ_cal_th_mean[:,hemi_count], c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-',label=hemi[hemi_count])
+      th_mean = [mean_val['DJF','th'][hemi_count], mean_val['MAM','th'][hemi_count],
+                 mean_val['JJA','th'][hemi_count], mean_val['SON','th'][hemi_count]]
+      ax3.plot([0,3,6,9],th_mean, c=colour_mark[hemi_count],marker='o', markersize=8,linestyle = ' ')
+
+
+
+    #add season horizintal lines
+    xx = np.arange(14)
+    cut = (xx > 0) & (xx % 3 == 0)
+
+    for x in xx[cut]:
+      ax1.axvline(x=x-1.5,ymin=-1.2,ymax=1  ,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
+      ax2.axvline(x=x-1.5,ymin=-1.2,ymax=1.2,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
+      ax3.axvline(x=x-1.5,ymin=0   ,ymax=1.2,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
+
+    #months as labels
+    ax3.set_xticks(np.arange(0,12,1))
+    ax3.set_xticklabels(months)
+    #turn off x axis labels on plots 1-2
+    plt.setp(ax1.get_xticklabels(), visible=False)
+    plt.setp(ax2.get_xticklabels(), visible=False)
+   
+    plt.legend(loc=1)
+
+    plt.savefig('/home/links/pm366/Documents/Plot/Jet/calendar_mean.eps')
     plt.show()
     plt.close()
+    hemi_count = hemi_count +1
+
+
+    fig     = plt.figure(figsize=(15,6))
+    #position vs intensity
+    ax1 =   plt.subplot2grid((1,3), (0,0))
+    #intensity vs theta
+    ax2 =   plt.subplot2grid((1,3), (0,1))
+    #theta  va position
+    ax3 =   plt.subplot2grid((1,3), (0,2))
+
+    ax1.set_xlabel(r'$\phi$  ')
+    ax1.set_ylabel('I  ',rotation=0)
+    ax2.set_xlabel('I  ')
+    ax2.set_ylabel(r'$\theta$  ',rotation=0)
+    ax3.set_xlabel(r'$\phi$  ')
+    ax3.set_ylabel(r'$\theta$  ',rotation=0)
+
+
+
+    for hemi_count in xrange(2): 
+
+      pos  = (np.abs(STJ_cal_mean[:,hemi_count])).tolist()
+      ints = STJ_cal_int_mean[:,hemi_count].tolist()
+      th   = STJ_cal_th_mean[:,hemi_count].tolist()
+
+      pos.append(np.abs(STJ_cal_mean[0,hemi_count]))
+      ints.append(STJ_cal_int_mean[0,hemi_count])
+      th.append(STJ_cal_th_mean[0,hemi_count])
+
+      ax1.plot(pos,ints, c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-')
+      ax2.plot(ints,th, c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-')
+      ax3.plot(pos,th, c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-',label=hemi[hemi_count])
+
+      #'add months to each plot'
+      mm_count = 0
+
+      for mm in months: 
+  	    ax1.annotate(mm, xy = (pos[mm_count], ints[mm_count]+0.1),ha = 'right', va = 'bottom', size=10,color=colour_mark[hemi_count])
+  	    ax2.annotate(mm, xy = (ints[mm_count], th[mm_count]+0.1),ha = 'right', va = 'bottom', size=10,color=colour_mark[hemi_count])
+  	    ax3.annotate(mm, xy = (pos[mm_count], th[mm_count]+0.1),ha = 'right', va = 'bottom', size=10,color=colour_mark[hemi_count])
+
+  	    mm_count = mm_count +1
+
+    plt.legend(loc=2)
+    plt.savefig('/home/links/pm366/Documents/Plot/Jet/calendar_lifecycle.eps')
+    plt.show()
+
+
     pdb.set_trace()
 
 

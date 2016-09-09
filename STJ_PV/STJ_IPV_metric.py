@@ -12,7 +12,7 @@ from STJ_PV_main import Directory
 from general_plotting import draw_map_model
 from general_functions import openNetCDF4_get_data,apply_mask_inf,MeanOverDim,FindClosestElem
 import calc_ipv  #assigns th_levels_trop
-from IPV_plots import Plotting
+from IPV_plots import Plotting,PlotCalendarTimeseries
 
 __author__ = "Penelope Maher" 
 
@@ -347,31 +347,44 @@ class Method_2PV_STJ(object):
 
 
 
-  def SeasonalPeaks(self,seasons, STJ_array,crossing_lat):
+  def SeasonalPeaks(self,seasons, STJ_array,crossing_lat, STJ_I, STJ_th):
 
     #this is an overkill way to treat the seasons but has reduced risk of mixing them up
 
     STJ_seasons   = np.zeros([STJ_array.shape[0]/4,STJ_array.shape[1],4])
     cross_seasons = np.zeros([crossing_lat.shape[0]/4,crossing_lat.shape[1],4])
+    STJ_I_seasons = np.zeros([crossing_lat.shape[0]/4,crossing_lat.shape[1],4])
+    STJ_th_seasons = np.zeros([crossing_lat.shape[0]/4,crossing_lat.shape[1],4])
 
     count_DJF,count_MAM,count_JJA,count_SON = 0,0,0,0
 
     for i in xrange(STJ_array.shape[0]):
       if seasons[i] == 'DJF':
-         STJ_seasons[count_DJF,:,0]   = STJ_array[i,:,0]
-         cross_seasons[count_DJF,:,0] = crossing_lat[i,:]
+         STJ_seasons[count_DJF,:,0]    = STJ_array[i,:]
+         cross_seasons[count_DJF,:,0]  = crossing_lat[i,:]
+         STJ_I_seasons[count_DJF,:,0]  = STJ_I[i,:]
+         STJ_th_seasons[count_DJF,:,0] = STJ_th[i,:]
          count_DJF = count_DJF + 1
+
       if seasons[i] == 'MAM':
-         STJ_seasons[count_MAM,:,1]   = STJ_array[i,:,0]
+         STJ_seasons[count_MAM,:,1]   = STJ_array[i,:]
          cross_seasons[count_MAM,:,1] = crossing_lat[i,:]
+         STJ_I_seasons[count_MAM,:,1]  = STJ_I[i,:]
+         STJ_th_seasons[count_MAM,:,1] = STJ_th[i,:]
          count_MAM = count_MAM + 1
+
       if seasons[i] == 'JJA':
-         STJ_seasons[count_JJA,:,2]   = STJ_array[i,:,0]
+         STJ_seasons[count_JJA,:,2]   = STJ_array[i,:]
          cross_seasons[count_JJA,:,2] = crossing_lat[i,:]
+         STJ_I_seasons[count_JJA,:,2]  = STJ_I[i,:]
+         STJ_th_seasons[count_JJA,:,2] = STJ_th[i,:]
          count_JJA = count_JJA + 1
+
       if seasons[i] == 'SON':
-         STJ_seasons[count_SON,:,3]   = STJ_array[i,:,0]
+         STJ_seasons[count_SON,:,3]   = STJ_array[i,:]
          cross_seasons[count_SON,:,3] = crossing_lat[i,:]
+         STJ_I_seasons[count_SON,:,3]  = STJ_I[i,:]
+         STJ_th_seasons[count_SON,:,3] = STJ_th[i,:]
          count_SON = count_SON + 1
 
     output = {}
@@ -380,21 +393,56 @@ class Method_2PV_STJ(object):
     output['JJA'] = STJ_seasons[:,:,2]
     output['SON'] = STJ_seasons[:,:,3]
 
-    self.STJ_seasons = output    
-
     cross = {}
     cross['DJF'] = cross_seasons[:,:,0] #month,hemi,season
     cross['MAM'] = cross_seasons[:,:,1]
     cross['JJA'] = cross_seasons[:,:,2]
     cross['SON'] = cross_seasons[:,:,3]
 
+    intensity = {}
+    intensity['DJF'] = STJ_I_seasons[:,:,0] #month,hemi,season
+    intensity['MAM'] = STJ_I_seasons[:,:,1]
+    intensity['JJA'] = STJ_I_seasons[:,:,2]
+    intensity['SON'] = STJ_I_seasons[:,:,3]
+
+    theta = {}
+    theta['DJF'] = STJ_th_seasons[:,:,0] #month,hemi,season
+    theta['MAM'] = STJ_th_seasons[:,:,1]
+    theta['JJA'] = STJ_th_seasons[:,:,2]
+    theta['SON'] = STJ_th_seasons[:,:,3]
+
     self.STJ_seasons = output    
     self.cross_seasons = cross    
+    self.STJ_I_seasons = intensity    
+    self.STJ_th_seasons = theta    
 
-    testing = True
-    if testing == True:
+
+    make_ts_seasonal_plot = False
+    if make_ts_seasonal_plot == True:
       print_min_max_mean(output)
       plot_seasonal_stj_ts(output,cross)  
+
+  def CalendarMean(self,seasons, STJ_array,crossing_lat,STJ_I, STJ_th):
+  
+    STJ_cal = STJ_array.reshape([30,12,2])
+    STJ_cal_mean = MeanOverDim(data=STJ_cal, dim=0)
+
+    STJ_cal_int = STJ_I.reshape([30,12,2])
+    STJ_cal_int_mean = MeanOverDim(data=STJ_cal_int, dim=0)
+
+    STJ_cal_th = STJ_th.reshape([30,12,2])
+    STJ_cal_th_mean = MeanOverDim(data=STJ_cal_th, dim=0)
+
+    mean_val = {}
+    for season in ['DJF', 'MAM', 'JJA', 'SON']:
+      mean_val[season,'lat']    = MeanOverDim(data = self.STJ_seasons[season],   dim=0)
+      mean_val[season,'I']      = MeanOverDim(data = self.STJ_I_seasons[season], dim=0)
+      mean_val[season,'th']     = MeanOverDim(data = self.STJ_th_seasons[season],dim=0)
+
+   
+    PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,mean_val)
+
+
 
   def validate_near_mean(self,hemi_count,season,input_string,hemi, time_loop):
 
@@ -739,6 +787,8 @@ def calc_metric(IPV_data):
     jet_best_guess    = np.zeros([Method.IPV.shape[0],len(Method.lon_loc),2,2]) #STJ metric [time_loop,lon_loop,hemi_count,cby or fd] 
     mask_jet_number   = np.zeros([Method.IPV.shape[0],2])   #how many peaks were found
     crossing_lat      = np.zeros([Method.IPV.shape[0],2])   #point where two tropopause definitions cross paths
+    jet_intensity     = np.zeros([Method.IPV.shape[0],len(Method.lon_loc),2,2]) #[time_loop,lon_loop,hemi_count,cby or fd] 
+    jet_th_lev        = np.zeros([Method.IPV.shape[0],len(Method.lon_loc),2,2]) #[time_loop,lon_loop,hemi_count,cby or fd] 
 
     #fill with nans
     phi_2PV_out[:,:,:]    = np.nan
@@ -845,6 +895,11 @@ def calc_metric(IPV_data):
           #mask_jet_number[time_loop,hemi_count]                       = len(Method.local_elem_cby)
           jet_best_guess[time_loop,lon_loop,hemi_count,0]             = Method.best_guess_cby
           jet_best_guess[time_loop,lon_loop,hemi_count,1]             = Method.best_guess_fd
+          jet_intensity[time_loop,lon_loop,hemi_count,0]              = Method.jet_max_wind_cby
+          jet_intensity[time_loop,lon_loop,hemi_count,1]              = Method.jet_max_wind_fd
+          jet_th_lev[time_loop,lon_loop,hemi_count,0]                 = Method.jet_max_theta_cby
+          jet_th_lev[time_loop,lon_loop,hemi_count,1]                 = Method.jet_max_theta_fd
+
 
           if (hemi == 'NH' and Method.best_guess_cby > 45) or (hemi == 'SH' and Method.best_guess_cby <-40):
               test_with_plots = True
@@ -854,7 +909,7 @@ def calc_metric(IPV_data):
             else:
               test_with_plots = False
 
-          #test_with_plots = True
+          test_with_plots = False
  
           if test_with_plots == True:
             #pick method to plot 
@@ -870,7 +925,10 @@ def calc_metric(IPV_data):
       MakeOutfileSavez_derived(filename, phi_2PV_out,theta_2PV_out,dth_out,dth_lat_out,d2th_out)
 
     #seasonally seperate the data
-    Method.SeasonalPeaks(seasons, jet_best_guess[:,0,:],crossing_lat)
+    Method.SeasonalPeaks(seasons, jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
+
+    Method.CalendarMean(seasons, jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
+
 
     pdb.set_trace()
 

@@ -119,7 +119,7 @@ def main():
     print 'Currently code only works for Era-Int data format'
     pdb.set_trace()
 
-  plot_u_wind = True
+  plot_u_wind = False
   if plot_u_wind == True:
     plot_u(Exp.u_fname)
 
