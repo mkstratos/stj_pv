@@ -7,12 +7,16 @@ from numpy.polynomial import chebyshev as cby
 import copy as copy
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy.stats import mstats,t
 #Dependent code
 from STJ_PV_main import Directory
 from general_plotting import draw_map_model
 from general_functions import openNetCDF4_get_data,apply_mask_inf,MeanOverDim,FindClosestElem
 import calc_ipv  #assigns th_levels_trop
 from IPV_plots import Plotting,PlotCalendarTimeseries
+#partial correlation code forked from https://gist.github.com/fabianp/9396204419c7b638d38f
+from partial_corr import partial_corr
+
 
 __author__ = "Penelope Maher" 
 
@@ -303,6 +307,89 @@ class Method_2PV_STJ(object):
     self.jet_max_wind_fd   = slice_at_jet_fd[jet_max_wind_elem_fd] 
     self.jet_max_theta_fd  = self.theta_domain[jet_max_wind_elem_fd]
 
+  def AnnualCorrelations(self, best_guess_cby,cross_lat,jet_max_wind_cby,jet_max_theta_cby):
+
+    num_var = 4
+    var_name  = ['lat','int','lev','cross']
+    hemi = ['NH','SH']
+ 
+    data= np.zeros([best_guess_cby.shape[0],num_var,2])
+    data[:,0,:] = best_guess_cby
+    data[:,1,:] = jet_max_wind_cby
+    data[:,2,:] = jet_max_theta_cby
+    data[:,3,:] = cross_lat
+
+    self.AnnualCC = GetCorrelation(hemi,num_var, var_name, data)
+
+   
+    #Now get the partial correlation
+    pc   = np.zeros([num_var,num_var,2])
+    pc[:,:,0] = partial_corr(data[:,:,0])
+    pc[:,:,1] = partial_corr(data[:,:,1])
+
+    self.AnnualPC   = pc
+
+  def MonthlyCorrelations(self, best_guess_cby,cross_lat,jet_max_wind_cby,jet_max_theta_cby):
+
+    num_var = 4
+    var_name  = ['lat','int','lev','cross']
+    hemi = ['NH','SH']
+
+    best_guess_cby    = best_guess_cby.reshape([30,12,2])
+    cross_lat         = cross_lat.reshape([30,12,2])
+    jet_max_wind_cby  = jet_max_wind_cby.reshape([30,12,2])
+    jet_max_theta_cby = jet_max_theta_cby.reshape([30,12,2])
+
+
+    data  = np.zeros([best_guess_cby.shape[0],num_var,2])
+    corr  = np.zeros([best_guess_cby.shape[1],num_var,num_var,2])
+    pc    = np.zeros([best_guess_cby.shape[1],num_var,num_var,2])
+
+    for mm in xrange(12):
+
+      data[:,0,:] = best_guess_cby[:,mm,:]
+      data[:,1,:] = jet_max_wind_cby[:,mm,:]
+      data[:,2,:] = jet_max_theta_cby[:,mm,:]
+      data[:,3,:] = cross_lat[:,mm,:]
+
+      corr[mm,:,:,:] = GetCorrelation(hemi,num_var, var_name, data)
+   
+      #Now get the partial correlation
+
+      pc[mm,:,:,0] = partial_corr(data[:,:,0])
+      pc[mm,:,:,1] = partial_corr(data[:,:,1])
+
+    self.MonthlyCC   = corr
+    self.MonthlyPC   = pc
+
+  def SeasonCorrelations(self):
+
+    num_var = 4
+    var_name     = ['lat','int','lev','cross']
+    hemi         = ['NH','SH']
+    season_names = ['DJF', 'MAM', 'JJA', 'SON']
+
+    data       = np.zeros([self.STJ_seasons['DJF'].shape[0], num_var,2]) #[months,var,hemi]
+    pc_store   = np.zeros([num_var,num_var,2])
+
+    corr = {}
+    pc   = {}
+    for season_count in xrange(4):
+      data[:,0,:] = self.STJ_seasons[season_names[season_count]]
+      data[:,1,:] = self.STJ_I_seasons[season_names[season_count]]
+      data[:,2,:] = self.STJ_th_seasons[season_names[season_count]]
+      data[:,3,:] = self.cross_seasons[season_names[season_count]]
+
+      corr[season_names[season_count]] = GetCorrelation(hemi, num_var, var_name, data)
+   
+      #Now get the partial correlation
+      pc_store[:,:,0] = partial_corr(data[:,:,0])
+      pc_store[:,:,1] = partial_corr(data[:,:,1])
+      pc[season_names[season_count]] = pc_store
+ 
+    self.SeasonCC   = corr
+    self.SeasonPC   = pc
+
 
   def PolyFit2PV_near_mean(self,print_messages,STJ_mean,EDJ_mean, phi_val,local_elem,STJ_lat_sort,y_peak,peak_mag,sort_index):
     'Find the peaks that are closest to known mean position. Tests if ordered or ID peaks different.'
@@ -433,14 +520,18 @@ class Method_2PV_STJ(object):
     STJ_cal_th = STJ_th.reshape([30,12,2])
     STJ_cal_th_mean = MeanOverDim(data=STJ_cal_th, dim=0)
 
+    STJ_cal_x = crossing_lat.reshape([30,12,2])
+    STJ_cal_x_mean = MeanOverDim(data=STJ_cal_x, dim=0)
+
     mean_val = {}
     for season in ['DJF', 'MAM', 'JJA', 'SON']:
       mean_val[season,'lat']    = MeanOverDim(data = self.STJ_seasons[season],   dim=0)
       mean_val[season,'I']      = MeanOverDim(data = self.STJ_I_seasons[season], dim=0)
       mean_val[season,'th']     = MeanOverDim(data = self.STJ_th_seasons[season],dim=0)
+      mean_val[season,'x']      = MeanOverDim(data = self.cross_seasons[season],  dim=0)
 
    
-    PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,mean_val)
+    PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal_x_mean,mean_val,self.AnnualPC)
 
 
 
@@ -881,7 +972,7 @@ def calc_metric(IPV_data):
 
 
           Method.JetIntensity(hemi,u_zonal,lat_elem)
-
+   
           #vars of interest outside of loop
           phi_2PV_out  [time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.phi_2PV
           theta_2PV_out[time_loop,hemi_count,0:len(Method.phi_2PV)]   =  Method.theta_2PV 
@@ -899,7 +990,6 @@ def calc_metric(IPV_data):
           jet_intensity[time_loop,lon_loop,hemi_count,1]              = Method.jet_max_wind_fd
           jet_th_lev[time_loop,lon_loop,hemi_count,0]                 = Method.jet_max_theta_cby
           jet_th_lev[time_loop,lon_loop,hemi_count,1]                 = Method.jet_max_theta_fd
-
 
           if (hemi == 'NH' and Method.best_guess_cby > 45) or (hemi == 'SH' and Method.best_guess_cby <-40):
               test_with_plots = True
@@ -924,10 +1014,19 @@ def calc_metric(IPV_data):
       filename = '/home/links/pm366/Documents/Data/STJ_PV_metric_derived.npz'
       MakeOutfileSavez_derived(filename, phi_2PV_out,theta_2PV_out,dth_out,dth_lat_out,d2th_out)
 
+    #annual values
+    Method.AnnualCorrelations( jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
+    Method.MonthlyCorrelations( jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
+
     #seasonally seperate the data
     Method.SeasonalPeaks(seasons, jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
 
+    #calendar values
+    Method.SeasonCorrelations()
+
+
     Method.CalendarMean(seasons, jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
+
 
 
     pdb.set_trace()
@@ -1151,6 +1250,28 @@ def plot_seasonal_stj_ts(output,cross):
     plt.savefig('/home/links/pm366/Documents/Plot/Jet/cross.png')
     plt.show()
 
+def GetCorrelation(hemi, num_var, var_name, data):
 
+    #-----------Correlations-----------------
+    #null hypothesis is that linear regression slope and zero and the two timeseries are unrelated.
+    # if p <=0.05 then reject the null
+
+    corr = np.zeros([num_var,num_var,2])
+
+    for hemi_count in xrange(2):
+      for i in xrange(num_var):
+        for j in xrange(num_var):
+
+          #print 'Correlation with: ', var_name[i],var_name[j], 'in ', hemi[hemi_count]
+
+          slope, intercept, r_value, p_value, std_err = mstats.linregress(data[:,i,hemi_count],data[:,j,hemi_count])
+
+          if p_value <=0.05:
+            #print '                significant correlation', 100-p_value*100, r_value
+            corr[i,j,hemi_count] = r_value
+          else:
+            #print '                weak correlation ',  100-p_value*100, r_value
+            corr[i,j,hemi_count] = 0.0
+    return corr
 
 

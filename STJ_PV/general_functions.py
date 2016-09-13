@@ -4,6 +4,7 @@ import pickle
 import numpy as np
 import pdb
 
+
 def openNetCDF4_get_data(filename):
   'Key names are in unicode'
   var = {}
@@ -146,6 +147,47 @@ def SavePickle(filenamePickle,data):
   pickle.dump(data, open(filenamePickle, "wb" ) )
   print 'Pickle saved'  
   return ()
+
+#this code ws adapted from stack overflow suggestion:
+#http://stackoverflow.com/questions/28681782/create-table-in-subplot
+def latex_table(celldata,rowlabel,collabel):
+    'function that creates latex-table'
+
+    table = r'\begin{tabular}{c|'''
+    for c in xrange(len(collabel)):
+        # add additional columns
+        table += r'c|'
+    table += r'} '
+
+    # provide the column headers
+    for c in xrange(len(collabel)-1):
+        table += collabel[c]
+        table += r' & '
+    table += collabel[-1]
+    table += r'\\ \hline '
+
+    # populate the table:
+    # this assumes the format to be celldata[index of rows][index of columns]
+    for r in xrange(len(rowlabel)):
+        table += rowlabel[r]
+        table += r' & '
+        for c in range(0,len(collabel)-2):
+            if not isinstance(celldata[r][c], basestring):
+                table += str(celldata[r][c])
+            else:
+                table += celldata[r][c]
+            table += r' & '
+
+        if not isinstance(celldata[r][-1], basestring):
+            table += str(celldata[r][-1])
+        else:
+            table += celldata[r][-1]
+        table += r'\\  '
+
+    table += r'\end{tabular} '
+
+
+    return table
 
 
 

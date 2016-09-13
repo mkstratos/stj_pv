@@ -8,13 +8,17 @@ import pdb
 import os		
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from matplotlib.colors import LinearSegmentedColormap  
 from colormap import Colormap
+from matplotlib import rc
 #Dependent code
-from general_functions import MeanOverDim, FindClosestElem,openNetCDF4_get_data
+from general_functions import MeanOverDim, FindClosestElem,openNetCDF4_get_data,latex_table
 from general_plotting import draw_map_model,draw_deg,gfdl_lat_change_map
 #see also https://pypi.python.org/pypi/colour
 #see https://pypi.python.org/pypi/colormap
+
+
+rc('text', usetex=True)
+
 __author__ = "Penelope Maher" 
 
 class Plotting(object):
@@ -87,8 +91,12 @@ class Plotting(object):
     self.lat_SH          = data.lat_SH
     self.lat_hemi        = data.lat_hemi
 
-
-
+    self.AnnualCC        = data.AnnualCC
+    self.AnnualCC        = data.AnnualPC
+    self.MonthlyCC       = data.MonthlyCC
+    self.MonthlyPC       = data.MonthlyPC
+    self.CalendarCC      = data.CalendarCC
+    self.CalendarPC      = data.CalendarPC
   
   def compare_finite_vs_poly(self):
 
@@ -384,26 +392,34 @@ def plot_u(fname):
   pdb.set_trace()
 
 
-def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,mean_val):
+def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal_x_mean,mean_val,PC):
 
     months = ['J','F','M','A','M','J','J','A','S','O','N','D']   
     colour_mark  = ['r','b']  
 
-    fig     = plt.figure(figsize=(12,6))
+    fig     = plt.figure(figsize=(14,8))
     #position
-    ax1 =   plt.subplot2grid((3,3), (0,0), colspan=3)
+    ax1 =   plt.subplot2grid((9,6), (0,0), colspan=6,rowspan=2)
     #intensity
-    ax2 =   plt.subplot2grid((3,3), (1,0), colspan=3)
+    ax2 =   plt.subplot2grid((9,6), (2,0), colspan=6,rowspan=2)
     #theta
-    ax3 =   plt.subplot2grid((3,3), (2,0), colspan=3)
+    ax3 =   plt.subplot2grid((9,6), (4,0), colspan=6,rowspan=2)
+    #theta
+    ax4 =   plt.subplot2grid((9,6), (6,0), colspan=6,rowspan=2)
+
+    #table
+    ax5 =   plt.subplot2grid((9,6), (8,0), colspan=6)
+
 
 
     ax1.set_xlim(0,11)
-    ax1.set_ylabel(r'$\phi$  ',rotation=0)
+    ax1.set_ylabel(r'$\phi_{STJ}$  ',rotation=0)
     ax2.set_xlim(0,11)
-    ax2.set_ylabel(r'$I$  ',rotation=0)
+    ax2.set_ylabel(r'$I (ms^{-1})$  ',rotation=0)
     ax3.set_xlim(0,11)
-    ax3.set_ylabel(r'$\theta$  ',rotation=0)
+    ax3.set_ylabel(r'$\theta (K)$  ',rotation=0)
+    ax4.set_xlim(0,11)
+    ax4.set_ylabel(r'$\phi_x$  ',rotation=0)
 
     hemi = ['NH','SH']
     for hemi_count in xrange(2):
@@ -419,11 +435,15 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,mean_va
                 mean_val['JJA','I'][hemi_count], mean_val['SON','I'][hemi_count]]
       ax2.plot([0,3,6,9],I_mean, c=colour_mark[hemi_count],marker='o', markersize=8,linestyle = ' ')
 
-      ax3.plot(np.arange(0,12,1),STJ_cal_th_mean[:,hemi_count], c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-',label=hemi[hemi_count])
+      ax3.plot(np.arange(0,12,1),STJ_cal_th_mean[:,hemi_count], c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-')
       th_mean = [mean_val['DJF','th'][hemi_count], mean_val['MAM','th'][hemi_count],
                  mean_val['JJA','th'][hemi_count], mean_val['SON','th'][hemi_count]]
       ax3.plot([0,3,6,9],th_mean, c=colour_mark[hemi_count],marker='o', markersize=8,linestyle = ' ')
 
+      ax4.plot(np.arange(0,12,1),np.abs(STJ_cal_x_mean[:,hemi_count]), c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-',label=hemi[hemi_count])
+      x_mean = [mean_val['DJF','x'][hemi_count], mean_val['MAM','x'][hemi_count],
+                 mean_val['JJA','x'][hemi_count], mean_val['SON','x'][hemi_count]]
+      ax4.plot([0,3,6,9],np.abs(x_mean), c=colour_mark[hemi_count],marker='o', markersize=8,linestyle = ' ')
 
 
     #add season horizintal lines
@@ -433,22 +453,50 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,mean_va
     for x in xx[cut]:
       ax1.axvline(x=x-1.5,ymin=-1.2,ymax=1  ,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
       ax2.axvline(x=x-1.5,ymin=-1.2,ymax=1.2,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
-      ax3.axvline(x=x-1.5,ymin=0   ,ymax=1.2,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
+      ax3.axvline(x=x-1.5,ymin=-1.2,ymax=1.2,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
+      ax4.axvline(x=x-1.5,ymin=0   ,ymax=1.2,c="k",linestyle=':',linewidth=1,zorder=0, clip_on=False)
 
     #months as labels
-    ax3.set_xticks(np.arange(0,12,1))
-    ax3.set_xticklabels(months)
+    ax4.set_xticks(np.arange(0,12,1))
+    ax4.set_xticklabels(months)
+
+    plt.legend(loc=1)
+
     #turn off x axis labels on plots 1-2
     plt.setp(ax1.get_xticklabels(), visible=False)
     plt.setp(ax2.get_xticklabels(), visible=False)
-   
-    plt.legend(loc=1)
+    plt.setp(ax3.get_xticklabels(), visible=False)
+  
+
+    #var_name  = ['lat','int','lev','cross']
+
+    #label1= + '     ' + r'$r_{\phi,I}=$'+ '{0:.2f}'.format(PC[0,1,1])
+    #label2=r'$r_{\phi,\theta}=$'+ '{0:.2f}'.format(PC[0,2,0]) + '  ' + r'$r_{\phi,\theta}=$'+ '{0:.2f}'.format(PC[0,2,1])
+    #label3=r'$r_{\phi,x}=$'+ '{0:.2f}'.format(PC[0,3,0]) + '     ' + r'$r_{\phi,x}=$'+ '{0:.2f}'.format(PC[0,3,1])
+
+    #add the table to the plot
+    celldata = [
+                 #NH
+                 ['{0:.2f}'.format(PC[0,1,0]),'{0:.2f}'.format(PC[0,2,0]),'{0:.2f}'.format(PC[0,3,0]),
+                  '{0:.2f}'.format(PC[1,2,0]),'{0:.2f}'.format(PC[1,3,0]),'{0:.2f}'.format(PC[2,3,0])
+                 ],
+               #SH
+                 ['{0:.2f}'.format(PC[0,1,1]),'{0:.2f}'.format(PC[0,2,1]),'{0:.2f}'.format(PC[0,3,1]),  
+                  '{0:.2f}'.format(PC[1,2,1]),'{0:.2f}'.format(PC[1,3,1]),'{0:.2f}'.format(PC[2,3,1])
+                 ],
+               ]
+    rowlabel = ['NH','SH']
+    collabel = ['  ',r'$r_{\phi,I}$', r'$r_{\phi,\theta}$', r'$r_{\phi,x}$',r'$r_{I,\theta}$',r'$r_{I,x}$',r'$r_{\theta,x}$']
+    table = latex_table(celldata,rowlabel,collabel)
+    ax5.text(0.3,-.5,table,size=14)
+    ax5.axis('off')
 
     plt.savefig('/home/links/pm366/Documents/Plot/Jet/calendar_mean.eps')
     plt.show()
     plt.close()
     hemi_count = hemi_count +1
 
+    pdb.set_trace()  
 
     fig     = plt.figure(figsize=(15,6))
     #position vs intensity
