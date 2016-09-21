@@ -218,7 +218,7 @@ class Plotting(object):
 
     plt.savefig('/home/links/pm366/Documents/Plot/Jet/looking_at_fit.eps')
 
-    print '  Peaks at: ', self.phi_2PV[self.local_elem], 'ST Jet at :',  self.STJ_lat
+    print('  Peaks at: ', self.phi_2PV[self.local_elem], 'ST Jet at :',  self.STJ_lat)
   
     if pause == True:
       #pause sequence   
@@ -242,7 +242,7 @@ class Plotting(object):
 
     pdb.set_trace()
     #plot a timeseries
-    print 'Current algorithm plot produces: '
+    print('Current algorithm plot produces: ')
     fig     = plt.figure(figsize=(15,6))
     ax1      = fig.add_axes([0.1,0.2,0.75,0.75]) 
     plt.plot(np.arange(0,STJ_jet_lat[:,0,0].shape[0],1), STJ_jet_lat[:,0,0], c='k',marker='x', markersize=8,linestyle = '-',label='NH')
@@ -283,13 +283,13 @@ if __name__ == "__main__" :
       if plot_method_compare == True:
         if self.STJ_lat_sort[0] != self.STJ_lat or len(self.local_elem) >= 2:
              if self.STJ_lat_sort[0] != self.STJ_lat: 
-               print 'Methods different'
+               print('Methods different')
              if len(self.local_elem) >= 2: 
-               print 'More than 2 jets'
+               print('More than 2 jets')
 
           
   else: #only 0 or 1 peaks
-    if (print_messages == True) : print 'single jet: ',  self.STJ_lat_sort
+    if (print_messages == True) : print('single jet: ',  self.STJ_lat_sort)
 
 
     if ((hemi == 'SH') and (self.STJ_lat_sort[0] < -40.0) ) or ((hemi == 'NH') and (self.STJ_lat_sort[0] > 40.0) ) :
@@ -311,21 +311,21 @@ def MakeOutputFile(filename,data,dim_name,var_name,var_type):
 
 
   f=io.netcdf.netcdf_file(filename, mode='w')
-  for j in xrange(dim):
+  for j in range(dim):
 	     f.createDimension(dim_name[j],len(data[dim_name[j]])) 
-  for i in xrange(len(var_name)):
+  for i in range(len(var_name)):
         tmp = f.createVariable(var_name[i],var_type[i],var_dim_name[i])
         tmp[:] =  data[var_name[i]]
 
   f.close()    
-  print 'created file: ',filename
+  print('created file: ',filename)
 
 def plot_u(fname):
   var     = openNetCDF4_get_data(fname)
   lev250  = FindClosestElem(25000,var['lev'])[0]
   t_elem = [0,5,6,7,10,11,12,13,16,155,168]
 
-  for t in xrange(len(t_elem)):
+  for t in range(len(t_elem)):
     uwnd = var['var131'][t_elem[t],lev250,:,:]
     #from running the code i know where the jet is. Plot it on a map as a sanity check
     jet_NH = [25.8,34.6,39,41,30,28.4,25.4,27.4,24]
@@ -424,7 +424,7 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
     ax4.set_ylabel(r'$\phi_x$  ',rotation=0)
 
     hemi = ['NH','SH']
-    for hemi_count in xrange(2):
+    for hemi_count in range(2):
       #position
       ax1.plot(np.arange(0,12,1),np.abs(STJ_cal_mean[:,hemi_count]), c=colour_mark[hemi_count],marker='x', markersize=8,linestyle = '-')
       lat_mean = [mean_val['DJF','lat'][hemi_count], mean_val['MAM','lat'][hemi_count],
@@ -517,7 +517,7 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
 
 
 
-    for hemi_count in xrange(2): 
+    for hemi_count in range(2): 
 
       pos  = (np.abs(STJ_cal_mean[:,hemi_count])).tolist()
       ints = STJ_cal_int_mean[:,hemi_count].tolist()

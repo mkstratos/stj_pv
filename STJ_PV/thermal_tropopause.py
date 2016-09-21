@@ -41,7 +41,7 @@ def IterateCheckTropoHeight(dTdz,dz,T_spline,P_spline,lat,H_threshold):
   rate_lt_2km = np.where(dTdz <= H_threshold)[0]
 
   tropopause_level = None
-  for i in xrange(len(rate_lt_2km)):
+  for i in range(len(rate_lt_2km)):
     if tropopause_level == None:
       #test each layer satisfying this condition from the bottom up
 
@@ -73,7 +73,7 @@ def TropopauseHeightLevel(T_spline,P_spline,tck,T_orig,p_orig,lat):
 
   H_threshold = 2.0 #K/km this is the WHO threshold
 
-  for lev in xrange(len(P_spline)-1): 
+  for lev in range(len(P_spline)-1): 
     #diff from surface up 
     dT = T_spline[lev+1]-T_spline[lev]         	 # units = K
     dp = (P_spline[lev+1]-P_spline[lev])*100     # units = Pa

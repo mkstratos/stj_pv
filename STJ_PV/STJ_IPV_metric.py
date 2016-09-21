@@ -62,11 +62,11 @@ class Method_2PV_STJ(object):
     if self.lon.min() == 0.0:
       lon_slice = np.arange(0,360,360./lon_slices_num)
     else:
-      print 'Check lon data.'
+      print('Check lon data.')
       pdb.set_trace()      
   
     elem_loc = np.zeros(lon_slices_num) 
-    for i in xrange(int(lon_slices_num)):
+    for i in range(int(lon_slices_num)):
       elem_loc[i] = FindClosestElem(lon_slice[i],self.lon)[0]
   
     self.lon_loc = elem_loc
@@ -240,8 +240,8 @@ class Method_2PV_STJ(object):
       self.peak_mag_fd     = (self.dtdphi_val_peak_fd).max()
 
 
-    if (print_messages == True) : print 'Where are peaks: cby ', self.STJ_lat_sort_cby[:]            
-    if (print_messages == True) : print 'Where are peaks: f_d ', self.STJ_lat_sort_fd[:]            
+    if (print_messages == True) : print('Where are peaks: cby ', self.STJ_lat_sort_cby[:])            
+    if (print_messages == True) : print('Where are peaks: f_d ', self.STJ_lat_sort_fd[:])            
 
   def MaxShear(self,hemi,u_zonal,lat_elem,local_elem):
     'Assign the STJ to the peak with the most shear'
@@ -252,7 +252,7 @@ class Method_2PV_STJ(object):
     shear      = np.zeros(loop_len)
     shear_elem = np.zeros(loop_len)
 
-    for i in xrange(loop_len):
+    for i in range(loop_len):
 
       shear_elem[i] = FindClosestElem(self.phi_2PV[local_elem][i],self.lat[lat_elem])[0]
 
@@ -265,7 +265,7 @@ class Method_2PV_STJ(object):
       test_shear = False
       if test_shear == True:
         plt.plot(self.lat[lat_elem][shear_elem[i]],self.theta_lev[upper_lev] , linestyle=' ',c='green',marker='x', markersize=10,label='dTh/dy peaks')
-        print 'shear:', shear[i],  self.phi_2PV[local_elem][i]
+        print('shear:', shear[i],  self.phi_2PV[local_elem][i])
 
     #Check for repeated shear_elem
     shear_elem , idx = np.unique(shear_elem, return_index=True)
@@ -349,7 +349,7 @@ class Method_2PV_STJ(object):
     corr  = np.zeros([best_guess_cby.shape[1],num_var,num_var,2])
     pc    = np.zeros([best_guess_cby.shape[1],num_var,num_var,2])
 
-    for mm in xrange(12):
+    for mm in range(12):
 
       data[:,0,:] = best_guess_cby[:,mm,:]
       data[:,1,:] = jet_max_wind_cby[:,mm,:]
@@ -377,9 +377,8 @@ class Method_2PV_STJ(object):
     pc_store   = np.zeros([num_var,num_var,4,2])
 
     corr = {}
-    pc  = {}
-    for season_count in xrange(4):
-     
+    pc   = {}
+    for season_count in range(4):
       data[:,0,:] = self.STJ_seasons[season_names[season_count]]
       data[:,1,:] = self.STJ_I_seasons[season_names[season_count]]
       data[:,2,:] = self.STJ_th_seasons[season_names[season_count]]
@@ -429,11 +428,11 @@ class Method_2PV_STJ(object):
       EDJ_lat_near_mean , additional_lat = None,None
 
            
-    if (print_messages == True) : print 'Testing near mean position: ', STJ_lat_near_mean , ',    EDJ: ', EDJ_lat_near_mean, ',    Other: ', additional_lat
+    if (print_messages == True) : print('Testing near mean position: ', STJ_lat_near_mean , ',    EDJ: ', EDJ_lat_near_mean, ',    Other: ', additional_lat)
 
     if (print_messages == True) :
       if STJ_lat_sort[0] != STJ_lat_near_mean:
-        print 'STJ_lat_sort[0] != STJ_lat', STJ_lat_sort[0], STJ_lat_near_mean
+        print('STJ_lat_sort[0] != STJ_lat', STJ_lat_sort[0], STJ_lat_near_mean)
 
     #peaks         = y_peak
     #peak_elem     = np.where(peaks == peak_mag)[0]
@@ -456,7 +455,7 @@ class Method_2PV_STJ(object):
 
     count_DJF,count_MAM,count_JJA,count_SON = 0,0,0,0
 
-    for i in xrange(STJ_array.shape[0]):
+    for i in range(STJ_array.shape[0]):
       if seasons[i] == 'DJF':
          STJ_seasons[count_DJF,:,0]    = STJ_array[i,:]
          cross_seasons[count_DJF,:,0]  = crossing_lat[i,:]
@@ -582,7 +581,7 @@ class Method_2PV_STJ(object):
     mean_val = self.STJ_seasons[season][:,hemi_count].mean()
 
     if np.abs(self.STJ_lat_near_mean)-np.abs(mean_val) >= np.abs(5.0): 
-      print 'Seasonal mean is ', mean_val, ' but current jet lat is ', self.STJ_lat_near_mean, 'for ', input_string
+      print('Seasonal mean is ', mean_val, ' but current jet lat is ', self.STJ_lat_near_mean, 'for ', input_string)
       PlottingObject = Plotting(Method) 
       best_guess_jet = PlottingObject.poly_2PV_line(hemi,time_loop, pause = False)
 
@@ -661,7 +660,7 @@ class Method_2PV_STJ(object):
     dTHdlat      = np.zeros(non_zero_len-1)
     dTHdlat_lat  = np.zeros(non_zero_len-1)  #latitude for phi between points
 
-    for PV_line_loop in xrange(non_zero_len-1):  
+    for PV_line_loop in range(non_zero_len-1):  
 
        dTH                      = self.theta_2PV[PV_line_loop+1] - self.theta_2PV[PV_line_loop] 
        dlat                     = self.phi_2PV[PV_line_loop+1]   - self.phi_2PV[PV_line_loop] 
@@ -723,7 +722,7 @@ def IPV_get_2PV(data, pv_line):
       line_2PV_elem     = np.zeros(array_len)
       actual_ipv_values = np.zeros(array_len)
 
-      for i in xrange(array_len):
+      for i in range(array_len):
         data_loc                      = data[i,:]
         elem                          = FindClosestElem(pv_line,data_loc)[0]
         line_2PV_elem[i]              = elem
@@ -818,13 +817,13 @@ def IsolatePeaks(hemi,x,y,y2,time_loop,cross_lat,print_messages):
       x2_peak, y2_peak, local_elem_2 = None, None, None
 
     if (print_messages):
-      print '-----------------------------'
-      print hemi, ' peak is', x_peak
-      print hemi, ' elements', x[elem]
-      print '-----------------------------'
+      print('-----------------------------')
+      print(hemi, ' peak is', x_peak)
+      print(hemi, ' elements', x[elem])
+      print('-----------------------------')
 
       if len(x_peak) == 0:
-        print 'No peak found.'
+        print('No peak found.')
         pdb.set_trace()
 
     return  elem, local_elem, local_elem_2, x_peak, y_peak , x2_peak , y2_peak
@@ -860,7 +859,7 @@ def MakeOutfileSavez_grid(filename,lat,theta,u,h):
   'save data for testing purposed only. Works if testing is done in python'
 
   np.savez(filename,lat=lat,theta=theta,u_zonal=u,H_thermal=h)
-  print 'File created: ', filename
+  print('File created: ', filename)
 
   #test it opens
   npzfile = np.load(filename)
@@ -872,7 +871,7 @@ def MakeOutfileSavez_derived(filename, phi_2PV,theta_2PV,dth,dth_lat,d2th):
 
   #save data for Mike to test
   np.savez(filename,lat=phi_2PV, theta=theta_2PV,dth=dth,dth_lat=dth_lat,d2th=d2th)
-  print 'File created: ', filename
+  print('File created: ', filename)
   #test it opens
   npzfile = np.load(filename)
   npzfile.files   
@@ -944,8 +943,8 @@ def calc_metric(IPV_data,diri):
 
     print_messages = False
  
-    for time_loop in xrange(Method.IPV.shape[0]):
-      for lon_loop in xrange(len(Method.lon_loc)):
+    for time_loop in range(Method.IPV.shape[0]):
+      for lon_loop in range(len(Method.lon_loc)):
         for hemi in ['NH','SH']:
   
           if hemi == 'NH':
@@ -1045,7 +1044,7 @@ def calc_metric(IPV_data,diri):
             #pick method to plot 
             Method_opt = ['cby', 'fd']
             Method_choice =  Method_opt[0]
-            print 'plot for: hemi', hemi, ', time: ', time_loop
+            print('plot for: hemi', hemi, ', time: ', time_loop)
             #get the zonal wind for plotting purposes
             PlottingObject = Plotting(Method,Method_choice) 
             PlottingObject.poly_2PV_line(hemi,u_zonal,lat_elem,time_loop,pause = False, click=True)
@@ -1074,8 +1073,8 @@ def calc_metric(IPV_data,diri):
     pdb.set_trace()
 
     #second pass - loop at peaks that are not near the seasonal mean
-    for time_loop in xrange(Method.IPV.shape[0]):
-      for lon_loop in xrange(len(Method.lon_loc)):
+    for time_loop in range(Method.IPV.shape[0]):
+      for lon_loop in range(len(Method.lon_loc)):
         for hemi in ['NH','SH']:
           if hemi == 'NH':
             hemi_count = 0
@@ -1184,7 +1183,7 @@ def AttemptMeanFind(hemi,time_loop,dtdphi_val,elem,phi_2PV):
   signal_above_mean = np.where(np.abs(dtdphi_val_normal) >= 0.2)[0].tolist()
   #keep peaks that are in above list
   peak_sig = []
-  for i in xrange(len(local_elem)):
+  for i in range(len(local_elem)):
     if local_elem[i] in signal_above_mean:
       peak_sig.append(local_elem[i])
 
@@ -1220,7 +1219,7 @@ def test_max_shear_across_lats(phi_2PV,theta_2PV, lat, lat_elem,theta_lev,u_zona
   closest_lat_elem   = np.zeros(len(phi_2PV))
   closest_theta_elem = np.zeros(len(phi_2PV))
 
-  for i in xrange(len(phi_2PV)):
+  for i in range(len(phi_2PV)):
     current_lat           = phi_2PV[i]      
     current_theta         = theta_2PV[i]   
     closest_lat_elem[i]   = FindClosestElem(current_lat  ,lat[lat_elem])[0]   
@@ -1238,7 +1237,7 @@ def test_max_shear_across_lats(phi_2PV,theta_2PV, lat, lat_elem,theta_lev,u_zona
   xx = [lat[lat_elem][max_elem].mean(), lat[lat_elem][max_elem].mean()]
   yy = [theta_lev[0],theta_lev[-1]]
   ax2.plot(xx,yy, linestyle='-',c='orange',marker='o', markersize=10,linewidth=2)
-  print 'shear from 2pv line max:', shear_each_2PV[max_elem].mean()
+  print('shear from 2pv line max:', shear_each_2PV[max_elem].mean())
 
   ax2.plot(phi_2PV,theta_2PV, linestyle='-', c='k',marker='x', markersize=8, label='2PV line - Dynamical Tropopause')
 
@@ -1249,15 +1248,15 @@ def test_max_shear_across_lats(phi_2PV,theta_2PV, lat, lat_elem,theta_lev,u_zona
 
 def print_min_max_mean(output):
 
-    print '--------------------------------Assess data---------------------------------------------'
-    print ' DJF NH: ', output['DJF'][:,0].min(), output['DJF'][:,0].max(), output['DJF'][:,0].mean()
-    print ' DJF SH: ', output['DJF'][:,1].min(), output['DJF'][:,1].max(), output['DJF'][:,1].mean()
-    print ' MAM NH: ', output['MAM'][:,0].min(), output['MAM'][:,0].max(), output['MAM'][:,0].mean()
-    print ' MAM SH: ', output['MAM'][:,1].min(), output['MAM'][:,1].max(), output['MAM'][:,1].mean()
-    print ' JJA NH: ', output['JJA'][:,0].min(), output['JJA'][:,0].max(), output['JJA'][:,0].mean()
-    print ' JJA SH: ', output['JJA'][:,1].min(), output['JJA'][:,1].max(), output['JJA'][:,1].mean()
-    print ' SON NH: ', output['SON'][:,0].min(), output['SON'][:,0].max(), output['SON'][:,0].mean()
-    print ' SON SH: ', output['SON'][:,1].min(), output['SON'][:,1].max(), output['SON'][:,1].mean()
+    print('--------------------------------Assess data---------------------------------------------')
+    print(' DJF NH: ', output['DJF'][:,0].min(), output['DJF'][:,0].max(), output['DJF'][:,0].mean())
+    print(' DJF SH: ', output['DJF'][:,1].min(), output['DJF'][:,1].max(), output['DJF'][:,1].mean())
+    print(' MAM NH: ', output['MAM'][:,0].min(), output['MAM'][:,0].max(), output['MAM'][:,0].mean())
+    print(' MAM SH: ', output['MAM'][:,1].min(), output['MAM'][:,1].max(), output['MAM'][:,1].mean())
+    print(' JJA NH: ', output['JJA'][:,0].min(), output['JJA'][:,0].max(), output['JJA'][:,0].mean())
+    print(' JJA SH: ', output['JJA'][:,1].min(), output['JJA'][:,1].max(), output['JJA'][:,1].mean())
+    print(' SON NH: ', output['SON'][:,0].min(), output['SON'][:,0].max(), output['SON'][:,0].mean())
+    print(' SON SH: ', output['SON'][:,1].min(), output['SON'][:,1].max(), output['SON'][:,1].mean())
 
 def plot_seasonal_stj_ts(output,cross):  
 
@@ -1300,9 +1299,9 @@ def GetCorrelation(hemi, num_var, var_name, data):
 
     corr = np.zeros([num_var,num_var,2])
 
-    for hemi_count in xrange(2):
-      for i in xrange(num_var):
-        for j in xrange(num_var):
+    for hemi_count in range(2):
+      for i in range(num_var):
+        for j in range(num_var):
 
           #print 'Correlation with: ', var_name[i],var_name[j], 'in ', hemi[hemi_count]
 
