@@ -317,7 +317,6 @@ if __name__ == "__main__" :
             if save_file_testing == True:
 
                 #save data for Mike to test
-                out_file = 
                 np.savez('{}/min_max_example.npz'.format(data_out_dir),
                                  phi_2PV=self.phi_2PV, dtdphi_val=self.dtdphi_val)
                 #test it opens
