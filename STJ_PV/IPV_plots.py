@@ -5,7 +5,7 @@ from scipy.signal import argrelmin, argrelmax, argrelextrema
 import time
 import matplotlib.ticker as ticker
 import pdb
-import os		
+import os
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from colormap import Colormap
@@ -21,11 +21,26 @@ from general_plotting import draw_map_model,draw_deg,gfdl_lat_change_map
 
 rc('text', usetex=True)
 
-__author__ = "Penelope Maher" 
+__author__ = "Penelope Maher"
+
+base = os.environ['BASE']
+plot_dir = '{}/Plot/Jet'.format(base)
+data_out_dir = '{}/Code/Python/Circulation/'.format(base)
+
+if not os.path.exists(plot_dir):
+    print('CREATING PLOTTING DIRECTORY: {}'.format(plot_dir))
+    os.system('mkdir -p {}'.format(plot_dir))
+
+if not os.path.exists(data_out_dir):
+    print('CREATING DATA OUT DIRECTORY: {}'.format(data_out_dir))
+    os.system('mkdir -p {}'.format(data_out_dir))
+
 
 class Plotting(object):
 
   def __init__(self,data, Method_choice):
+
+
 
     if Method_choice == 'cby':
       #value of fit
@@ -33,7 +48,7 @@ class Plotting(object):
       self.dxdy            = data.dtdphi_val
       self.dy              = data.phi_2PV
 
-      #local peaks      
+      #local peaks
       self.local_elem      = data.local_elem_cby
 
       #elements to poleward side of tropopause crossing
@@ -55,7 +70,7 @@ class Plotting(object):
       self.dxdy          = data.dTHdlat
       self.dy            = data.dTHdlat_lat
 
-      #local peaks      
+      #local peaks
       self.local_elem      = data.local_elem_fd
 
       #elements to poleward side of tropopause crossing
@@ -106,7 +121,7 @@ class Plotting(object):
     plt.plot(self.phi_2PV, self.dtdphi_val, linestyle='-', c='r',marker='.', markersize=8,label='dTh/dy from fit')
     plt.legend()
     plt.ylim(-10,10)
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/cbyfit_vs_finite.eps')
+    plt.savefig('{}/cbyfit_vs_finite.eps'.format(plot_dir))
     plt.show()
 
 
@@ -126,8 +141,8 @@ class Plotting(object):
     ax2.set_ylim(3, 4)
 
     plt.legend(loc=0)
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/test_second_der.eps')
-    plt.show() 
+    plt.savefig('{}/test_second_der.eps'.format(plot_dir))
+    plt.show()
 
   def poly_2PV_line(self,hemi,u_zonal,lat_elem,time_loop,pause, click):
 
@@ -156,7 +171,7 @@ class Plotting(object):
         cm = Colormap()
         mycmap = cm.cmap_linear('#0033ff', '#FFFFFF', '#990000')  #(neg)/white/(pos)
         levels = np.arange(-60,61,5).tolist()
-        ax.contourf(self.lat[lat_elem],self.theta_lev,u_zonal[:,lat_elem][:,0,:], levels, cmap=mycmap)  
+        ax.contourf(self.lat[lat_elem],self.theta_lev,u_zonal[:,lat_elem][:,0,:], levels, cmap=mycmap)
         ax.set_ylim(300,400)
         ax_cb=fig.add_axes([0.09, 0.05, 0.80, 0.02])
         norm     = mpl.colors.BoundaryNorm(levels, mycmap.N)
@@ -216,12 +231,12 @@ class Plotting(object):
     ax.xaxis.set_ticks(np.arange(start, end, inc))
     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%1.0f'))
 
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/looking_at_fit.eps')
+    plt.savefig('{}/looking_at_fit.eps'.format(plot_dir))
 
     print('  Peaks at: ', self.phi_2PV[self.local_elem], 'ST Jet at :',  self.STJ_lat)
-  
+
     if pause == True:
-      #pause sequence   
+      #pause sequence
       plt.draw()
       plt.pause(10)
       plt.close()
@@ -244,12 +259,12 @@ class Plotting(object):
     #plot a timeseries
     print('Current algorithm plot produces: ')
     fig     = plt.figure(figsize=(15,6))
-    ax1      = fig.add_axes([0.1,0.2,0.75,0.75]) 
+    ax1      = fig.add_axes([0.1,0.2,0.75,0.75])
     plt.plot(np.arange(0,STJ_jet_lat[:,0,0].shape[0],1), STJ_jet_lat[:,0,0], c='k',marker='x', markersize=8,linestyle = '-',label='NH')
     plt.plot(np.arange(0,STJ_jet_lat[:,0,0].shape[0],1), STJ_jet_lat[:,0,1] , c='r',marker='x', markersize=8,linestyle = '-',label='SH')
     #plt.legend()
     #plt.ylim(300,380)
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/STJ_ts.eps')
+    plt.savefig('{}/STJ_ts.eps'.format(plot_dir))
     plt.show()
 
     pdb.set_trace()
@@ -257,16 +272,16 @@ class Plotting(object):
 
 
 def main():
-    
-    pdb.set_trace()	
-  
-    return 
-       
-if __name__ == "__main__" : 
+
+    pdb.set_trace()
+
+    return
+
+if __name__ == "__main__" :
 
   main()
 
-  
+
   if len(self.local_elem) >= 2:
 
       #check if nearby peak is larger
@@ -282,12 +297,12 @@ if __name__ == "__main__" :
       plot_method_compare = False
       if plot_method_compare == True:
         if self.STJ_lat_sort[0] != self.STJ_lat or len(self.local_elem) >= 2:
-             if self.STJ_lat_sort[0] != self.STJ_lat: 
+             if self.STJ_lat_sort[0] != self.STJ_lat:
                print('Methods different')
-             if len(self.local_elem) >= 2: 
+             if len(self.local_elem) >= 2:
                print('More than 2 jets')
 
-          
+
   else: #only 0 or 1 peaks
     if (print_messages == True) : print('single jet: ',  self.STJ_lat_sort)
 
@@ -297,14 +312,16 @@ if __name__ == "__main__" :
       if hemi == 'SH':
         pdb.set_trace()
 
-     
+
       save_file_testing  = False
       if save_file_testing == True:
-      
+
         #save data for Mike to test
-        np.savez('/home/links/pm366/Documents/Code/Python/Circulation/min_max_example.npz',phi_2PV=self.phi_2PV, dtdphi_val= self.dtdphi_val)
+        out_file = 
+        np.savez('{}/min_max_example.npz'.format(data_out_dir),
+                 phi_2PV=self.phi_2PV, dtdphi_val=self.dtdphi_val)
         #test it opens
-        npzfile = np.load('/home/links/pm366/Documents/Code/Python/Circulation/min_max_example.npz')
+        npzfile = np.load('{}/min_max_example.npz')
         npzfile.files
 
 def MakeOutputFile(filename,data,dim_name,var_name,var_type):
@@ -312,12 +329,12 @@ def MakeOutputFile(filename,data,dim_name,var_name,var_type):
 
   f=io.netcdf.netcdf_file(filename, mode='w')
   for j in range(dim):
-	     f.createDimension(dim_name[j],len(data[dim_name[j]])) 
+	     f.createDimension(dim_name[j],len(data[dim_name[j]]))
   for i in range(len(var_name)):
         tmp = f.createVariable(var_name[i],var_type[i],var_dim_name[i])
         tmp[:] =  data[var_name[i]]
 
-  f.close()    
+  f.close()
   print('created file: ',filename)
 
 def plot_u(fname):
@@ -330,7 +347,7 @@ def plot_u(fname):
     #from running the code i know where the jet is. Plot it on a map as a sanity check
     jet_NH = [25.8,34.6,39,41,30,28.4,25.4,27.4,24]
     jet_SH = [-32,-28.8,-28.6,-28.6,-28.4,-31.4,-33.2,-33.4,-27.8,-20.4,-42.6]
-    fname_out = '/home/links/pm366/Documents/Plot/Jet/uwind_'+str(t_elem[t])+'_with_wind.eps'
+    fname_out = '{}/uwind_{}_with_wind.eps'.format(plot_dir, t_elem[t])
 
     fig = plt.figure(figsize=(10,5))
 
@@ -373,7 +390,7 @@ def plot_u(fname):
     #ax2.patch.set_facecolor('#CCCCCC')
 
     plt.tight_layout()
- 
+
     #reshape plots so on same horizontal
     pos1 = ax1.get_position()
     pos2 = ax2.get_position()
@@ -396,8 +413,8 @@ def plot_u(fname):
 
 def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal_x_mean,mean_val,PC):
 
-    months = ['J','F','M','A','M','J','J','A','S','O','N','D']   
-    colour_mark  = ['r','b']  
+    months = ['J','F','M','A','M','J','J','A','S','O','N','D']
+    colour_mark  = ['r','b']
 
     fig     = plt.figure(figsize=(14,8))
     #position
@@ -468,7 +485,7 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
     plt.setp(ax1.get_xticklabels(), visible=False)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax3.get_xticklabels(), visible=False)
-  
+
 
     #var_name  = ['lat','int','lev','cross']
 
@@ -483,7 +500,7 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
                   '{0:.2f}'.format(PC[1,2,0]),'{0:.2f}'.format(PC[1,3,0]),'{0:.2f}'.format(PC[2,3,0])
                  ],
                #SH
-                 ['{0:.2f}'.format(PC[0,1,1]),'{0:.2f}'.format(PC[0,2,1]),'{0:.2f}'.format(PC[0,3,1]),  
+                 ['{0:.2f}'.format(PC[0,1,1]),'{0:.2f}'.format(PC[0,2,1]),'{0:.2f}'.format(PC[0,3,1]),
                   '{0:.2f}'.format(PC[1,2,1]),'{0:.2f}'.format(PC[1,3,1]),'{0:.2f}'.format(PC[2,3,1])
                  ],
                ]
@@ -493,12 +510,12 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
     ax5.text(0.3,-.5,table,size=14)
     ax5.axis('off')
 
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/calendar_mean.eps')
+    plt.savefig('{}/calendar_mean.eps'.format(plot_dir))
     #plt.show()
     plt.close()
     hemi_count = hemi_count +1
 
-    #pdb.set_trace()  
+    #pdb.set_trace()
 
     fig     = plt.figure(figsize=(15,6))
     #position vs intensity
@@ -517,7 +534,7 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
 
 
 
-    for hemi_count in range(2): 
+    for hemi_count in range(2):
 
       pos  = (np.abs(STJ_cal_mean[:,hemi_count])).tolist()
       ints = STJ_cal_int_mean[:,hemi_count].tolist()
@@ -534,7 +551,7 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
       #'add months to each plot'
       mm_count = 0
 
-      for mm in months: 
+      for mm in months:
   	    ax1.annotate(mm, xy = (pos[mm_count], ints[mm_count]+0.1),ha = 'right', va = 'bottom', size=10,color=colour_mark[hemi_count])
   	    ax2.annotate(mm, xy = (ints[mm_count], th[mm_count]+0.1),ha = 'right', va = 'bottom', size=10,color=colour_mark[hemi_count])
   	    ax3.annotate(mm, xy = (pos[mm_count], th[mm_count]+0.1),ha = 'right', va = 'bottom', size=10,color=colour_mark[hemi_count])
@@ -542,10 +559,9 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
   	    mm_count = mm_count +1
 
     plt.legend(loc=2)
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/calendar_lifecycle.eps')
+    plt.savefig('{}/calendar_lifecycle.eps'.format(plot_dir))
     #plt.show()
     plt.close()
-
     #pdb.set_trace()
 
 def get_centred_bounds(min_bound, max_bound,increment, critical=None):
