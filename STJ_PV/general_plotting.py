@@ -4,7 +4,7 @@ from matplotlib.ticker import MultipleLocator
 import matplotlib as mpl
 from mpl_toolkits.basemap import Basemap,addcyclic,shiftgrid
 import numpy as np
-import pylab 
+import pylab
 import math
 import pdb
 from scipy import ndimage,array
@@ -21,20 +21,20 @@ from general_functions import apply_mask_num, addToList,save_file, openfile_get_
 
 
 mpl.rc('text', usetex=False)  #turning this flag on/off changes g=hatching with eps
-#mpl.rc('font', family='serif') 
+#mpl.rc('font', family='serif')
 #mpl.rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
- 
+
 
 
 def draw_map_model(plt,ax,ax_cb,data,lon,lat,title,cbar_title,colour,bounds,file_name,show_plot,domain=None, name_cbar=None,coastline=False):
-    'Plot a map, latex flags off when using unicode for deg' 
+    'Plot a map, latex flags off when using unicode for deg'
 
      #Define basic plot parameters
 
 
     ax.set_title(title)
     #ax.set_title(' %s C' % deg)  #%s means string
-    
+
     m = Basemap(projection='cyl',llcrnrlat=-90,urcrnrlat=90, llcrnrlon=0,urcrnrlon=360,resolution='c',ax=ax)
     #m = Basemap(projection='cyl',llcrnrlon=0,urcrnrlon=360,resolution='c',ax=ax)
 
@@ -46,7 +46,7 @@ def draw_map_model(plt,ax,ax_cb,data,lon,lat,title,cbar_title,colour,bounds,file
 
     if coastline == True:
       m.drawcoastlines()
-  
+
     m.ax = ax
 
     #Note: pcolormesh plots the lower lat and lower lon, not the centre!
@@ -56,11 +56,11 @@ def draw_map_model(plt,ax,ax_cb,data,lon,lat,title,cbar_title,colour,bounds,file
 
     lon2d, lat2d = np.meshgrid(lon, lat)	# meshed lon lat needed for basemap
     x, y = m(lon2d, lat2d)			# apply mesh
-  
+
     cmap=get_cmap_for_maps(colour=colour,bounds=bounds)
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
 
-    
+
     #make the plot
     img=ax.pcolormesh(x,y,data,cmap=cmap,norm=norm)#, latlon=False)
 
@@ -68,25 +68,25 @@ def draw_map_model(plt,ax,ax_cb,data,lon,lat,title,cbar_title,colour,bounds,file
     #cbar=cbar_Maher(fig,cmap,norm,bounds,cbar_title,ax_cb)
     cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap,norm=norm,ticks=bounds, orientation='horizontal')
     cbar.set_label(cbar_title)
-    
+
     if colour != 'BuRd' or colour != 'BuRd_r':
           cmap.set_under('white')
     mpl.rc('text', usetex=False)  #turning this flag on/off changes g=hatching with eps
     fix_ax_label = gfdl_lon_change_map(ax=ax)
-    fix_ax_label = gfdl_lat_change_map(ax=ax)   
-    
+    fix_ax_label = gfdl_lat_change_map(ax=ax)
 
-      
+
+
     if name_cbar != None:
       cbar.set_ticks(np.array(bounds) + .5)
       cbar.set_ticklabels(name_cbar)
 
 
     #plt.savefig(file_name)
-    
+
     #if show_plot == True:
     #  plt.show()
- 
+
     #print 'Saved plot: ',file_name
 
 def plot_map(lon_in,lat_in,colour,bounds,model_type,data,cbar_units,filename,show_plot=None):
@@ -99,7 +99,7 @@ def plot_map(lon_in,lat_in,colour,bounds,model_type,data,cbar_units,filename,sho
     ax = fig.add_axes([0.1,0.15,0.85,0.85])
 
     ax.set_title('')
-    
+
     m = Basemap(projection='cyl',llcrnrlat=-88,urcrnrlat=86, llcrnrlon=0,urcrnrlon=360,resolution='c')
     m.drawparallels(np.arange(-90.,91.,30.), labels=[0,0,0,0])
     m.drawmeridians(np.arange(0,361.,60.), labels=[0,0,0,0])
@@ -126,18 +126,18 @@ def plot_map(lon_in,lat_in,colour,bounds,model_type,data,cbar_units,filename,sho
     mpl.rc('text', usetex=False)  #turning this flag on/off changes g=hatching with eps
 
     fix_ax_label = gfdl_lon_change_map(ax=ax)
-    fix_ax_label = gfdl_lat_change_map(ax=ax)   
- 
-      
+    fix_ax_label = gfdl_lat_change_map(ax=ax)
+
+
     if name_cbar != None:
       cbar.set_ticks(np.array(bounds) + .5)
       cbar.set_ticklabels(name_cbar)
 
     plt.savefig(filename)
-    
+
     if show_plot == True:
       plt.show()
- 
+
     print('Saved plot: ')
 
 
@@ -145,14 +145,14 @@ def plot_map(lon_in,lat_in,colour,bounds,model_type,data,cbar_units,filename,sho
 
 
 
-def get_cmap_for_maps(colour,bounds):    
+def get_cmap_for_maps(colour,bounds):
     #color for map and colour bar with range
-    
+
     if colour == 'BuRd':
         cmap = mpl.colors.LinearSegmentedColormap.from_list('RdBu_cmap',['Navy','white','Maroon'],N=len(bounds)-1)
-    else: 
+    else:
        #cmap = mpl.colors.ListedColormap(['Yellow','ForestGreen'])
-       cmap=pylab.cm.get_cmap(colour) 
+       cmap=pylab.cm.get_cmap(colour)
        cmap.set_under(color="black")
 
     return cmap
@@ -167,29 +167,29 @@ def fix_pcolormesh_for_maps(x,y):
     return x_new,y_new
 
 
-def gfdl_lon_change_map(ax):    
+def gfdl_lon_change_map(ax):
 
     lon_array=np.arange(0,361,60)
     lon_plot=draw_deg(lon_array)
     lon_array[0]=1.41				#avoid white space
     ax.set_xticks(lon_array)
     ax.set_xticklabels(lon_plot)
-   
+
     return()
-    
-def gfdl_lat_change_map(ax):       
+
+def gfdl_lat_change_map(ax):
     lat_array=np.arange(-90,91,30)
     lat_plot=draw_deg(lat_array)
-    lat_array[0]=-89				
-    lat_array[-1]=86				  
+    lat_array[0]=-89
+    lat_array[-1]=86
     ax.set_yticks(lat_array)
-    ax.set_yticklabels(lat_plot)    
+    ax.set_yticklabels(lat_plot)
 
-    return 
+    return
 
 def cbar_Maher(fig,cmap,norm,bounds,cbar_title,ax_cb):
-    'Add a horizontal colourbar to a map plot that has a upper and lower triangle rather than ending on a square edge'    
-    
+    'Add a horizontal colourbar to a map plot that has a upper and lower triangle rather than ending on a square edge'
+
     max_tri=(cmap._segmentdata['red'][-1][1],cmap._segmentdata['green'][-1][1],cmap._segmentdata['blue'][-1][1])
     min_tri=(cmap._segmentdata['red'][0][1],cmap._segmentdata['green'][0][1],cmap._segmentdata['blue'][0][1])
     cmap.set_over(max_tri)
@@ -206,25 +206,25 @@ def draw_deg(label):
     num=len(label)
     for i in label:
         label_string.append(str(i)+ '%s' % deg)  #to ass E or W etc use '%sE' % deg
-        
+
     #convert list of unicode to array of unicode
     label_string = np.array(label_string)
     return label_string
 
-    
+
 def log_axis(ax,y,labelFontSize):
-  
+
     ax.set_ylabel('Pressure [hPa]')
     ax.set_yscale('log')
     ax.set_ylim(1000,100)     # avoid truncation of 1000 hPa and flips axis
- 
+
     #Set up plot domain to be a log scale
     subs = [1,2,5]
     if y.max()/y.min() < 30.:
        subs = [1,2,3,4,5,6,7,8,9]
     y1loc = mpl.ticker.LogLocator(base=10., subs=subs)
     ax.yaxis.set_major_locator(y1loc)
-    
+
     #Format the labels so they are 1000 and not 10^3
     fmt = mpl.ticker.FormatStrFormatter("%g")
     ax.yaxis.set_major_formatter(fmt)

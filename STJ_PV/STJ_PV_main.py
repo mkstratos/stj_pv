@@ -39,11 +39,11 @@ class Directory:
             self.work_loc = 'ExeterLaptop'
             self.data_loc = '/media/pm366/Seagate Expansion Drive/Data/'
 
-        elif self.base == '/home/links/pm366/Documents/'
+        elif self.base == '/home/links/pm366/Documents/':
             self.work_loc = 'gv'
             self.data_loc = '/scratch/pm366/'
 
-        elif self.base == '/home/links/mk450'
+        elif self.base == '/home/links/mk450/stj_pv':
             self.work_loc = 'gv'
             self.data_loc = '/scratch/pm366/'
 
