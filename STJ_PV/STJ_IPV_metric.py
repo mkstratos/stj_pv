@@ -3,6 +3,7 @@ import pdb
 import collections
 from scipy import interpolate
 from scipy.signal import argrelmin, argrelmax,argrelextrema
+import scipy.io as io
 from numpy.polynomial import chebyshev as cby
 import copy as copy
 import matplotlib.pyplot as plt
@@ -533,6 +534,34 @@ class Method_2PV_STJ(object):
    
     PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal_x_mean,mean_val,self.AnnualPC)
 
+  def SaveData(self):
+
+
+      filename = '/home/links/pm366/Documents/Data/STJ_IPV_output.nc'
+      f = io.netcdf.netcdf_file(filename, mode='w')
+ 
+      #STJ metric 
+      f.createDimension('STJ_lat', len(self.best_guess_cby))
+      STJ_lat    = f.createVariable('STJ_lat','f',('STJ_lat',))
+      STJ_lat[:] = self.best_guess_cby
+
+      #d theta / d phi
+      f.createDimension('dthdlat', len(self.dtdphi_val))
+      dthdlat    = f.createVariable('dthdlat','f',('dthdlat',))
+      dthdlat[:] = self.dtdphi_val
+
+      #lat of 2PV line 
+      f.createDimension('lat_2PV_line', len(self.phi_2PV))
+      lat_2PV_line    = f.createVariable('lat_2PV_line','f',('lat_2PV_line',))
+      lat_2PV_line[:] = self.phi_2PV
+
+      #theta of 2PV line 
+      f.createDimension('theta_2PV_line', len(self.theta_2PV))
+      theta_2PV_line    = f.createVariable('theta_2PV_line','f',('theta_2PV_line',))
+      theta_2PV_line[:] = self.theta_2PV
+
+
+      f.close()    
 
 
   def validate_near_mean(self,hemi_count,season,input_string,hemi, time_loop):
@@ -994,12 +1023,12 @@ def calc_metric(IPV_data):
           if (hemi == 'NH' and Method.best_guess_cby > 45) or (hemi == 'SH' and Method.best_guess_cby <-40):
               test_with_plots = True
           else:
-            if (hemi == 'SH' and Method.best_guess_cby >-25):
+            if (hemi == 'SH' and Method.best_guess_cby <-40):
               test_with_plots = True
             else:
               test_with_plots = False
 
-          test_with_plots = False
+          #test_with_plots = False
  
           if test_with_plots == True:
             #pick method to plot 
@@ -1013,6 +1042,7 @@ def calc_metric(IPV_data):
     if testing_make_output == True:  
       filename = '/home/links/pm366/Documents/Data/STJ_PV_metric_derived.npz'
       MakeOutfileSavez_derived(filename, phi_2PV_out,theta_2PV_out,dth_out,dth_lat_out,d2th_out)
+      Method.SaveData()
 
     #annual values
     Method.AnnualCorrelations( jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
@@ -1026,8 +1056,6 @@ def calc_metric(IPV_data):
 
 
     Method.CalendarMean(seasons, jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
-
-
 
     pdb.set_trace()
 

@@ -91,12 +91,12 @@ class Plotting(object):
     self.lat_SH          = data.lat_SH
     self.lat_hemi        = data.lat_hemi
 
-    self.AnnualCC        = data.AnnualCC
-    self.AnnualCC        = data.AnnualPC
-    self.MonthlyCC       = data.MonthlyCC
-    self.MonthlyPC       = data.MonthlyPC
-    self.CalendarCC      = data.CalendarCC
-    self.CalendarPC      = data.CalendarPC
+    #self.AnnualCC        = data.AnnualCC
+    #self.AnnualPC        = data.AnnualPC
+    #self.MonthlyCC       = data.MonthlyCC
+    #self.MonthlyPC       = data.MonthlyPC
+    #self.CalendarCC      = data.CalendarCC
+    #self.CalendarPC      = data.CalendarPC
   
   def compare_finite_vs_poly(self):
 
