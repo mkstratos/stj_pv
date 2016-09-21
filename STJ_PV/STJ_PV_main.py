@@ -47,6 +47,10 @@ class Directory:
             self.work_loc = 'gv'
             self.data_loc = '/scratch/pm366/'
 
+        elif self.base == '/Users/mk450/stj_pv':
+            self.work_loc = 'MKiMac'
+            self.data_loc = '/Volumes/FN_2187/erai/stj/'
+
         self.plot_loc = self.base + '/Plots/'
 
         # Test if the string self.work_loc has been assigned

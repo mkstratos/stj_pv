@@ -20,6 +20,16 @@ from partial_corr import partial_corr
 
 __author__ = "Penelope Maher" 
 
+base = os.environ['BASE']
+plot_dir = '{}/Plot/Jet'.format(base)
+data_dir = '{}/Data'.format(base)
+if not os.path.exists(plot_dir):
+    print('CREATING PLOTTING DIRECTORY: {}'.format(plot_dir))
+    os.system('mkdir -p {}'.format(plot_dir))
+if not os.path.exists(data_dir):
+    print('CREATING DATA DIRECTORY: {}'.format(data_dir))
+    os.system('mkdir -p {}'.format(data_dir))
+
 
 class Method_2PV_STJ(object):
   'Input data of the form self.IPV[time,theta,lat,lon]'
@@ -584,9 +594,9 @@ class Method_2PV_STJ(object):
     uwind168_del  = var['var131'][time_loop,11,:,:] -var['var131'][time_loop,-1,:,:] 
 
 
-    filename_surf ='/home/links/pm366/Documents/Plot/Jet/uwind_'+str(time_loop)+'_1000.eps'
-    filename_top ='/home/links/pm366/Documents/Plot/Jet/uwind_'+str(time_loop)+'_250.eps'
-    filename_del ='/home/links/pm366/Documents/Plot/Jet/uwind_'+str(time_loop)+'_del.eps'
+    filename_surf ='{}/uwind_'+str(time_loop)+'_1000.eps'.format(plot_dir)
+    filename_top ='{}/uwind_'+str(time_loop)+'_250.eps'.format(plot_dir)
+    filename_del ='{}/uwind_'+str(time_loop)+'_del.eps'.format(plot_dir)
 
 
     plot = draw_map_model(uwind168_surf,var['lon'],var['lat'],'Surface (1000)','cbar','RdBu_r', np.arange(-30,30,5.0),filename_surf,False,coastline=True)
@@ -609,7 +619,7 @@ class Method_2PV_STJ(object):
     ax2.set_ylim(3, 4)
 
     plt.legend(loc=0)
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/test_second_der'+str(time_loop)+'.eps')
+    plt.savefig('{}/test_second_der{}.eps'.format(plot_dir, time_loop))
     plt.show()
 
 
@@ -654,7 +664,7 @@ class Method_2PV_STJ(object):
     lat_array_interp = lat[np.newaxis, :]      + np.zeros(array_shape_interp)
     #theta_array_interp  = self.theta_interp[:,np.newaxis] + np.zeros(array_shape_interp)
 
-    filename ='/home/links/pm366/Documents/Plot/Jet/IPV_uwind_contour_test_cases.eps'
+    filename ='{}/IPV_uwind_contour_test_cases.eps'.format(plot_dir)
     fig     = plt.figure(figsize=(8,8))
     ax1      = fig.add_axes([0.1,0.2,0.75,0.75]) 
     cmap     = plt.cm.RdBu_r
@@ -899,7 +909,7 @@ def calc_metric(IPV_data):
     if testing_make_output == True:  
       #Save u and v 
       u_zonal_all_time = MeanOverDim(data=Method.u[:,:,:,:],dim=3)  
-      filename = '/home/links/pm366/Documents/Data/STJ_PV_metric.npz'
+      filename = '{}/STJ_PV_metric.npz'.format(data_dir)
       MakeOutfileSavez_grid(filename,Method.lat,Method.theta_lev,u_zonal_all_time,Method.TropH_theta)
 
     print_messages = False
@@ -1011,7 +1021,7 @@ def calc_metric(IPV_data):
             PlottingObject.poly_2PV_line(hemi,u_zonal,lat_elem,time_loop,pause = False, click=True)
 
     if testing_make_output == True:  
-      filename = '/home/links/pm366/Documents/Data/STJ_PV_metric_derived.npz'
+      filename = '{}/STJ_PV_metric_derived.npz'.format(data_dir)
       MakeOutfileSavez_derived(filename, phi_2PV_out,theta_2PV_out,dth_out,dth_lat_out,d2th_out)
 
     #annual values
@@ -1065,11 +1075,11 @@ def calc_metric(IPV_data):
 def test_finite_difference(phi_2PV,theta_2PV,dTHdlat_lat,dTHdlat):
 
   plt.plot(phi_2PV,theta_2PV)
-  plt.savefig('/home/links/pm366/Documents/Plot/Jet/testing1.eps')
+  plt.savefig('{}/testing1.eps'.format(plot_dir))
   plt.show()
 
   plt.plot(dTHdlat_lat,dTHdlat)
-  plt.savefig('/home/links/pm366/Documents/Plot/Jet/finite_diff_test.eps')
+  plt.savefig('{}/finite_diff_test.eps'.format(plot_dir))
   plt.show()
   pdb.set_trace()
 
@@ -1080,7 +1090,7 @@ def Poly_testing(phi_2PV,theta_2PV,theta_cby_val,dtdphi_val,d2tdphi2_val):
   plt.plot(phi_2PV, theta_cby_val, c='r',marker='.', markersize=8,linestyle = '-',label='cby')
   plt.legend()
   plt.ylim(300,420)
-  plt.savefig('/home/links/pm366/Documents/Plot/Jet/cbyfit_10.eps')
+  plt.savefig('{}/cbyfit_10.eps'.format(plot_dir))
   plt.show()
 
   #plot the derivative to identify local maxima in.
@@ -1088,7 +1098,7 @@ def Poly_testing(phi_2PV,theta_2PV,theta_cby_val,dtdphi_val,d2tdphi2_val):
   plt.plot(phi_2PV, d2tdphi2_val, label='d2Th/dy2')
   plt.legend()
   plt.ylim(-20,20)
-  plt.savefig('/home/links/pm366/Documents/Plot/Jet/cbyfit_10_derivative.eps')
+  plt.savefig('{}/cbyfit_10_derivative.eps'.format(plot_dir))
   plt.show()
 
 
@@ -1230,7 +1240,7 @@ def plot_seasonal_stj_ts(output,cross):
     ax.plot(output['JJA'][:,0],'red',    label='NH Summer'+('  {0:.2f}').format(output['JJA'][:,0].mean()), ls = ' ', marker='x')
     ax.plot(output['DJF'][:,1],'red',    label='SH Summer'+(' {0:.2f}').format(output['DJF'][:,1].mean()), ls = ' ', marker='x')
     plt.legend(loc=7,ncol=4,bbox_to_anchor=(1.0, -0.1))
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/index_ts.eps')
+    plt.savefig('{}/index_ts.eps'.format(plot_dir))
     plt.show()
 
     #plot the crossing points
@@ -1247,7 +1257,7 @@ def plot_seasonal_stj_ts(output,cross):
     ax.plot(cross['DJF'][:,1],'red',    label='SH Summer', ls = ' ', marker='x')
     ax.set_ylim(-25, 25)
     plt.legend(loc=7,ncol=4,bbox_to_anchor=(1.0, -0.1))
-    plt.savefig('/home/links/pm366/Documents/Plot/Jet/cross.png')
+    plt.savefig('{}/cross.png'.format(plot_dir))
     plt.show()
 
 def GetCorrelation(hemi, num_var, var_name, data):

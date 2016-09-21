@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy import interpolate
 #Dependent code
-import general_functions 
+import general_functions
 from calc_ipv import *
 from general_plotting import plot_map, get_cmap_for_maps, cbar_Maher
 from thermal_tropopause import TropopauseHeightLevel
@@ -14,11 +14,17 @@ from general_functions import openNetCDF4_get_data,MeanOverDim
 
 
 
-__author__ = "Penelope Maher" 
+__author__ = "Penelope Maher"
 
 
 #created named tuples to manage storage of index
 metric = collections.namedtuple('metric', 'name hemisphere intensity position')
+
+base = os.environ['BASE']
+plot_dir = '{}/Plot/Jet'.format(base)
+if not os.path.exists(plot_dir):
+    print('CREATING PLOTTING DIRECTORY: {}'.format(plot_dir))
+    os.system('mkdir -p {}'.format(plot_dir))
 
 
 class Generate_IPV_Data(object):
@@ -26,14 +32,14 @@ class Generate_IPV_Data(object):
     'To avoid calling object within object assign vars of use to this routine'
     self.time_units  = Exp.time_units
     self.diri        = Exp.diri
-    self.u_fname     = Exp.u_fname     
-    self.v_fname     = Exp.v_fname     
-    self.t_fname     = Exp.t_fname     
-    self.path        = Exp.path    
-    self.var_names   = Exp.var_names  
-    self.start_time  = Exp.start_time  
-    self.end_time    = Exp.end_time  
- 
+    self.u_fname     = Exp.u_fname
+    self.v_fname     = Exp.v_fname
+    self.t_fname     = Exp.t_fname
+    self.path        = Exp.path
+    self.var_names   = Exp.var_names
+    self.start_time  = Exp.start_time
+    self.end_time    = Exp.end_time
+
   def OpenFile(self):
     'Data assumed to be of the format [time, pressure,lat,lon]'
 
@@ -47,9 +53,9 @@ class Generate_IPV_Data(object):
         label   = self.var_names[fname[0]].label
         label_p = self.var_names['p'].label
 
-        #Ensure surface is the 0'th element 
+        #Ensure surface is the 0'th element
         wh_max_p  = np.where (var[label_p] == var[label_p].max())[0][0]
-        flip_pressure = False 
+        flip_pressure = False
         if wh_max_p != 0 :        #if surface is not 0th element then flip data
           flip_pressue = True
           var[label_p] = var[label_p][::-1]
@@ -63,7 +69,7 @@ class Generate_IPV_Data(object):
     self.lat = var['lat']
 
     #check that input pressure is in pascal
-    if var[label_p].max()< 90000.0: 
+    if var[label_p].max()< 90000.0:
       var[label_p] = var[label_p]*100.0
     self.p = var[label_p]
 
@@ -79,10 +85,10 @@ class Generate_IPV_Data(object):
 
   def GetThermalTropopause(self):
     'Calculate the thermal definition of the tropopause height'
- 
+
     print('Start calculating tropopause height')
-   
-    #Spline fit the temperature in 10hPa intervals from surface to aloft (data must be monotonic increasing)  
+
+    #Spline fit the temperature in 10hPa intervals from surface to aloft (data must be monotonic increasing)
     #call the external function TropopauseHeightLeve to calculate H
 
     TropH           = np.zeros([self.end_time,len(self.lat)])
@@ -93,11 +99,11 @@ class Generate_IPV_Data(object):
     t_zonal = MeanOverDim(data=self.t, dim=3)  #[time,level,lat]
     P_spline = np.arange(10,1001,10)           #pressured between 10hPa and 1000 hPa
 
-    for time in range(self.end_time): 
+    for time in range(self.end_time):
       for lat in range(len(self.lat)):
         tck = interpolate.splrep(self.p[::-1]/100,t_zonal[time,:,lat][::-1]) #use hPa instead of Pa
         T_spline = interpolate.splev(P_spline,tck,der=0)
-        
+
         TropH[time,lat], TropH_pressure[time,lat],TropH_temp[time,lat] = \
            TropopauseHeightLevel(T_spline = T_spline[::-1],  #data from surface to aloft so flip it
                                  P_spline=P_spline[::-1],
@@ -109,51 +115,51 @@ class Generate_IPV_Data(object):
 
     print('Finished calculating tropopause height')
 
-  def GetIPV(self): 
+  def GetIPV(self):
     'IPV code interpolates on theta levels'
 
     print('Starting IPV calculation')
 
     #calculate IPV.
     IPV,self.p_lev,self.u_th   = ipv(self.u,self.v,self.t,self.p,self.lat,self.lon)
-    
+
     self.IPV = IPV * 1e6 #units in IPVU
 
     #310K isopleth often of interest - not currently used
     theta_level_310_K   = np.where(th_levels_trop == 310)[0][0]
     self.p_310          = self.p_lev[:,theta_level_310_K,:,:]
-    self.p_310_bar      = MeanOverDim(data=self.p_310[0,:,:], dim=1) 
+    self.p_310_bar      = MeanOverDim(data=self.p_310[0,:,:], dim=1)
 
     self.ipv_310     = self.IPV[:,theta_level_310_K,:,:]
-    self.ipv_310_bar = MeanOverDim(data=self.ipv_310, dim=0) 
+    self.ipv_310_bar = MeanOverDim(data=self.ipv_310, dim=0)
     self.theta_lev   = th_levels_trop
 
     print('Finished calculating IPV')
 
   def SaveIPV(self,filename_1, filename_2, file_type):
     'Save output as nc or pickle'
-   
+
     print('Saving ipv data')
 
 
     if file_type == '.p':
       output = {}
 
-      output['lat']            = self.lat       
-      output['lon']            = self.lon            
+      output['lat']            = self.lat
+      output['lon']            = self.lon
       output['time']           = self.time
-      output['theta_lev']      = self.theta_lev       
+      output['theta_lev']      = self.theta_lev
 
-      output['IPV']            = self.IPV        
+      output['IPV']            = self.IPV
       output['IPV_310']        = self.ipv_310
 
-      output['u']              = self.u_th  
+      output['u']              = self.u_th
 
       output['TropH']          = self.TropH
       output['TropH_p']        = self.TropH_pressure
       output['TropH_temp']     = self.TropH_temp
 
-      tmp = SavePickle(filenamePickle=filename_1 + file_type, data=output) 
+      tmp = SavePickle(filenamePickle=filename_1 + file_type, data=output)
 
 
     if file_type == '.nc':
@@ -162,7 +168,7 @@ class Generate_IPV_Data(object):
 
       #set up dimensions of arrays
 
-      #time 
+      #time
       f.createDimension('time', len(self.time))
       time    = f.createVariable('time','f',('time',))
       time[:] = self.time
@@ -172,13 +178,13 @@ class Generate_IPV_Data(object):
       lat    = f.createVariable('lat','f',('lat',))
       lat[:] = self.lat
 
-      #lon 
+      #lon
       f.createDimension('lon', len(self.lon))
       lon    = f.createVariable('lon','f',('lon',))
       lon[:] = self.lon
 
-      #theta 
-      f.createDimension('theta_lev', len(self.theta_lev)) 
+      #theta
+      f.createDimension('theta_lev', len(self.theta_lev))
       theta_lev    = f.createVariable('theta_lev','i',('theta_lev',))
       theta_lev[:] = self.theta_lev
 
@@ -188,7 +194,7 @@ class Generate_IPV_Data(object):
       IPV    = f.createVariable('IPV','f',('time','theta_lev','lat','lon',))
       IPV[:,:,:,:] = self.IPV
 
-      f.close()    
+      f.close()
 
       #code was not compatible saving both IPV and u_th so created two files
 
@@ -196,7 +202,7 @@ class Generate_IPV_Data(object):
 
       #set up dimensions of arrays
 
-      #time 
+      #time
       f.createDimension('time', len(self.time))
       time    = f.createVariable('time','f',('time',))
       time[:] = self.time
@@ -206,13 +212,13 @@ class Generate_IPV_Data(object):
       lat    = f.createVariable('lat','f',('lat',))
       lat[:] = self.lat
 
-      #lon 
+      #lon
       f.createDimension('lon', len(self.lon))
       lon    = f.createVariable('lon','f',('lon',))
       lon[:] = self.lon
 
-      #theta 
-      f.createDimension('theta_lev', len(self.theta_lev)) 
+      #theta
+      f.createDimension('theta_lev', len(self.theta_lev))
       theta_lev    = f.createVariable('theta_lev','i',('theta_lev',))
       theta_lev[:] = self.theta_lev
 
@@ -237,7 +243,7 @@ class Generate_IPV_Data(object):
       TropH_temp    = f.createVariable('TropH_temp','f',('time','lat',))
       TropH_temp[:,:] = self.TropH_temp
 
-      f.close()    
+      f.close()
 
     print('created files: ',filename+file_type, 'and', filename+'_u_H'+file_type)
 
@@ -251,7 +257,7 @@ class Generate_IPV_Data(object):
       IPV_data.update(IPV_data_2)
 
     self.IPV_data = IPV_data
-    
+
   def Get_uwind_strength(self):
     'When metric is working then calculate strength'
 
@@ -272,8 +278,8 @@ class Generate_IPV_Data(object):
           STJ_phi = self.SH_STJ_phi[time_loop]
           STJ_th  = self.SH_STJ_theta[time_loop]
 
-        #step 8. interpolate u wind 
-        u_zonal             = MeanOverDim(data=self.u_th[time_loop,:,:,:],dim=2)   
+        #step 8. interpolate u wind
+        u_zonal             = MeanOverDim(data=self.u_th[time_loop,:,:,:],dim=2)
         u_zonal_function    = interpolate.interp2d(self.lat,self.theta_lev, u_zonal, kind='cubic')
         u_zonal_interp      = u_zonal_function(lat,self.theta_interp)
 
@@ -290,7 +296,7 @@ class Generate_IPV_Data(object):
        Metric_NH = metric(name='STJ', hemisphere=hemi, intensity=STJ_int, position=STJ_pos)
       else:
        Metric_SH = metric(name='STJ', hemisphere=hemi, intensity=STJ_int, position=STJ_pos)
-   
+
     return Metric_NH,Metric_SH
 
 
@@ -323,32 +329,32 @@ class STJ_Post_Processing(object):
     STJP_SH = f.createVariable('STJP_SH','f',('time',))
     STJP_SH[:] = STJ_SH.position
 
-    f.close()    
+    f.close()
 
     print('created file: ',filename)
 
     #test file created property
     #var = openNetCDF4_get_data(filename)
- 
+
 
   def PlotIPV(self, output_plotting):
 
 
-    #data prep for plotting  
+    #data prep for plotting
     array_shape_interp = output_plotting['NH','ipv_zonal_interp_0'].shape
     array_shape = output_plotting['NH','ipv_zonal_0'].shape
     lat_array = self.lat[np.newaxis, :] + np.zeros(array_shape)
     theta_lev_array = th_levels_trop[:,np.newaxis] + np.zeros(array_shape)
 
     #Map of 310 IPV on standard map projection
-    filename='/home/links/pm366/Documents/Plot/Jet/IPV_testing_vertical.eps'
-    fig1 = plot_map(lon_in=self.lon,lat_in=self.lat,colour='BuRd', bounds = np.arange(-10.,10.5,1.0), 
+    filename='{}/IPV_testing_vertical.eps'.format(plot_dir)
+    fig1 = plot_map(lon_in=self.lon,lat_in=self.lat,colour='BuRd', bounds = np.arange(-10.,10.5,1.0),
         model_type='Mima',data=self.ipv_310[0,:,:],cbar_units='PVU',filename=filename,show_plot=False)
 
     #zonal mean IPV with 2PV contour
-    filename='/home/links/pm366/Documents/Plot/Jet/IPV_testing_map.eps'
+    filename='{}/IPV_testing_map.eps'.format(plot_dir)
     fig2 = plt.figure(figsize=(8,8))
-    ax1 = fig2.add_axes([0.1,0.2,0.75,0.75]) 
+    ax1 = fig2.add_axes([0.1,0.2,0.75,0.75])
     bounds =  np.arange(-20,22,2.0)
     cmap = plt.cm.RdBu_r
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
@@ -360,15 +366,15 @@ class STJ_Post_Processing(object):
     cs1 = ax1.contour(lat_array,theta_lev_array,output_plotting['NH','ipv_zonal_0'],levels=np.arange(2,3,1), colors='red' )
     cs2 = ax1.contour(lat_array,theta_lev_array,output_plotting['NH','ipv_zonal_0'],levels=np.arange(-2,-1,1), colors='red' )
     cbar.set_label('PVU')
-    ax1.set_title('IPV for 0th month') 
+    ax1.set_title('IPV for 0th month')
     plt.savefig(filename)
 
 
- 
+
     #Contour plots only of IPV
-    filename='/home/links/pm366/Documents/Plot/Jet/IPV_contour_test.eps'
+    filename='{}/IPV_contour_test.eps'.format(plot_dir)
     fig3 = plt.figure(figsize=(8,8))
-    ax1 = fig3.add_axes([0.1,0.2,0.75,0.75]) 
+    ax1 = fig3.add_axes([0.1,0.2,0.75,0.75])
     plt.ylim(250,400)
     CS = plt.contour(lat_array,theta_lev_array,output_plotting['NH','ipv_zonal_0'],levels=np.arange(-40,40,1), colors='k' )
     plt.clabel(CS, inline=1,fontsize=8)
@@ -379,9 +385,9 @@ class STJ_Post_Processing(object):
 
     #plot zonal mean u on theta levels
     u_plot   = MeanOverDim(data = self.u_th[0,:,:,:], dim=2)
-    filename ='/home/links/pm366/Documents/Plot/Jet/IPV_uwind_contour_test.eps'
+    filename ='{}/IPV_uwind_contour_test.eps'.format(plot_dir)
     fig4     = plt.figure(figsize=(8,8))
-    ax1      = fig4.add_axes([0.1,0.2,0.75,0.75]) 
+    ax1      = fig4.add_axes([0.1,0.2,0.75,0.75])
     cmap     = plt.cm.RdBu_r
     bounds   =  np.arange(-50,51,5.0)
     norm     = mpl.colors.BoundaryNorm(bounds, cmap.N)
@@ -393,7 +399,7 @@ class STJ_Post_Processing(object):
     #plot the fitted data
     plt.plot(output_plotting['NH','phi_2PV'][0,:],output_plotting['NH','theta_2PV'][0,:],marker='x',c='k', linestyle=' ',markersize = 10)
     plt.plot(output_plotting['SH','phi_2PV'][0,:],output_plotting['SH','theta_2PV'][0,:],marker='x',c='k', linestyle=' ',markersize = 10)
-    #mark the STJ 
+    #mark the STJ
     plt.plot(output_plotting['NH','dThdlat_lat'][0],output_plotting['NH','dThdlat_theta'][0],marker='x',c='blue', linestyle=' ',markersize = 16)
     plt.plot(output_plotting['SH','dThdlat_lat'][0],output_plotting['SH','dThdlat_theta'][0],marker='x',c='blue', linestyle=' ',markersize = 16)
     plt.ylabel('Potential Temperature')
@@ -405,9 +411,9 @@ class STJ_Post_Processing(object):
     #test domain
     test_data = np.zeros_like(self.theta_domain_array)
     test_data[:,:] = 4.0
-    filename ='/home/links/pm366/Documents/Plot/Jet/IPV_uwind_contour_test_domain.eps'
+    filename ='{}/IPV_uwind_contour_test_domain.eps'.format(plot_dir)
     fig5     = plt.figure(figsize=(8,8))
-    ax1      = fig5.add_axes([0.1,0.2,0.75,0.75]) 
+    ax1      = fig5.add_axes([0.1,0.2,0.75,0.75])
     cmap     = plt.cm.RdBu_r
     bounds   = np.arange(-5,5,1.0)
     norm     = mpl.colors.BoundaryNorm(bounds, cmap.N)
@@ -425,13 +431,13 @@ class STJ_Post_Processing(object):
 
 
     #check interpolate
-    filename ='/home/links/pm366/Documents/Plot/Jet/IPV_test_contour.eps'
+    filename ='{}/IPV_test_contour.eps'.format(plot_dir)
     lat_array_interp_NH = self.lat_NH[np.newaxis, :]      + np.zeros(array_shape_interp)
     lat_array_interp_SH = self.lat_SH[np.newaxis, :]      + np.zeros(array_shape_interp)
     theta_array_interp  = self.theta_interp[:,np.newaxis] + np.zeros(array_shape_interp)
 
     fig6     = plt.figure(figsize=(8,8))
-    ax1      = fig6.add_axes([0.1,0.2,0.75,0.75]) 
+    ax1      = fig6.add_axes([0.1,0.2,0.75,0.75])
     cmap     = plt.cm.RdBu_r
     bounds   =  np.arange(-20,22,2.0)
     norm     = mpl.colors.BoundaryNorm(bounds, cmap.N)
@@ -475,7 +481,7 @@ class STJ_Post_Processing(object):
 
   def PlotPV(self):
 
-    filename='/home/links/pm366/Documents/Plot/Jet/PVlines.eps'
+    filename='{}/PVlines.eps'.format(plot_dir)
     bounds = list(range(-25,25,5))
     colour='Blues'
     cbar_units='m/sec'
@@ -484,20 +490,15 @@ class STJ_Post_Processing(object):
 
     fig = plt.figure(figsize=(6,6))
     ax = fig.add_axes([0.1,0.2,0.8,0.75])
-    ax.set_title(Title) 
-    
+    ax.set_title(Title)
+
     cmap=get_cmap_for_maps(colour=colour,bounds=bounds)
     norm = mpl.colors.Normalize(vmin=np.min(bounds),vmax=np.max(bounds))
 
     lev = np.arange(np.min(bounds),np.max(bounds),contour_increment)
-    CS = plt.contourf(self.lat,self.p,self.PV_zonal,levels = lev, cmap=cmap,norm=norm)  
+    CS = plt.contourf(self.lat,self.p,self.PV_zonal,levels = lev, cmap=cmap,norm=norm)
     ax_cb=fig.add_axes([0.05, 0.1, 0.92, 0.05])
     cbar=cbar_Maher(fig,cmap,norm,bounds,cbar_title,ax_cb)
 
     plt.show()
     pdb.set_trace()
-
-
-  
-       
-  
