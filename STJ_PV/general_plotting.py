@@ -138,7 +138,7 @@ def plot_map(lon_in,lat_in,colour,bounds,model_type,data,cbar_units,filename,sho
     if show_plot == True:
       plt.show()
  
-    print 'Saved plot: '
+    print('Saved plot: ')
 
 
     return fig
@@ -201,7 +201,7 @@ def cbar_Maher(fig,cmap,norm,bounds,cbar_title,ax_cb):
 
 def draw_deg(label):
     'deg symbol'
-    deg=u'\u00B0'
+    deg='\u00B0'
     label_string=[]
     num=len(label)
     for i in label:

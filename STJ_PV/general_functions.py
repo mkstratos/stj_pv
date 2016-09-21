@@ -9,9 +9,9 @@ def openNetCDF4_get_data(filename):
   'Key names are in unicode'
   var = {}
   f = Dataset(filename, mode='r')
-  print 'opened: ',filename
+  print('opened: ',filename)
 
-  var_names = f.variables.keys()
+  var_names = list(f.variables.keys())
  
   for i in var_names:
      var[i]=f.variables[i][:] 
@@ -59,7 +59,7 @@ def apply_mask_num(mask,data,num,num2=None):
 
 def addToList(num,list_data):
     #only add to a list if its unique
-    for elem in xrange(len(num)):
+    for elem in range(len(num)):
       if num[elem] not in list_data:
         list_data.append(num[elem])
 
@@ -67,13 +67,13 @@ def save_file(filename, data, var_name, dim,var_type, dim_name,var_dim_name, spe
  
     f=io.netcdf.netcdf_file(filename, mode='w')
 
-    for j in xrange(dim):
+    for j in range(dim):
       if dim_name[j] == 'missing_value':
         f.createDimension(dim_name[j],1) 
       else:
 	f.createDimension(dim_name[j],len(data[dim_name[j]])) 
 
-    for i in xrange(len(var_name)):
+    for i in range(len(var_name)):
  
  	if var_name[i]=='history':
 	  f.history = history	
@@ -96,7 +96,7 @@ def save_file(filename, data, var_name, dim,var_type, dim_name,var_dim_name, spe
 
     f.close()    
 
-    print 'created file: ',filename
+    print('created file: ',filename)
 
     return f
 
@@ -105,7 +105,7 @@ def openfile_get_data(filename):
   
   var ={}
   f=open_file(filename)
-  var_names = f.variables.keys()
+  var_names = list(f.variables.keys())
   
   for i in var_names:
      var[i]=f.variables[i].data 
@@ -131,7 +131,7 @@ def FindClosestElem(in_val, in_list):
   #print value, element
   
   if len(element) != 1 :
-      print 'Cant find closest element'
+      print('Cant find closest element')
       pdb.set_trace()
     
   return element
@@ -145,7 +145,7 @@ def OpenPickle(filenamePickle):
 def SavePickle(filenamePickle,data):
   
   pickle.dump(data, open(filenamePickle, "wb" ) )
-  print 'Pickle saved'  
+  print('Pickle saved')  
   return ()
 
 #this code ws adapted from stack overflow suggestion:
@@ -154,13 +154,13 @@ def latex_table(celldata,rowlabel,collabel):
     'function that creates latex-table'
 
     table = r'\begin{tabular}{c|'''
-    for c in xrange(len(collabel)):
+    for c in range(len(collabel)):
         # add additional columns
         table += r'c|'
     table += r'} '
 
     # provide the column headers
-    for c in xrange(len(collabel)-1):
+    for c in range(len(collabel)-1):
         table += collabel[c]
         table += r' & '
     table += collabel[-1]
@@ -168,17 +168,17 @@ def latex_table(celldata,rowlabel,collabel):
 
     # populate the table:
     # this assumes the format to be celldata[index of rows][index of columns]
-    for r in xrange(len(rowlabel)):
+    for r in range(len(rowlabel)):
         table += rowlabel[r]
         table += r' & '
         for c in range(0,len(collabel)-2):
-            if not isinstance(celldata[r][c], basestring):
+            if not isinstance(celldata[r][c], str):
                 table += str(celldata[r][c])
             else:
                 table += celldata[r][c]
             table += r' & '
 
-        if not isinstance(celldata[r][-1], basestring):
+        if not isinstance(celldata[r][-1], str):
             table += str(celldata[r][-1])
         else:
             table += celldata[r][-1]

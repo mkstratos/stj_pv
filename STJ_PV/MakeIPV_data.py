@@ -74,13 +74,13 @@ class Generate_IPV_Data(object):
 
     self.time = var['time'][self.start_time:self.end_time]
 
-    print 'Finished opening data'
+    print('Finished opening data')
 
 
   def GetThermalTropopause(self):
     'Calculate the thermal definition of the tropopause height'
  
-    print 'Start calculating tropopause height'
+    print('Start calculating tropopause height')
    
     #Spline fit the temperature in 10hPa intervals from surface to aloft (data must be monotonic increasing)  
     #call the external function TropopauseHeightLeve to calculate H
@@ -93,8 +93,8 @@ class Generate_IPV_Data(object):
     t_zonal = MeanOverDim(data=self.t, dim=3)  #[time,level,lat]
     P_spline = np.arange(10,1001,10)           #pressured between 10hPa and 1000 hPa
 
-    for time in xrange(self.end_time): 
-      for lat in xrange(len(self.lat)):
+    for time in range(self.end_time): 
+      for lat in range(len(self.lat)):
         tck = interpolate.splrep(self.p[::-1]/100,t_zonal[time,:,lat][::-1]) #use hPa instead of Pa
         T_spline = interpolate.splev(P_spline,tck,der=0)
         
@@ -107,12 +107,12 @@ class Generate_IPV_Data(object):
     self.TropH_pressure = TropH_pressure
     self.TropH_temp     = TropH_temp
 
-    print 'Finished calculating tropopause height'
+    print('Finished calculating tropopause height')
 
   def GetIPV(self): 
     'IPV code interpolates on theta levels'
 
-    print 'Starting IPV calculation'
+    print('Starting IPV calculation')
 
     #calculate IPV.
     IPV,self.p_lev,self.u_th   = ipv(self.u,self.v,self.t,self.p,self.lat,self.lon)
@@ -128,12 +128,12 @@ class Generate_IPV_Data(object):
     self.ipv_310_bar = MeanOverDim(data=self.ipv_310, dim=0) 
     self.theta_lev   = th_levels_trop
 
-    print 'Finished calculating IPV'
+    print('Finished calculating IPV')
 
   def SaveIPV(self,filename_1, filename_2, file_type):
     'Save output as nc or pickle'
    
-    print 'Saving ipv data'
+    print('Saving ipv data')
 
 
     if file_type == '.p':
@@ -239,7 +239,7 @@ class Generate_IPV_Data(object):
 
       f.close()    
 
-    print 'created files: ',filename+file_type, 'and', filename+'_u_H'+file_type
+    print('created files: ',filename+file_type, 'and', filename+'_u_H'+file_type)
 
   def open_ipv_data(self,filename_1, filename_2,file_type):
 
@@ -260,7 +260,7 @@ class Generate_IPV_Data(object):
     STJ_pos = np.zeros(time_len)
 
     for hemi in ['NH','SH']:
-      for time_loop in xrange(time_len):
+      for time_loop in range(time_len):
       #for time_loop in xrange(1):
 
         if hemi == 'NH':
@@ -325,7 +325,7 @@ class STJ_Post_Processing(object):
 
     f.close()    
 
-    print 'created file: ',filename
+    print('created file: ',filename)
 
     #test file created property
     #var = openNetCDF4_get_data(filename)
@@ -476,7 +476,7 @@ class STJ_Post_Processing(object):
   def PlotPV(self):
 
     filename='/home/links/pm366/Documents/Plot/Jet/PVlines.eps'
-    bounds = range(-25,25,5)
+    bounds = list(range(-25,25,5))
     colour='Blues'
     cbar_units='m/sec'
     Title = 'Testing PV'
