@@ -4,6 +4,7 @@ import pdb
 import collections
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+import os
 from scipy import interpolate
 #Dependent code
 import general_functions

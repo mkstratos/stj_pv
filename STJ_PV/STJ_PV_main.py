@@ -49,7 +49,7 @@ class Directory:
 
         elif self.base == '/Users/mk450/stj_pv':
             self.work_loc = 'MKiMac'
-            self.data_loc = '/Volumes/FN_2187/erai/stj/'
+            self.data_loc = '/Volumes/FN_2187/erai/'
 
         self.plot_loc = self.base + '/Plots/'
 
