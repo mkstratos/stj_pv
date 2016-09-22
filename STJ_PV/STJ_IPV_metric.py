@@ -842,7 +842,7 @@ def season_mask(time_len):
     time_tmp = np.arange(0,time_len,1)
     mask = []
     for i in    time_tmp:
-        year = i/int(12)
+        year = i // 12
         month = i-year*12
         if month == 0 or month == 1 or month == 11:
             mask.append('DJF')
