@@ -53,6 +53,11 @@ class Directory:
 
         self.plot_loc = self.base + '/Plots/'
 
+        # Create plotting directory, if it doesn't exist already
+        if not os.path.exists(self.plot_loc):
+            print('CREATING PLOTTING DIRECTORY: {}'.format(self.plot_loc))
+            os.system('mkdir -p {}'.format(self.plot_loc))
+
         # Test if the string self.work_loc has been assigned
         assert isinstance(self.work_loc, str), ('Unknown base environment variable.'
                                                 ' SetDefault.py')
