@@ -53,6 +53,11 @@ class Directory:
 
         self.plot_loc = self.base + '/Plots/'
 
+        # Create plotting directory, if it doesn't exist already
+        if not os.path.exists(self.plot_loc):
+            print('CREATING PLOTTING DIRECTORY: {}'.format(self.plot_loc))
+            os.system('mkdir -p {}'.format(self.plot_loc))
+
         # Test if the string self.work_loc has been assigned
         assert isinstance(self.work_loc, str), ('Unknown base environment variable.'
                                                 ' SetDefault.py')
@@ -153,12 +158,12 @@ def main():
         STJ_IPV_metric.calc_metric(STJ_PV.IPV_data)
 
         pdb.set_trace()
-        STJ_NH, STJ_SH = STJ_PV.Get_uwind_strength()
+        #STJ_NH, STJ_SH = STJ_PV.Get_uwind_strength()
 
         # Save results
-        STJ_Post_Proc = STJ_Post_Processing()
-        STJ_Post_Proc.SaveSTJMetric(STJ_NH, STJ_SH)
-        STJ_Post_Proc.PlotIPV(output_plotting)
+        # STJ_Post_Proc = STJ_Post_Processing()
+        # STJ_Post_Proc.SaveSTJMetric(STJ_NH, STJ_SH)
+        # STJ_Post_Proc.PlotIPV(output_plotting)
 
         filename = Exp.path + 'STJ_metric.nc'
         var = openNetCDF4_get_data(filename)
