@@ -47,7 +47,7 @@ class Directory:
       self.work_loc = 'gv' 
       self.data_loc = '/scratch/pm366/' 
 
-    self.plot_loc = self.base +'/Plots/'
+    self.plot_loc = self.base +'Plot/Jet/'
 
  
     #test if the string self.work_loc has been assigned
@@ -89,10 +89,10 @@ class Experiment(object):
     else:
       time_syn = '_daily.nc'
  
-    path = self.diri.data_loc + 'Data/ERA_INT/'
-    self.u_fname  = path + 'ERA_INT_UWind_correct_levels.nc'
-    self.v_fname  = path + 'vwind.nc'
-    self.t_fname  = path + 'ERA_int_temp.nc'
+    path = self.diri.data_loc + 'Data/ERA_INT/1979_2015/'
+    self.u_fname  = path + 'u79_15.nc'#'ERA_INT_UWind_correct_levels.nc'
+    self.v_fname  = path + 'v79_15.nc'#'vwind.nc'
+    self.t_fname  = path + 't79_15.nc'#'ERA_int_temp.nc'
     self.path     = path
 
     #used a named tuple to manage the file variable label (what the .nc file calls it) and 
@@ -125,8 +125,8 @@ def main():
 
   file_type_opt = ['.nc','.p']      #nc file or pickle
   file_type = file_type_opt[0]
-  fileIPV_1 = Exp.path + 'IPV_data'   #IPV every 5K between 300-500  
-  fileIPV_2 = Exp.path + 'IPV_data_u_H'   #if using pickle this file is not needed  
+  fileIPV_1 = Exp.path + 'IPV_data_79_16'   #IPV every 5K between 300-500  
+  fileIPV_2 = Exp.path + 'IPV_data_u_H_79_16'   #if using pickle this file is not needed  
 
   if (Exp.RunOpt == 'Save') or (Exp.RunOpt == 'RunNotSave'):
 
@@ -147,7 +147,7 @@ def main():
   
     
     #Now that IPV has been calculated - calculate the STJ metric
-    STJ_IPV_metric.calc_metric(STJ_PV.IPV_data)
+    STJ_IPV_metric.calc_metric(STJ_PV.IPV_data,STJ_PV.diri)
     
     pdb.set_trace()
     STJ_NH,STJ_SH = STJ_PV.Get_uwind_strength()

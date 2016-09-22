@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from colormap import Colormap
 from matplotlib import rc
+import copy as copy
+import math
 #Dependent code
 from general_functions import MeanOverDim, FindClosestElem,openNetCDF4_get_data,latex_table
 from general_plotting import draw_map_model,draw_deg,gfdl_lat_change_map
@@ -492,11 +494,11 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
     ax5.axis('off')
 
     plt.savefig('/home/links/pm366/Documents/Plot/Jet/calendar_mean.eps')
-    plt.show()
+    #plt.show()
     plt.close()
     hemi_count = hemi_count +1
 
-    pdb.set_trace()  
+    #pdb.set_trace()  
 
     fig     = plt.figure(figsize=(15,6))
     #position vs intensity
@@ -541,9 +543,105 @@ def PlotCalendarTimeseries(STJ_cal_mean,STJ_cal_int_mean,STJ_cal_th_mean,STJ_cal
 
     plt.legend(loc=2)
     plt.savefig('/home/links/pm366/Documents/Plot/Jet/calendar_lifecycle.eps')
-    plt.show()
+    #plt.show()
+    plt.close()
+
+    #pdb.set_trace()
+
+def get_centred_bounds(min_bound, max_bound,increment, critical=None):
+  
+    if critical== None:
+      
+        bounds_low = np.arange(min_bound,0,increment)
+        bounds_high = np.arange(increment,max_bound+0.1,increment)
+    
+    else:
+    
+        bounds_low = np.arange(min_bound,-math.floor(critical*10)/10+.1,increment)
+        bounds_high = np.arange(math.ceil(critical*10)/10-.1,max_bound,increment)
+
+    bounds=np.zeros(bounds_low.size+bounds_high.size)
+    bounds[0:bounds_low.size]=bounds_low
+    bounds[(bounds_low.size):]=bounds_high
+    
+    return bounds
+
+def PlotPC_Matrix_subplot(ax1,ax1_position,ax_cb,matrix,var_name_latex):    
+
+  fontsize=16
+  bounds = get_centred_bounds(min_bound=-1.0, max_bound=1.0, increment=0.1, critical=None)
+
+  cmap = mpl.colors.LinearSegmentedColormap.from_list('RdBu_cmap',['Navy','white','Maroon'],N=len(bounds)+1)
+  norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+  cmap.set_bad(color = 'Gainsboro', alpha = 1.)		  #grey to Nan
+
+  cax = ax1.matshow(matrix, cmap=cmap,interpolation='nearest') #can use either matshow or imshow
+  ax1.set_position(ax1_position) 
+
+  #labels onto matrix
+  ax1.set_xticks(range(len(var_name_latex)))
+  ax1.set_xticklabels(var_name_latex,rotation=0,fontsize=fontsize)
+  ax1.set_yticks(range(len(var_name_latex)))
+  ax1.set_yticklabels(var_name_latex,fontsize=fontsize)   
+
+  #colour bar
+  font=18
+  cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap,norm=norm,ticks=bounds,spacing='uniform', orientation='horizontal',boundaries=bounds, format='%1.1g')    
 
 
-    pdb.set_trace()
+
+def PlotPC_matrix_single(matrix,var_name_latex,filename ):
+
+  fig = plt.figure(1,figsize=(8,9))
+  ax1 = fig.add_subplot(1,1,1)
+  ax1_position = [0.1, 0.1, 0.88, 0.95]
+  ax_cb=fig.add_axes([0.12, 0.1, 0.8, 0.05])
+
+  PlotPC_Matrix_subplot(ax1,ax1_position,ax_cb, matrix,var_name_latex)
+
+  plt.savefig(filename)
+  plt.show()
+  plt.close()
+
+  plt.close()
+
+
+def PlotPC(Annual, Seasonal, Monthly, var_name,diri):
+ 
+
+  var_name_latex = [r'$\phi$', r'I', r'$\theta$', r'x']
+
+
+  #prep storage matrix
+  matrix  =  np.zeros([4,4]) 
+  tmp = np.tri(matrix.shape[0], k=-1)
+  tmp[np.where(tmp == 1)] = np.nan      #lower triangular as nan
+  matrix = tmp + matrix
+  
+  matrix_NH =  copy.deepcopy(matrix)
+  matrix_SH =  copy.deepcopy(matrix)
+  
+  matrix_NH = Annual[:,:,0]+ matrix
+  matrix_SH = Annual[:,:,1]+ matrix
+
+  path = diri.plot_loc
+
+
+  #Annual plots
+  PlotPC_matrix_single(matrix_NH, var_name_latex,filename = path + 'NH_PC_matrix.eps' )
+  PlotPC_matrix_single(matrix_SH, var_name_latex,filename = path + 'SH_PC_matrix.eps'  )
+
+  #SeasonalPlots
+  for season in ['DJF','MAM','JJA','SON']:
+    hemi_count = 0
+    for hemi in ['NH','SH']:
+      print hemi, '' , season
+      matrix_season =  copy.deepcopy(matrix)
+      plot_matrix        = Seasonal[season][:,:,hemi_count] + matrix_season
+      PlotPC_matrix_single(plot_matrix, var_name_latex,filename = path + hemi+'_PC_matrix_'+season+'.eps'  )
+      hemi_count = hemi_count + 1
+
+  pdb.set_trace()
+  
 
 

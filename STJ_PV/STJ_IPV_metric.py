@@ -14,7 +14,7 @@ from STJ_PV_main import Directory
 from general_plotting import draw_map_model
 from general_functions import openNetCDF4_get_data,apply_mask_inf,MeanOverDim,FindClosestElem
 import calc_ipv  #assigns th_levels_trop
-from IPV_plots import Plotting,PlotCalendarTimeseries
+from IPV_plots import Plotting,PlotCalendarTimeseries, PlotPC
 #partial correlation code forked from https://gist.github.com/fabianp/9396204419c7b638d38f
 from partial_corr import partial_corr
 
@@ -25,7 +25,7 @@ __author__ = "Penelope Maher"
 class Method_2PV_STJ(object):
   'Input data of the form self.IPV[time,theta,lat,lon]'
 
-  def __init__(self,IPV_data):
+  def __init__(self,IPV_data,diri):
 
     self.lat             = IPV_data['lat']
     self.lon             = IPV_data['lon']
@@ -37,6 +37,8 @@ class Method_2PV_STJ(object):
     self.TropH           = IPV_data['TropH']
     self.TropH_p         = IPV_data['TropH_p']
     self.TropH_temp      = IPV_data['TropH_temp']
+
+    self.diri      = diri
 
 
   def PrepForAlgorithm(self):
@@ -325,9 +327,10 @@ class Method_2PV_STJ(object):
    
     #Now get the partial correlation
     pc   = np.zeros([num_var,num_var,2])
-    pc[:,:,0] = partial_corr(data[:,:,0])
-    pc[:,:,1] = partial_corr(data[:,:,1])
+    pc[:,:,0] = partial_corr(data[:,:,0])  #NH
+    pc[:,:,1] = partial_corr(data[:,:,1])  #SH
 
+    pdb.set_trace()
     self.AnnualPC   = pc
 
   def MonthlyCorrelations(self, best_guess_cby,cross_lat,jet_max_wind_cby,jet_max_theta_cby):
@@ -371,25 +374,32 @@ class Method_2PV_STJ(object):
     season_names = ['DJF', 'MAM', 'JJA', 'SON']
 
     data       = np.zeros([self.STJ_seasons['DJF'].shape[0], num_var,2]) #[months,var,hemi]
-    pc_store   = np.zeros([num_var,num_var,2])
+    pc_store   = np.zeros([num_var,num_var,4,2])
 
     corr = {}
-    pc   = {}
+    pc  = {}
     for season_count in xrange(4):
+     
       data[:,0,:] = self.STJ_seasons[season_names[season_count]]
       data[:,1,:] = self.STJ_I_seasons[season_names[season_count]]
       data[:,2,:] = self.STJ_th_seasons[season_names[season_count]]
       data[:,3,:] = self.cross_seasons[season_names[season_count]]
 
+      #syntax works for CC but same for PC clobbers it.
       corr[season_names[season_count]] = GetCorrelation(hemi, num_var, var_name, data)
    
       #Now get the partial correlation
-      pc_store[:,:,0] = partial_corr(data[:,:,0])
-      pc_store[:,:,1] = partial_corr(data[:,:,1])
-      pc[season_names[season_count]] = pc_store
- 
+      pc_store[:,:,season_count,0] = partial_corr(data[:,:,0])
+      pc_store[:,:,season_count,1] = partial_corr(data[:,:,1])
+
+    pc['DJF'] = pc_store[:,:,0,:]
+    pc['MAM'] = pc_store[:,:,1,:]
+    pc['JJA'] = pc_store[:,:,2,:]
+    pc['SON'] = pc_store[:,:,3,:]
+  
     self.SeasonCC   = corr
     self.SeasonPC   = pc
+    self.var_name   = var_name
 
 
   def PolyFit2PV_near_mean(self,print_messages,STJ_mean,EDJ_mean, phi_val,local_elem,STJ_lat_sort,y_peak,peak_mag,sort_index):
@@ -602,8 +612,9 @@ class Method_2PV_STJ(object):
 
 
     diri = Directory()
-    path = diri.data_loc + 'Data/ERA_INT/'
-    u_fname  = path + 'ERA_INT_UWind_correct_levels.nc'
+    path = diri.data_loc + 'Data/ERA_INT/1979_2015/'
+    u_fname  = path + 'u79_15.nc'
+    #u_fname  = path + 'ERA_INT_UWind_correct_levels.nc'
     #u_fname  = '/home/pm366/Documents/Data/tmp/ERA_INT_UWind_correct_levels.nc'
 
     var  = openNetCDF4_get_data(u_fname)
@@ -869,13 +880,13 @@ def MakeOutfileSavez_derived(filename, phi_2PV,theta_2PV,dth,dth_lat,d2th):
   pdb.set_trace()
 
 
-def calc_metric(IPV_data):
+def calc_metric(IPV_data,diri):
     'Input assumed to be a dictionary'
 
     output_plotting = {}
 
     # Define the object and init the variables of interest
-    Method = Method_2PV_STJ(IPV_data)
+    Method = Method_2PV_STJ(IPV_data,diri)
 
     # Manage arrays for interpolation
     Method.PrepForAlgorithm()  
@@ -1028,7 +1039,7 @@ def calc_metric(IPV_data):
             else:
               test_with_plots = False
 
-          #test_with_plots = False
+          test_with_plots = False
  
           if test_with_plots == True:
             #pick method to plot 
@@ -1056,6 +1067,9 @@ def calc_metric(IPV_data):
 
 
     Method.CalendarMean(seasons, jet_best_guess[:,0,:,0],crossing_lat,jet_intensity[:,0,:,0],jet_th_lev[:,0,:,0])
+
+
+    PlotPC(Method.AnnualPC,Method.SeasonPC,Method.MonthlyPC,Method.var_name,Method.diri)
 
     pdb.set_trace()
 
