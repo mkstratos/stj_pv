@@ -274,8 +274,8 @@ class Method_2PV_STJ(object):
 
         for i in range(loop_len):
 
-            shear_elem[i] = FindClosestElem(self.phi_2PV[local_elem][
-                                            i], self.lat[lat_elem])[0]
+            shear_elem[i] = FindClosestElem(self.phi_2PV[local_elem][i],
+                                            self.lat[lat_elem])[0]
 
             # restrict data between the surface and the level of the 2.0 PV line
             upper_lev = FindClosestElem(self.theta_2PV[local_elem][i], self.theta_lev)[0]
@@ -286,8 +286,8 @@ class Method_2PV_STJ(object):
 
             test_shear = False
             if test_shear:
-                plt.plot(self.lat[lat_elem][shear_elem[i]], self.theta_lev[
-                         upper_lev], linestyle=' ', c='green', marker='x', markersize=10,
+                plt.plot(self.lat[lat_elem][shear_elem[i]], self.theta_lev[upper_lev],
+                         linestyle=' ', c='green', marker='x', markersize=10,
                          label='dTh/dy peaks')
                 print('shear:', shear[i], self.phi_2PV[local_elem][i])
 
@@ -316,8 +316,8 @@ class Method_2PV_STJ(object):
         'At the best guess lat find the spline fitted u wind'
 
         # spline fit zonal mean onto same grid as 2PV
-        function = interpolate.interp2d(self.lat[lat_elem], self.theta_lev, u_zonal[
-                                        :, lat_elem][:, 0, :], kind='cubic')
+        function = interpolate.interp2d(self.lat[lat_elem], self.theta_lev,
+                                        u_zonal[:, lat_elem][:, 0, :], kind='cubic')
         self.u_fitted = function(self.lat_hemi, self.theta_domain)
 
         # At the jet latitude find the maximum uwind - cby
@@ -826,7 +826,7 @@ def IsolatePeaks(hemi, x, y, y2, time_loop, cross_lat, print_messages):
     else:
         x2_peak, y2_peak, local_elem_2 = None, None, None
 
-    if (print_messages):
+    if print_messages:
         print('-----------------------------')
         print(hemi, ' peak is', x_peak)
         print(hemi, ' elements', x[elem])
@@ -1068,7 +1068,7 @@ def calc_metric(IPV_data):
                    (hemi == 'SH' and Method.best_guess_cby < -40)):
                     test_with_plots = True
                 else:
-                    if (hemi == 'SH' and Method.best_guess_cby > -25):
+                    if hemi == 'SH' and Method.best_guess_cby > -25:
                         test_with_plots = True
                     else:
                         test_with_plots = False
@@ -1091,20 +1091,20 @@ def calc_metric(IPV_data):
                                  theta_2PV_out, dth_out, dth_lat_out, d2th_out)
 
     # annual values
-    Method.AnnualCorrelations(jet_best_guess[:, 0, :, 0], crossing_lat, jet_intensity[
-                              :, 0, :, 0], jet_th_lev[:, 0, :, 0])
-    Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], crossing_lat, jet_intensity[
-                               :, 0, :, 0], jet_th_lev[:, 0, :, 0])
+    Method.AnnualCorrelations(jet_best_guess[:, 0, :, 0], crossing_lat,
+                              jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
+    Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], crossing_lat,
+                               jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
 
     # seasonally seperate the data
-    Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat, jet_intensity[
-                         :, 0, :, 0], jet_th_lev[:, 0, :, 0])
+    Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
+                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
 
     # calendar values
     Method.SeasonCorrelations()
 
-    Method.CalendarMean(seasons, jet_best_guess[:, 0, :, 0], crossing_lat, jet_intensity[
-                        :, 0, :, 0], jet_th_lev[:, 0, :, 0])
+    Method.CalendarMean(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
+                        jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
 
     pdb.set_trace()
 
@@ -1253,8 +1253,8 @@ def test_max_shear_across_lats(phi_2PV, theta_2PV, lat, lat_elem, theta_lev, u_z
     bounds = np.arange(-50, 51, 5.0)
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
     # u wind as a contour
-    ax.pcolormesh(lat[lat_elem], theta_lev, u_zonal[
-                  :, lat_elem][:, 0, :], cmap=cmap, norm=norm)
+    ax.pcolormesh(lat[lat_elem], theta_lev, u_zonal[:, lat_elem][:, 0, :], cmap=cmap,
+                  norm=norm)
     ax.set_ylabel('Wind Theta (contour)')
     ax.set_ylim(300, 400)
     ax_cb = fig.add_axes([0.1, 0.1, 0.80, 0.05])
@@ -1279,8 +1279,8 @@ def test_max_shear_across_lats(phi_2PV, theta_2PV, lat, lat_elem, theta_lev, u_z
                                                   closest_lat_elem[i]] -
                              u_zonal[:, lat_elem][0, 0, closest_lat_elem[i]])
 
-        ax2.plot(lat[lat_elem][closest_lat_elem[i]], theta_lev[closest_theta_elem[
-                 i]], linestyle=' ', c='orange', marker='x', markersize=10)
+        ax2.plot(lat[lat_elem][closest_lat_elem[i]], theta_lev[closest_theta_elem[i]],
+                 linestyle=' ', c='orange', marker='x', markersize=10)
 
     # because the grid scales are different - more than one orange cross
     # occurs per theta level. So just select mean on them

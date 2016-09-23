@@ -158,8 +158,9 @@ class Plotting(object):
                 bounds = np.arange(-50, 51, 5.0)
                 norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
                 # u wind as a contour
-                ax.pcolormesh(self.lat[lat_elem], self.theta_lev, u_zonal[
-                              :, lat_elem][:, 0, :], cmap=cmap, norm=norm)
+                ax.pcolormesh(self.lat[lat_elem],
+                              self.theta_lev, u_zonal[:, lat_elem][:, 0, :],
+                              cmap=cmap, norm=norm)
                 ax.set_ylabel('Theta')
                 ax.set_ylim(300, 400)
                 ax_cb = fig.add_axes([0.09, 0.05, 0.60, 0.02])
@@ -172,8 +173,8 @@ class Plotting(object):
                 # (neg)/white/(pos)
                 mycmap = cm.cmap_linear('#0033ff', '#FFFFFF', '#990000')
                 levels = np.arange(-60, 61, 5).tolist()
-                ax.contourf(self.lat[lat_elem], self.theta_lev, u_zonal[
-                            :, lat_elem][:, 0, :], levels, cmap=mycmap)
+                ax.contourf(self.lat[lat_elem], self.theta_lev,
+                            u_zonal[:, lat_elem][:, 0, :], levels, cmap=mycmap)
                 ax.set_ylim(300, 400)
                 ax_cb = fig.add_axes([0.09, 0.05, 0.80, 0.02])
                 norm = mpl.colors.BoundaryNorm(levels, mycmap.N)
@@ -270,10 +271,10 @@ class Plotting(object):
         print('Current algorithm plot produces: ')
         fig = plt.figure(figsize=(15, 6))
         ax1 = fig.add_axes([0.1, 0.2, 0.75, 0.75])
-        plt.plot(np.arange(0, STJ_jet_lat[:, 0, 0].shape[0], 1), STJ_jet_lat[
-                 :, 0, 0], c='k', marker='x', markersize=8, linestyle='-', label='NH')
-        plt.plot(np.arange(0, STJ_jet_lat[:, 0, 0].shape[0], 1), STJ_jet_lat[
-                 :, 0, 1], c='r', marker='x', markersize=8, linestyle='-', label='SH')
+        plt.plot(np.arange(0, STJ_jet_lat[:, 0, 0].shape[0], 1), STJ_jet_lat[:, 0, 0],
+                 c='k', marker='x', markersize=8, linestyle='-', label='NH')
+        plt.plot(np.arange(0, STJ_jet_lat[:, 0, 0].shape[0], 1), STJ_jet_lat[:, 0, 1],
+                 c='r', marker='x', markersize=8, linestyle='-', label='SH')
         # plt.legend()
         # plt.ylim(300,380)
         plt.savefig('{}/STJ_ts.eps'.format(plot_dir))
@@ -389,11 +390,11 @@ def plot_u(fname):
         # plot u wind
         uzonal = MeanOverDim(data=uwnd, dim=1)
         # and the jet location
-        ax2.plot([uzonal.min(), uzonal.max()], [
-                 jet_SH[t], jet_SH[t]], c='#0033ff', linewidth=2)
+        ax2.plot([uzonal.min(), uzonal.max()], [jet_SH[t], jet_SH[t]], c='#0033ff',
+                 linewidth=2)
         if t_elem[t] < 150:
-            ax2.plot([uzonal.min(), uzonal.max()], [
-                     jet_NH[t], jet_NH[t]], c='#0033ff', linewidth=2)
+            ax2.plot([uzonal.min(), uzonal.max()], [jet_NH[t], jet_NH[t]], c='#0033ff',
+                     linewidth=2)
 
         ax2.set_ylim(-90, 90)
         ax2.plot(uzonal, var['lat'], c='k')

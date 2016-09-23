@@ -195,8 +195,8 @@ def cbar_Maher(fig, cmap, norm, bounds, cbar_title, ax_cb):
 
     max_tri = (cmap._segmentdata['red'][-1][1], cmap._segmentdata['green'][-1][1],
                cmap._segmentdata['blue'][-1][1])
-    min_tri = (cmap._segmentdata['red'][0][1], cmap._segmentdata[
-               'green'][0][1], cmap._segmentdata['blue'][0][1])
+    min_tri = (cmap._segmentdata['red'][0][1], cmap._segmentdata['green'][0][1],
+               cmap._segmentdata['blue'][0][1])
     cmap.set_over(max_tri)
     cmap.set_under(min_tri)
     cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, norm=norm, extend='both',
