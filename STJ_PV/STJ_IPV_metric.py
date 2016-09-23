@@ -3,7 +3,7 @@ import pdb
 import os
 import collections
 from scipy import interpolate
-from scipy.signal import argrelmin, argrelmax,argrelextrema
+from scipy.signal import argrelmin, argrelmax, argrelextrema
 import scipy.io as io
 from numpy.polynomial import chebyshev as cby
 import copy as copy
@@ -15,7 +15,7 @@ from STJ_PV_main import Directory
 from general_plotting import draw_map_model
 from general_functions import (openNetCDF4_get_data,
                                apply_mask_inf, MeanOverDim, FindClosestElem)
-import calc_ipv  #assigns th_levels_trop
+import calc_ipv  # assigns th_levels_trop
 from IPV_plots import Plotting, PlotCalendarTimeseries, PlotPC
 # partial correlation code forked from
 # https://gist.github.com/fabianp/9396204419c7b638d38f
@@ -34,7 +34,7 @@ if not os.path.exists(data_dir):
 class Method_2PV_STJ(object):
     'Input data of the form self.IPV[time, theta, lat, lon]'
 
-    def __init__(self,IPV_data,diri):
+    def __init__(self, IPV_data, diri):
 
         self.lat = IPV_data['lat']
         self.lon = IPV_data['lon']
@@ -43,7 +43,7 @@ class Method_2PV_STJ(object):
         self.IPV = IPV_data['IPV']
         self.u = IPV_data['uwnd']
 
-        self.diri      = diri
+        self.diri = diri
 
         self.TropH = IPV_data['TropH']
         self.TropH_p = IPV_data['TropH_p']
@@ -422,6 +422,7 @@ class Method_2PV_STJ(object):
 
         self.SeasonCC = corr
         self.SeasonPC = pc
+        self.var_name = var_name
 
     def PolyFit2PV_near_mean(self, print_messages, STJ_mean, EDJ_mean, phi_val,
                              local_elem, STJ_lat_sort, y_peak, peak_mag, sort_index):
@@ -452,37 +453,7 @@ class Method_2PV_STJ(object):
 
         else:
 
-            EDJ_lat_near_mean , additional_lat = None,None
-
-    def SaveData(self):
-
-
-        filename = '/home/links/pm366/Documents/Data/STJ_IPV_output.nc'
-        f = io.netcdf.netcdf_file(filename, mode='w')
- 
-        #STJ metric 
-        f.createDimension('STJ_lat', len(self.best_guess_cby))
-        STJ_lat    = f.createVariable('STJ_lat','f',('STJ_lat',))
-        STJ_lat[:] = self.best_guess_cby
-
-        #d theta / d phi
-        f.createDimension('dthdlat', len(self.dtdphi_val))
-        dthdlat    = f.createVariable('dthdlat','f',('dthdlat',))
-        dthdlat[:] = self.dtdphi_val
-
-        #lat of 2PV line 
-        f.createDimension('lat_2PV_line', len(self.phi_2PV))
-        lat_2PV_line    = f.createVariable('lat_2PV_line','f',('lat_2PV_line',))
-        lat_2PV_line[:] = self.phi_2PV
-
-        #theta of 2PV line 
-        f.createDimension('theta_2PV_line', len(self.theta_2PV))
-        theta_2PV_line    = f.createVariable('theta_2PV_line','f',('theta_2PV_line',))
-        theta_2PV_line[:] = self.theta_2PV
-
-
-        f.close()    
-
+            EDJ_lat_near_mean, additional_lat = None, None
 
         if print_messages:
             print('Testing near mean position: ', STJ_lat_near_mean, ',      EDJ: ',
@@ -499,6 +470,33 @@ class Method_2PV_STJ(object):
 
         return STJ_lat_near_mean, EDJ_lat_near_mean, additional_lat
 
+    def SaveData(self):
+
+        filename = '/home/links/pm366/Documents/Data/STJ_IPV_output.nc'
+        f = io.netcdf.netcdf_file(filename, mode='w')
+
+        # STJ metric
+        f.createDimension('STJ_lat', len(self.best_guess_cby))
+        STJ_lat = f.createVariable('STJ_lat', 'f', ('STJ_lat',))
+        STJ_lat[:] = self.best_guess_cby
+
+        # d theta / d phi
+        f.createDimension('dthdlat', len(self.dtdphi_val))
+        dthdlat = f.createVariable('dthdlat', 'f', ('dthdlat',))
+        dthdlat[:] = self.dtdphi_val
+
+        # lat of 2PV line
+        f.createDimension('lat_2PV_line', len(self.phi_2PV))
+        lat_2PV_line = f.createVariable('lat_2PV_line', 'f', ('lat_2PV_line',))
+        lat_2PV_line[:] = self.phi_2PV
+
+        # theta of 2PV line
+        f.createDimension('theta_2PV_line', len(self.theta_2PV))
+        theta_2PV_line = f.createVariable('theta_2PV_line', 'f', ('theta_2PV_line',))
+        theta_2PV_line[:] = self.theta_2PV
+
+        f.close()
+
     def SeasonalPeaks(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th):
 
         # this is an overkill way to treat the seasons but has reduced risk of
@@ -513,31 +511,30 @@ class Method_2PV_STJ(object):
 
         for i in range(STJ_array.shape[0]):
             if seasons[i] == 'DJF':
-                STJ_seasons[count_DJF, :, 0]    = STJ_array[i, :]
-                cross_seasons[count_DJF, :, 0]  = crossing_lat[i, :]
-                STJ_I_seasons[count_DJF, :, 0]  = STJ_I[i, :]
+                STJ_seasons[count_DJF, :, 0] = STJ_array[i, :]
+                cross_seasons[count_DJF, :, 0] = crossing_lat[i, :]
+                STJ_I_seasons[count_DJF, :, 0] = STJ_I[i, :]
                 STJ_th_seasons[count_DJF, :, 0] = STJ_th[i, :]
                 count_DJF = count_DJF + 1
 
             if seasons[i] == 'MAM':
-                STJ_seasons[count_MAM, :, 1]    = STJ_array[i, :]
-                cross_seasons[count_MAM, :, 1]  = crossing_lat[i, :]
-                STJ_I_seasons[count_MAM, :, 1]  = STJ_I[i, :]
+                STJ_seasons[count_MAM, :, 1] = STJ_array[i, :]
+                cross_seasons[count_MAM, :, 1] = crossing_lat[i, :]
+                STJ_I_seasons[count_MAM, :, 1] = STJ_I[i, :]
                 STJ_th_seasons[count_MAM, :, 1] = STJ_th[i, :]
                 count_MAM = count_MAM + 1
 
-
             if seasons[i] == 'JJA':
-                STJ_seasons[count_JJA, :, 2]    = STJ_array[i, :]
-                cross_seasons[count_JJA, :, 2]  = crossing_lat[i, :]
-                STJ_I_seasons[count_JJA, :, 2]  = STJ_I[i, :]
+                STJ_seasons[count_JJA, :, 2] = STJ_array[i, :]
+                cross_seasons[count_JJA, :, 2] = crossing_lat[i, :]
+                STJ_I_seasons[count_JJA, :, 2] = STJ_I[i, :]
                 STJ_th_seasons[count_JJA, :, 2] = STJ_th[i, :]
                 count_JJA = count_JJA + 1
 
             if seasons[i] == 'SON':
-                STJ_seasons[count_SON, :, 3]    = STJ_array[i, :]
-                cross_seasons[count_SON, :, 3]  = crossing_lat[i, :]
-                STJ_I_seasons[count_SON, :, 3]  = STJ_I[i, :]
+                STJ_seasons[count_SON, :, 3] = STJ_array[i, :]
+                cross_seasons[count_SON, :, 3] = crossing_lat[i, :]
+                STJ_I_seasons[count_SON, :, 3] = STJ_I[i, :]
                 STJ_th_seasons[count_SON, :, 3] = STJ_th[i, :]
                 count_SON = count_SON + 1
 
@@ -924,13 +921,13 @@ def MakeOutfileSavez_derived(filename, phi_2PV, theta_2PV, dth, dth_lat, d2th):
     pdb.set_trace()
 
 
-def calc_metric(IPV_data,diri):
+def calc_metric(IPV_data, diri):
     'Input assumed to be a dictionary'
 
     output_plotting = {}
 
     # Define the object and init the variables of interest
-    Method = Method_2PV_STJ(IPV_data,diri)
+    Method = Method_2PV_STJ(IPV_data, diri)
 
     # Manage arrays for interpolation
     Method.PrepForAlgorithm()
@@ -942,7 +939,6 @@ def calc_metric(IPV_data,diri):
     # Default is zonal mean. Lon slices untested
     slide_method_opt = ['zonal_mean', 'lon_slices']
     slide_method = slide_method_opt[0]
-
 
     if slide_method == 'lon_slices':
         # For each month, take longitude slices to find the max slope in 2.0 IPV
@@ -1121,7 +1117,6 @@ def calc_metric(IPV_data,diri):
                     PlottingObject.poly_2PV_line(hemi, u_zonal, lat_elem, time_loop,
                                                  pause=False, click=True)
 
-
     if testing_make_output:
         filename = '{}/STJ_PV_metric_derived.npz'.format(data_dir)
         MakeOutfileSavez_derived(filename, phi_2PV_out,
@@ -1133,7 +1128,6 @@ def calc_metric(IPV_data,diri):
     Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], crossing_lat,
                                jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
 
-
     # seasonally seperate the data
     Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
                          jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
@@ -1144,9 +1138,8 @@ def calc_metric(IPV_data,diri):
     Method.CalendarMean(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
 
-
-    PlotPC(Method.AnnualPC, Method.SeasonPC, Method.MonthlyPC, Method.var_name, Method.diri)
-
+    PlotPC(Method.AnnualPC, Method.SeasonPC,
+           Method.MonthlyPC, Method.var_name, Method.diri)
 
     pdb.set_trace()
 

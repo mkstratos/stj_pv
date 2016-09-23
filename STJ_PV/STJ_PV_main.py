@@ -73,7 +73,7 @@ class Experiment(object):
         # Save: Run and save data. Open: Open data from previous run
         # RunNotSave: run code but do not save output
         RunFlag = ['Open', 'Save', 'RunNotSave']
-        self.RunOpt = RunFlag[1]
+        self.RunOpt = RunFlag[0]
 
         # Using daily or monthly data? Code designed around monthly data
         time_unit_opt = ['dd', 'mm']
@@ -92,15 +92,14 @@ class Experiment(object):
     def PathFilenameERA(self):
 
         if self.time_units == 'mm':
-          time_syn = '_monthly.nc'
+            time_syn = '_monthly.nc'
         else:
-          time_syn = '_daily.nc'
- 
+            time_syn = '_daily.nc'
+
         path = "{}{}".format(self.diri.data_loc, 'Data/ERA_INT/1979_2015/')
         self.u_fname = "{}{}".format(path, 'u79_15.nc')
         self.v_fname = "{}{}".format(path, 'v79_15.nc')
         self.t_fname = "{}{}".format(path, 't79_15.nc')
-
 
         # used a named tuple to manage the file variable label
         # (what the .nc file calls it) and
@@ -113,6 +112,7 @@ class Experiment(object):
         # Data window to use
         self.start_time = 0  # first month of data to use from file
         self.end_time = 360  # last month of data to use from file +1
+        self.path = path
 
 
 def main():
@@ -155,7 +155,7 @@ def main():
         STJ_PV.open_ipv_data(fileIPV_1, fileIPV_2, file_type)
 
         # Now that IPV has been calculated - calculate the STJ metric
-        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data)
+        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri)
 
         pdb.set_trace()
         # STJ_NH, STJ_SH = STJ_PV.Get_uwind_strength()
@@ -168,8 +168,6 @@ def main():
         filename = Exp.path + 'STJ_metric.nc'
         var = openNetCDF4_get_data(filename)
         pdb.set_trace()
-
-
 
     return ()
 

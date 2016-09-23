@@ -23,10 +23,10 @@ def openNetCDF4_get_data(filename):
 
 def apply_mask_inf(data):
 
-    assert isinstance(data, np.ndarray) == True, 'Data is not masked'
+    assert isinstance(data, np.ndarray), 'Data is not masked'
     shape_data = data.shape
     data = data.flatten()
-    wh = np.where(np.isfinite(data) == False)[0]
+    wh = np.where(np.not(np.isfinite(data)))[0]
     if len(wh) != 0:
         data[wh] = np.nan
 
@@ -51,7 +51,7 @@ def apply_mask_num(mask, data, num, num2=None):
         mask_wh_miss = np.where(data == num2)[0]
         mask[mask_wh_miss] = np.nan  # put nans on missing values
 
-    non_triv = np.where(np.isfinite(mask) == True)[0].shape  # just for reference
+    non_triv = np.where(np.isfinite(mask))[0].shape  # just for reference
 
     mask_out = ma.masked_array(data, mask=np.isnan(mask))
     mask_out = mask_out.reshape(shape_data)
