@@ -33,37 +33,32 @@ class Generate_IPV_Data(object):
         'To avoid calling object within object assign vars of use to this routine'
         self.time_units = Exp.time_units
         self.diri = Exp.diri
-        self.u_fname = Exp.u_fname
-        self.v_fname = Exp.v_fname
-        self.t_fname = Exp.t_fname
         self.path = Exp.path
         self.var_names = Exp.var_names
         self.start_time = Exp.start_time
         self.end_time = Exp.end_time
+        self.file_names = {'u': Exp.u_fname, 'v': Exp.v_fname, 't': Exp.t_fname}
 
     def OpenFile(self):
         'Data assumed to be of the format [time, pressure,lat,lon]'
 
-        var_dict = vars(self)
+        for fname in self.file_names:
+            # open file and extract data
+            var = openNetCDF4_get_data(self.file_names[fname])
+            # use the label from named tuple
+            label = self.var_names[fname].label
+            label_p = self.var_names['p'].label
 
-        for fname in var_dict.keys():
-            if fname.endswith('fname'):
-                # open file and extract data
-                var = openNetCDF4_get_data(var_dict[fname])
-                # use the label from named tuple
-                label = self.var_names[fname[0]].label
-                label_p = self.var_names['p'].label
+            # Ensure surface is the 0'th element
+            wh_max_p = np.where(var[label_p] == var[label_p].max())[0][0]
+            flip_pressure = False
+            if wh_max_p != 0:  # if surface is not 0th element then flip data
+                flip_pressue = True
+                var[label_p] = var[label_p][::-1]
+                var[label] = var[label][:, ::-1, :, :]
 
-                # Ensure surface is the 0'th element
-                wh_max_p = np.where(var[label_p] == var[label_p].max())[0][0]
-                flip_pressure = False
-                if wh_max_p != 0:  # if surface is not 0th element then flip data
-                    flip_pressue = True
-                    var[label_p] = var[label_p][::-1]
-                    var[label] = var[label][:, ::-1, :, :]
-
-                # add the data to the object
-                setattr(self, fname[0], var[label])
+            # add the data to the object
+            setattr(self, fname[0], var[label])
 
         # lon and lat assumed to be on the same grid for each variable
         self.lon = var['lon']

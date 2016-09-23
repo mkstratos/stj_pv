@@ -45,7 +45,7 @@ class Directory:
 
         elif self.base == '/home/links/mk450/stj_pv':
             self.work_loc = 'gv'
-            self.data_loc = '/scratch/pm366/'
+            self.data_loc = '/scratch/mk450/'
 
         elif self.base == '/Users/mk450/stj_pv':
             self.work_loc = 'MKiMac'
@@ -73,7 +73,7 @@ class Experiment(object):
         # Save: Run and save data. Open: Open data from previous run
         # RunNotSave: run code but do not save output
         RunFlag = ['Open', 'Save', 'RunNotSave']
-        self.RunOpt = RunFlag[0]
+        self.RunOpt = RunFlag[1]
 
         # Using daily or monthly data? Code designed around monthly data
         time_unit_opt = ['dd', 'mm']
