@@ -241,8 +241,8 @@ class Generate_IPV_Data(object):
 
             f.close()
 
-        print('created files: ', filename_1 + file_type,
-              'and', filename_2 + '_u_H' + file_type)
+        print('created files: ', filename + file_type,
+              'and', filename + '_u_H' + file_type)
 
     def open_ipv_data(self, filename_1, filename_2, file_type):
 
