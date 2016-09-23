@@ -26,7 +26,7 @@ def apply_mask_inf(data):
     assert isinstance(data, np.ndarray), 'Data is not masked'
     shape_data = data.shape
     data = data.flatten()
-    wh = np.where(np.not(np.isfinite(data)))[0]
+    wh = np.where(np.logical_not(np.isfinite(data)))[0]
     if len(wh) != 0:
         data[wh] = np.nan
 
