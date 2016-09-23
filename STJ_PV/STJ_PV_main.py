@@ -138,7 +138,6 @@ def main():
     fileIPV_2 = Exp.path + 'IPV_data_u_H_79_16'  # If using pickle this file is not needed
 
     if (Exp.RunOpt == 'Save') or (Exp.RunOpt == 'RunNotSave'):
-
         # init the object
         STJ_PV = Generate_IPV_Data(Exp)
         # Open the data

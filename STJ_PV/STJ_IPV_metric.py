@@ -752,6 +752,7 @@ class Method_2PV_STJ(object):
 
 
 def IPV_get_2PV(data, pv_line):
+<<<<<<< HEAD
 
     array_len = data.shape[0]
     line_2PV_elem = np.zeros(array_len)
@@ -919,7 +920,6 @@ def MakeOutfileSavez_derived(filename, phi_2PV, theta_2PV, dth, dth_lat, d2th):
     npzfile.files
 
     pdb.set_trace()
-
 
 def calc_metric(IPV_data, diri):
     'Input assumed to be a dictionary'

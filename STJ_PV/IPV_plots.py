@@ -37,6 +37,7 @@ if not os.path.exists(data_out_dir):
     os.system('mkdir -p {}'.format(data_out_dir))
 
 
+
 class Plotting(object):
 
     def __init__(self, data, Method_choice):
@@ -281,9 +282,6 @@ class Plotting(object):
         # plt.ylim(300,380)
         plt.savefig('{}/STJ_ts.eps'.format(plot_dir))
         plt.show()
-
-        pdb.set_trace()
-
 
 def main():
 
@@ -549,7 +547,7 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
     plt.close()
     hemi_count = hemi_count + 1
 
-    # pdb.set_trace()
+    #pdb.set_trace()
 
     fig = plt.figure(figsize=(15, 6))
     # position vs intensity
