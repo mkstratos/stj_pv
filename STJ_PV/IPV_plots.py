@@ -689,7 +689,7 @@ def PlotPC(Annual, Seasonal, Monthly, var_name, diri):
     for season in ['DJF', 'MAM', 'JJA', 'SON']:
         hemi_count = 0
         for hemi in ['NH', 'SH']:
-            print hemi, '', season
+            print(hemi, '', season)
             matrix_season = copy.deepcopy(matrix)
             plot_matrix = Seasonal[season][:, :, hemi_count] + matrix_season
             PlotPC_matrix_single(plot_matrix, var_name_latex,
