@@ -35,45 +35,69 @@ def vinterp(data, vcoord, vlevels):
 
     if(np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) /
        np.prod([vcoord.shape[0], *vcoord.shape[2:]]) > 0.80):
-        # Data is decreasing on interpolation axis, (at least 80% is)
+        # Vcoord data is decreasing on interpolation axis, (at least 80% is)
         idx_gt = 1
         idx_lt = 0
     else:
+        # Data is increasing on interpolation axis
         idx_gt = 0
         idx_lt = 1
+
     if data.ndim >= vcoord.ndim:
+        # Handle case where data has the same dimensions or data has more dimensions
+        # compared to vcoord (e.g. vcoord is 4D, data is 4D, or vcoord is 1D, data is 4D)
         out_data = np.zeros([data.shape[0], vlevels.shape[0], *data.shape[2:]]) + np.nan
     else:
+        # Handle case where data has fewer dimensions than vcoord
+        # (e.g. data is 1-D vcoord is N-D)
         out_data = np.zeros([vcoord.shape[0], vlevels.shape[0],
                              *vcoord.shape[2:]]) + np.nan
 
     for lev_idx, lev in enumerate(vlevels):
         if idx_gt == 0:
+            # Case where vcoord data is increasing, find index where vcoord below [:-1]
+            # is equal or less than desired lev, and vcoord above [1:] is greater than
+            # lev, this means <data> for lev is between these points, use
+            # weight to determine exactly where
             idx = np.squeeze(np.where(np.logical_and(vcoord[:, :-1, ...] <= lev,
                                                      vcoord[:, 1:, ...] > lev)))
         else:
+            # This does the same, but where vcoord is decreasing with index, so find
+            # where vcoord below [:-1] is greater, and vcoord above [1:] is less or equal
             idx = np.squeeze(np.where(np.logical_and(vcoord[:, :-1, ...] > lev,
                                                      vcoord[:, 1:, ...] <= lev)))
 
+        # Create copies of this index, so they can be modified for weighting functions
+        # and output array
         idx_abve = idx.copy()
         idx_belw = idx.copy()
         out_idx = idx.copy()
 
+        # The interpolation axis index (1) for output is the level index (lev_idx)
         out_idx[1, :] = lev_idx
-        idx_abve[1, :] += (-idx_lt + 1)
-        idx_belw[1, :] += (-idx_gt + 1)
 
+        # Weighting function 'above' is index +1 for decreasing, or index +0 for decr.
+        idx_abve[1, :] += idx_gt
+        # Weighting function 'below' is index +0 for decreasing, or index +1 for decr.
+        idx_belw[1, :] += idx_lt
+
+        # Change indicies back into tuples so numpy.array.__getitem__ understands them
         idx_abve = tuple(idx_abve)
         idx_belw = tuple(idx_belw)
         out_idx = tuple(out_idx)
 
+        # Weighting function for distance above lev
         wgt1 = ((lev - vcoord[idx_belw]) / (vcoord[idx_abve] - vcoord[idx_belw]))
+
+        # Weighting function for distance below lev
         wgt0 = 1.0 - wgt1
+
         if data.ndim >= vcoord.ndim:
+            # Handle case where data has same or more dimensions than vcoord
             out_data[out_idx] = (wgt0 * data[idx_belw] + wgt1 * data[idx_abve])
         else:
-            out_data[out_idx] = (wgt0 * data[idx_belw[1]] +
-                                 wgt1 * data[idx_abve[1]])
+            # Handle case where data has fewer dimensions than vcoord
+            out_data[out_idx] = (wgt0 * data[idx_belw[1]] + wgt1 * data[idx_abve[1]])
 
     return out_data
 
@@ -100,58 +124,81 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
             If cyclic, returns same dimensions as uwnd & vwnd, if not it is
             (*vwnd.shape[0:-1], vwnd.shape[-1] - 2)
     """
+
+    # Check data for correct dimensionality
+    if uwnd.shape != vwnd.shape or uwnd.ndim < 2 or vwnd.ndim < 2:
+        raise ValueError('Incorrect dimensionality of u/v wind: U: {}, V: {}'
+                         .format(uwnd.shape, vwnd.shape))
+    elif uwnd.ndim > 4 or vwnd.ndim > 4:
+        raise NotImplementedError('Too many dimensions for this method: U: {}, V: {}'
+                                  .format(uwnd.shape, vwnd.shape))
+
+    # Make sure lat and lon are in radians not degrees
     if np.max(np.abs(lat)) > np.pi / 2.0:
         lat = lat * RAD
     if np.max(np.abs(lon)) > np.pi * 2.0:
         lon = lon * RAD
+
+    # Generate 2d lat/lon for weighting
+    lon2d, lat2d = np.meshgrid(lon, lat)
+
+    # Calculate centred finite differences for lat/lon
     dlon = lon[2:] - lon[:-2]
     dlat = lat[2:] - lat[:-2]
 
     if cyclic:
+        # If data are cyclic in longitude, add points to beginning/end of d{lon}
         dlon = np.append(dlon[0], dlon)
         dlon = np.append(dlon, dlon[-1])
-        lon2d, lat2d = np.meshgrid(lon, lat)
     else:
-        lon2d, lat2d = np.meshgrid(lon[1:-1], lat)
+        # Otherwise, calculate backward/forward difference at edges
+        dlon = np.append(lon[1] - lon[0], dlon)
+        dlon = np.append(dlon, lat[-1] - lat[-2])
 
+    # Calculate backward/forward differences at top/bottom of domain
     dlat = np.append(lat[1] - lat[0], dlat)
     dlat = np.append(dlat, lat[-1] - lat[-2])
+
+    # Make 2D (for now) mesh of d{lat} and d{lon}
     dlon_nd, dlat_nd = np.meshgrid(dlon, dlat)
 
+    # Multiply each by appropriate factors for spherical geometry
     dlon_nd = dlon_nd * EARTH_R * np.cos(lat2d)
     dlat_nd = dlat_nd * EARTH_R
 
+    # Make d{lon} and d{lat} have appropriate dimensionality to divide d{wind} by
     if uwnd.ndim == 4:
         dlon_nd = dlon_nd[np.newaxis, np.newaxis, ...]
         dlat_nd = dlat_nd[np.newaxis, np.newaxis, ...]
     elif uwnd.ndim == 3:
         dlon_nd = dlon_nd[np.newaxis, ...]
         dlat_nd = dlat_nd[np.newaxis, ...]
-    elif uwnd.ndim < 2:
-        raise ValueError('Not enough dimensions '
-                         'for relative vorticity: {}'.format(uwnd.shape))
-    elif uwnd.ndim > 4:
-        raise NotImplementedError('Too many dimensions for this method: {} not yet'
-                                  'implemented'.format(uwnd.shape))
+    # If uwnd.ndim == 2, d{lon} and d{lat} are already 2D
 
+    # Calculate centred finite diff on vwind longitude axis
     dvwnd = vwnd[..., 2:] - vwnd[..., :-2]
     if cyclic:
+        # If data is cyclic append centred difference across cyclic point
         dvwnd = np.append((vwnd[..., -1] - vwnd[..., 1])[..., np.newaxis], dvwnd, axis=-1)
         dvwnd = np.append(dvwnd, (vwnd[..., -2] - vwnd[..., 0])[..., np.newaxis], axis=-1)
+    else:
+        # Otherwise do backward/forward difference at edges
+        dvwnd = np.append((vwnd[..., 1] - vwnd[..., 0])[..., np.newaxis], dvwnd,
+                          axis=-1)
+        dvwnd = np.append(dvwnd, (vwnd[..., -1] - vwnd[..., -2])[..., np.newaxis],
+                          axis=-1)
 
+    # Calculate centred finite difference on uwnd latitude axis
     duwnd = uwnd[..., 2:, :] - uwnd[..., :-2, :]
-    duwnd = np.append((uwnd[..., 1, :] - vwnd[..., 0, :])[..., np.newaxis, :],
-                      duwnd, axis=-2)
+
+    # Append backward/forward difference at top/bottom of domain
+    duwnd = np.append((uwnd[..., 1, :] - vwnd[..., 0, :])[..., np.newaxis, :], duwnd,
+                      axis=-2)
     duwnd = np.append(duwnd, (uwnd[..., -1, :] - uwnd[..., -2, :])[..., np.newaxis, :],
                       axis=-2)
 
-    dvdlon = dvwnd / dlon_nd
-    if cyclic:
-        dudlat = duwnd / dlat_nd
-    else:
-        dudlat = duwnd[..., 1:-1] / dlat_nd
-
-    return dvdlon - dudlat
+    # Return d{v}/d{lon} - d{u}/d{lat}
+    return dvwnd / dlon_nd - duwnd / dlat_nd
 
 
 def dth_dp(theta_in, data_in):
@@ -223,14 +270,23 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon):
                 Zonal wind on isentropic levels [m/s]
     """
 
+    # Calculate potential temperature on isobaric (pressure) levels
     thta = theta(tair, pres)
+    # Interpolate zonal, meridional wind, pressure to isentropic from isobaric levels
     u_th = vinterp(uwnd, thta, th_levels_trop)
     v_th = vinterp(vwnd, thta, th_levels_trop)
     p_th = vinterp(pres, thta, th_levels_trop)
+
+    # Calculate relative vorticity on isentropic levels
     rel_v = rel_vort(u_th, v_th, lat, lon)
+
+    # Calculate d{Theta} / d{pressure} on isentropic levels
     dthdp = dth_dp(th_levels_trop, p_th)
+
+    # Calculate Coriolis force
     f_cor = 2.0 * OM * np.sin(lat[np.newaxis, np.newaxis, :, np.newaxis] * RAD)
 
+    # Return isentropic potential vorticity
     return -GRV * (rel_v + f_cor) * dthdp, p_th, u_th
 
 
@@ -244,6 +300,8 @@ def theta(tair, pres):
     p0 = 100000.0  # Don't be stupid, make sure p and p0 are in the same units!
     zaxis = tair.shape.index(pres.shape[0])
 
+    # This all puts pressure in correct dimensionality to multiply by temperature on any
+    # axis, which is detected automatically
     if len(tair.shape) == len(pres.shape):
         p_axis = pres
     elif len(pres.shape) == 1:
@@ -287,4 +345,5 @@ def theta(tair, pres):
     else:
         raise ValueError('Input P is not correct shape {}'.format(pres.shape))
 
+    # Then return potential temperature
     return tair * (p0 / p_axis) ** K
