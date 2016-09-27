@@ -179,8 +179,8 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
     dvwnd = vwnd[..., 2:] - vwnd[..., :-2]
     if cyclic:
         # If data is cyclic append centred difference across cyclic point
-        dvwnd = np.append((vwnd[..., -1] - vwnd[..., 1])[..., np.newaxis], dvwnd, axis=-1)
-        dvwnd = np.append(dvwnd, (vwnd[..., -2] - vwnd[..., 0])[..., np.newaxis], axis=-1)
+        dvwnd = np.append((vwnd[..., 1] - vwnd[..., -1])[..., np.newaxis], dvwnd, axis=-1)
+        dvwnd = np.append(dvwnd, (vwnd[..., 0] - vwnd[..., -2])[..., np.newaxis], axis=-1)
     else:
         # Otherwise do backward/forward difference at edges
         dvwnd = np.append((vwnd[..., 1] - vwnd[..., 0])[..., np.newaxis], dvwnd,
@@ -192,7 +192,7 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
     duwnd = uwnd[..., 2:, :] - uwnd[..., :-2, :]
 
     # Append backward/forward difference at top/bottom of domain
-    duwnd = np.append((uwnd[..., 1, :] - vwnd[..., 0, :])[..., np.newaxis, :], duwnd,
+    duwnd = np.append((uwnd[..., 1, :] - uwnd[..., 0, :])[..., np.newaxis, :], duwnd,
                       axis=-2)
     duwnd = np.append(duwnd, (uwnd[..., -1, :] - uwnd[..., -2, :])[..., np.newaxis, :],
                       axis=-2)
@@ -286,9 +286,14 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon):
     # Calculate Coriolis force
     f_cor = 2.0 * OM * np.sin(lat[np.newaxis, np.newaxis, :, np.newaxis] * RAD)
 
-    # Return isentropic potential vorticity
-    return -GRV * (rel_v + f_cor) * dthdp, p_th, u_th
+    # Calculate IPV, then correct for y-derivative problems at poles
+    ipv_out = -GRV * (rel_v + f_cor) * dthdp, p_th, u_th
+    for pole_idx in [0, -1]:
+        # This sets all points in longitude direction to mean of all points at the pole
+        ipv_out[..., pole_idx, :] = np.mean(ipv_out[..., pole_idx, :], axis=-1)[..., None]
 
+    # Return isentropic potential vorticity
+    return ipv_out
 
 def theta(tair, pres):
     """
