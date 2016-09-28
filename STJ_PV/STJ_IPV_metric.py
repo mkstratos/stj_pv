@@ -567,7 +567,7 @@ class Method_2PV_STJ(object):
         self.STJ_I_seasons = intensity
         self.STJ_th_seasons = theta
 
-        make_ts_seasonal_plot = False
+        make_ts_seasonal_plot = True
         if make_ts_seasonal_plot:
             print_min_max_mean(output)
             plot_seasonal_stj_ts(output, cross)
@@ -1380,6 +1380,7 @@ def plot_seasonal_stj_ts(output, cross):
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1))
     plt.savefig('{}/index_ts.eps'.format(diri.plot_loc))
     plt.show()
+    pdb.set_trace()
 
     # plot the crossing points
 
