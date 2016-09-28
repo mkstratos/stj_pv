@@ -32,9 +32,9 @@ def vinterp(data, vcoord, vlevels):
         out_data : array_like, (data.shape[0], vlevels.shape[0], *data.shape[2:])
                 Data on vlevels
     """
-
-    if(np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) /
-       np.prod([vcoord.shape[0], *vcoord.shape[2:]]) > 0.80):
+    vcoord_shape = list(vcoord.shape)
+    vcoord_shape.pop(1)
+    if(np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) / np.prod(vcoord_shape) > 0.80):
         # Vcoord data is decreasing on interpolation axis, (at least 80% is)
         idx_gt = 1
         idx_lt = 0
@@ -46,12 +46,14 @@ def vinterp(data, vcoord, vlevels):
     if data.ndim >= vcoord.ndim:
         # Handle case where data has the same dimensions or data has more dimensions
         # compared to vcoord (e.g. vcoord is 4D, data is 4D, or vcoord is 1D, data is 4D)
-        out_data = np.zeros([data.shape[0], vlevels.shape[0], *data.shape[2:]]) + np.nan
+        out_shape = list(data.shape)
     else:
         # Handle case where data has fewer dimensions than vcoord
         # (e.g. data is 1-D vcoord is N-D)
-        out_data = np.zeros([vcoord.shape[0], vlevels.shape[0],
-                             *vcoord.shape[2:]]) + np.nan
+        out_shape = list(vcoord.shape)
+    out_shape[1] = vlevels.shape[0]
+
+    out_data = np.zeros(out_shape) + np.nan
 
     for lev_idx, lev in enumerate(vlevels):
         if idx_gt == 0:
