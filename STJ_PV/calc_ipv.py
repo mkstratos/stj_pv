@@ -287,13 +287,13 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon):
     f_cor = 2.0 * OM * np.sin(lat[np.newaxis, np.newaxis, :, np.newaxis] * RAD)
 
     # Calculate IPV, then correct for y-derivative problems at poles
-    ipv_out = -GRV * (rel_v + f_cor) * dthdp, p_th, u_th
+    ipv_out = -GRV * (rel_v + f_cor) * dthdp
     for pole_idx in [0, -1]:
         # This sets all points in longitude direction to mean of all points at the pole
         ipv_out[..., pole_idx, :] = np.mean(ipv_out[..., pole_idx, :], axis=-1)[..., None]
 
-    # Return isentropic potential vorticity
-    return ipv_out
+    # Return isentropic potential vorticity, pressure on theta, u-wind on theta
+    return ipv_out, p_th, u_th
 
 def theta(tair, pres):
     """
