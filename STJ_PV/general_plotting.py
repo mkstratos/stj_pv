@@ -172,7 +172,6 @@ def gfdl_lon_change_map(ax):
     lon_array[0] = 1.41  # avoid white space
     ax.set_xticks(lon_array)
     ax.set_xticklabels(lon_plot)
-
     return()
 
 
@@ -209,7 +208,8 @@ def cbar_Maher(fig, cmap, norm, bounds, cbar_title, ax_cb):
 
 def draw_deg(label):
     'deg symbol'
-    deg = '\u00B0'
+    #deg = unicode('\00B0')
+    deg =  	u'\u00B0'
     label_string = []
     num = len(label)
     for i in label:

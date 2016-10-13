@@ -7,7 +7,7 @@ import platform
 from general_functions import openNetCDF4_get_data
 from MakeIPV_data import Generate_IPV_Data
 import STJ_IPV_metric
-from IPV_plots import plot_u
+from IPV_plots import make_u_plot
 
 
 # File purpose:  Calculate the subtropical jet position using the 2PV contour.
@@ -111,7 +111,7 @@ class Experiment(object):
 
         # Data window to use
         self.start_time = 0  # first month of data to use from file
-        self.end_time = 360  # last month of data to use from file +1
+        self.end_time = 443+1  # last month of data to use from file +1
         self.path = path
 
 
@@ -128,14 +128,14 @@ def main():
         print('Currently code only works for Era-Int data format')
         pdb.set_trace()
 
-    plot_u_wind = False
+    plot_u_wind = True
     if plot_u_wind:
-        plot_u(Exp.u_fname)
-
+        make_u_plot(Exp.u_fname)
+        pdb.set_trace()
     file_type_opt = ['.nc', '.p']          # nc file or pickle
     file_type = file_type_opt[0]
-    fileIPV_1 = Exp.path + 'IPV_data_79_16'      # IPV every 5K between 300-500
-    fileIPV_2 = Exp.path + 'IPV_data_u_H_79_16'  # If using pickle this file is not needed
+    fileIPV_1 = Exp.path + 'IPV_data_79_15'      # IPV every 5K between 300-500
+    fileIPV_2 = Exp.path + 'IPV_data_u_H_79_15'  # If using pickle this file is not needed
 
     if (Exp.RunOpt == 'Save') or (Exp.RunOpt == 'RunNotSave'):
         # init the object

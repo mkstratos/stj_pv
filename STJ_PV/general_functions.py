@@ -85,16 +85,7 @@ def save_file(filename, data, var_name, dim, var_type, dim_name, var_dim_name,
             tmp = f.createVariable(var_name[i], var_type[i], var_dim_name[i])
             # print var_name[i]
             tmp[:] = data[var_name[i]]
-
-            if specific == 'corr_index':
-                if i == 0:
-                    tmp.indices_name = ['STRI-STRP, STJI-STRI,STJP-STRP,STJI-STJP']
-                    tmp.tau_names = ['14400, 28800, T14400-Q28800, Q14400-T28800']
-                if specific == 'conv2ls':
-                    if i == 0:
-                        tmp.tau_control = ['14400', '28800']
-                    if i == 2:
-                        tmp.tau_2_tau = ['T14400-Q28800,T14400-Q28800']
+           
 
     f.close()
 

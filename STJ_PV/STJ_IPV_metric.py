@@ -16,7 +16,7 @@ from general_plotting import draw_map_model
 from general_functions import (openNetCDF4_get_data,
                                apply_mask_inf, MeanOverDim, FindClosestElem)
 import calc_ipv  # assigns th_levels_trop
-from IPV_plots import Plotting, PlotCalendarTimeseries, PlotPC
+from IPV_plots import Plotting, PlotCalendarTimeseries, PlotPC,plot_validation_for_paper
 # partial correlation code forked from
 # https://gist.github.com/fabianp/9396204419c7b638d38f
 from partial_corr import partial_corr
@@ -26,9 +26,15 @@ __author__ = "Penelope Maher"
 
 base = os.environ['BASE']
 data_dir = '{}/Data'.format(base)
+data_out_dir = '{}/Data'.format(base)
+
 if not os.path.exists(data_dir):
     print('CREATING DATA DIRECTORY: {}'.format(data_dir))
     os.system('mkdir -p {}'.format(data_dir))
+
+if not os.path.exists(data_out_dir):
+    print('CREATING DATA OUT DIRECTORY: {}'.format(data_out_dir))
+    os.system('mkdir -p {}'.format(data_out_dir))
 
 
 class Method_2PV_STJ(object):
@@ -50,6 +56,9 @@ class Method_2PV_STJ(object):
         self.TropH_temp = IPV_data['TropH_temp']
         self.diri = Directory()
 
+        self.yy = 37
+
+ 
     def PrepForAlgorithm(self):
 
         # Prep step 1: Define lat interpolate IPV to
@@ -367,10 +376,10 @@ class Method_2PV_STJ(object):
         var_name = ['lat', 'int', 'lev', 'cross']
         hemi = ['NH', 'SH']
 
-        best_guess_cby = best_guess_cby.reshape([30, 12, 2])
-        cross_lat = cross_lat.reshape([30, 12, 2])
-        jet_max_wind_cby = jet_max_wind_cby.reshape([30, 12, 2])
-        jet_max_theta_cby = jet_max_theta_cby.reshape([30, 12, 2])
+        best_guess_cby = best_guess_cby.reshape([self.yy, 12, 2])
+        cross_lat = cross_lat.reshape([self.yy, 12, 2])
+        jet_max_wind_cby = jet_max_wind_cby.reshape([self.yy, 12, 2])
+        jet_max_theta_cby = jet_max_theta_cby.reshape([self.yy, 12, 2])
 
         data = np.zeros([best_guess_cby.shape[0], num_var, 2])
         corr = np.zeros([best_guess_cby.shape[1], num_var, num_var, 2])
@@ -470,7 +479,7 @@ class Method_2PV_STJ(object):
 
         return STJ_lat_near_mean, EDJ_lat_near_mean, additional_lat
 
-    def SaveData(self):
+    def SaveDataForTesting(self):
 
         filename = '/home/links/pm366/Documents/Data/STJ_IPV_output.nc'
         f = io.netcdf.netcdf_file(filename, mode='w')
@@ -496,6 +505,40 @@ class Method_2PV_STJ(object):
         theta_2PV_line[:] = self.theta_2PV
 
         f.close()
+
+    def SaveOutput(self, STJ, cross, intens, theta):
+
+        filename = '{}/STJ_data.nc'.format(data_out_dir)
+        f = io.netcdf.netcdf_file(filename, mode='w')
+
+        f.createDimension('hemi', 2)
+        hemi = f.createVariable('hemi', 'f', ('hemi',))
+        hemi[0],hemi[0] = 0, 1
+        hemi.string = 'NH(0), SH(1)'
+  
+        f.createDimension('time', STJ.shape[0])
+        time = f.createVariable('time', 'f', ('time',))
+        time[:] =  np.arange(0,STJ.shape[0],1)
+        time.range = 'Start date = Jan 1979, end is Dec 2015'
+
+        # STJ metric
+        STJ_lat = f.createVariable('STJ_lat', 'f', ('time','hemi',))
+        STJ_lat[:,:] = STJ[:,:]
+
+        # STJ metric
+        STJ_int = f.createVariable('STJ_int', 'f', ('time','hemi',))
+        STJ_int[:,:] = intens[:,:]
+
+        # STJ metric
+        STJ_lev = f.createVariable('STJ_lev', 'f', ('time','hemi',))
+        STJ_lev[:,:] = theta[:,:]
+
+        # crossing
+        cross_lat = f.createVariable('cross_lat', 'f', ('time','hemi',))
+        cross_lat[:,:] = cross[:,:]
+
+        f.close()
+
 
     def SeasonalPeaks(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th):
 
@@ -574,16 +617,16 @@ class Method_2PV_STJ(object):
 
     def CalendarMean(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th):
 
-        STJ_cal = STJ_array.reshape([30, 12, 2])
+        STJ_cal = STJ_array.reshape([self.yy, 12, 2])
         STJ_cal_mean = MeanOverDim(data=STJ_cal, dim=0)
 
-        STJ_cal_int = STJ_I.reshape([30, 12, 2])
+        STJ_cal_int = STJ_I.reshape([self.yy, 12, 2])
         STJ_cal_int_mean = MeanOverDim(data=STJ_cal_int, dim=0)
 
-        STJ_cal_th = STJ_th.reshape([30, 12, 2])
+        STJ_cal_th = STJ_th.reshape([self.yy, 12, 2])
         STJ_cal_th_mean = MeanOverDim(data=STJ_cal_th, dim=0)
 
-        STJ_cal_x = crossing_lat.reshape([30, 12, 2])
+        STJ_cal_x = crossing_lat.reshape([self.yy, 12, 2])
         STJ_cal_x_mean = MeanOverDim(data=STJ_cal_x, dim=0)
 
         mean_val = {}
@@ -749,7 +792,6 @@ class Method_2PV_STJ(object):
         plt.savefig(filename)
         plt.show()
         pdb.set_trace()
-
 
 def IPV_get_2PV(data, pv_line):
 
@@ -1105,17 +1147,35 @@ def calc_metric(IPV_data, diri):
                     else:
                         test_with_plots = False
 
-                test_with_plots = False
+                #test_with_plots = False
+ 
+                #for specific test cases create a 2 figure subplot
+                if (time_loop >= 1000):    
+
+                  plot_subplot = True
+                  test_with_plots = True
+
+                  if hemi == 'NH':
+                    #store NH object for plotting
+                    Method_NH = copy.deepcopy(Method)
+                    u_zonal_NH = copy.deepcopy(u_zonal)
+                    lat_elem_NH = copy.deepcopy(lat_elem)
+                    test_with_plots = False
+                else:
+                    plot_subplot = False       
+                    test_with_plots = False  
+ 
+                if test_with_plots == True and plot_subplot == False:
+                    Method_NH, u_zonal_NH,lat_elem_NH = None, None, None
 
                 if test_with_plots:
                     # pick method to plot
-                    Method_opt = ['cby', 'fd']
-                    Method_choice = Method_opt[0]
+                    method_opt = ['cby', 'fd']
+                    method_choice = method_opt[0]
                     print('plot for: hemi', hemi, ', time: ', time_loop)
-                    # get the zonal wind for plotting purposes
-                    PlottingObject = Plotting(Method, Method_choice)
-                    PlottingObject.poly_2PV_line(hemi, u_zonal, lat_elem, time_loop,
-                                                 pause=False, click=True)
+                    plot_validation_for_paper(Method, u_zonal, method_choice, 
+                                              plot_subplot, hemi, time_loop, lat_elem,
+                                              Method_NH, u_zonal_NH, lat_elem_NH)
 
     if testing_make_output:
         filename = '{}/STJ_PV_metric_derived.npz'.format(data_dir)
@@ -1140,6 +1200,12 @@ def calc_metric(IPV_data, diri):
 
     PlotPC(Method.AnnualPC, Method.SeasonPC,
            Method.MonthlyPC, Method.var_name, Method.diri)
+
+    
+    pdb.set_trace()
+    #Save output
+    Method.SaveOutput(jet_best_guess[:, 0, :, 0], crossing_lat, 
+                      jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
 
     pdb.set_trace()
 
@@ -1379,8 +1445,8 @@ def plot_seasonal_stj_ts(output, cross):
             (' {0:.2f}').format(output['DJF'][:, 1].mean()), ls=' ', marker='x')
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1))
     plt.savefig('{}/index_ts.eps'.format(diri.plot_loc))
-    plt.show()
-    pdb.set_trace()
+    #plt.show()
+    #pdb.set_trace()
 
     # plot the crossing points
 
@@ -1397,7 +1463,7 @@ def plot_seasonal_stj_ts(output, cross):
     ax.set_ylim(-25, 25)
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1))
     plt.savefig('{}/cross.png'.format(diri.plot_loc))
-    plt.show()
+    #plt.show()
 
 
 def GetCorrelation(hemi, num_var, var_name, data):

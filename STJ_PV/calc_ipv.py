@@ -4,10 +4,10 @@ Methods for calculating isentropic potential vorticity from data on pressure lev
 """
 
 import numpy as np
-
+import pdb
 
 # specify the range and increment over which to calculate IPV
-th_levels_trop = np.arange(300, 501, 5)
+th_levels_trop = np.arange(300, 415, 5)
 RAD = np.pi / 180.0  # radians per degree
 OM = 7.292e-5  # Angular rotation rate of earth    [rad]
 GRV = 9.81      # Acceleration due to GRVity       [m/s^2]
@@ -32,6 +32,7 @@ def vinterp(data, vcoord, vlevels):
         out_data : array_like, (data.shape[0], vlevels.shape[0], *data.shape[2:])
                 Data on vlevels
     """
+
     vcoord_shape = list(vcoord.shape)
     vcoord_shape.pop(1)
     if(np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) / np.prod(vcoord_shape) > 0.80):
@@ -271,7 +272,6 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon):
         u_th : array_like
                 Zonal wind on isentropic levels [m/s]
     """
-
     # Calculate potential temperature on isobaric (pressure) levels
     thta = theta(tair, pres)
     # Interpolate zonal, meridional wind, pressure to isentropic from isobaric levels

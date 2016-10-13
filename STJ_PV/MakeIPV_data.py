@@ -122,6 +122,7 @@ class Generate_IPV_Data(object):
         IPV, self.p_lev, self.u_th = ipv(
             self.u, self.v, self.t, self.p, self.lat, self.lon)
 
+
         self.IPV = IPV * 1e6  # units in IPVU
 
         # 310K isopleth often of interest - not currently used
@@ -224,8 +225,8 @@ class Generate_IPV_Data(object):
             uwnd[:, :, :, :] = self.u_th
 
             # IPV - 310 isopleth
-            IPV_310 = f.createVariable('IPV_310', 'f', ('time', 'lat', 'lon',))
-            IPV_310[:, :, :] = self.ipv_310
+            #IPV_310 = f.createVariable('IPV_310', 'f', ('time', 'lat', 'lon',))
+            #IPV_310[:, :, :] = self.ipv_310
 
             # H
             TropH = f.createVariable('TropH', 'f', ('time', 'lat',))
@@ -242,7 +243,9 @@ class Generate_IPV_Data(object):
             f.close()
 
         print('created files: ', filename_1 + file_type,
-              'and', filename_2 + '_u_H' + file_type)
+              'and', filename_2 +  file_type)
+
+        pdb.set_trace()
 
     def open_ipv_data(self, filename_1, filename_2, file_type):
 
