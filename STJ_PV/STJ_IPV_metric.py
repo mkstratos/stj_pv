@@ -16,7 +16,7 @@ from general_plotting import draw_map_model
 from general_functions import (openNetCDF4_get_data,
                                apply_mask_inf, MeanOverDim, FindClosestElem)
 import calc_ipv  # assigns th_levels_trop
-from IPV_plots import Plotting, PlotCalendarTimeseries, PlotPC,plot_validation_for_paper
+from IPV_plots import Plotting, PlotCalendarTimeseries, PlotPC,plot_validation_for_paper, make_u_plot
 # partial correlation code forked from
 # https://gist.github.com/fabianp/9396204419c7b638d38f
 from partial_corr import partial_corr
@@ -26,7 +26,8 @@ __author__ = "Penelope Maher"
 
 base = os.environ['BASE']
 data_dir = '{}/Data'.format(base)
-data_out_dir = '{}/Data'.format(base)
+#data_out_dir = '{}/Data'.format(base)
+data_out_dir = '/scratch/pm366/OutputGFDL/mima_2013/convection_sweep_fixed_SST/np32/'
 
 if not os.path.exists(data_dir):
     print('CREATING DATA DIRECTORY: {}'.format(data_dir))
@@ -40,7 +41,7 @@ if not os.path.exists(data_out_dir):
 class Method_2PV_STJ(object):
     'Input data of the form self.IPV[time, theta, lat, lon]'
 
-    def __init__(self, IPV_data, diri):
+    def __init__(self, IPV_data, diri, u_fname):
 
         self.lat = IPV_data['lat']
         self.lon = IPV_data['lon']
@@ -55,9 +56,8 @@ class Method_2PV_STJ(object):
         self.TropH_p = IPV_data['TropH_p']
         self.TropH_temp = IPV_data['TropH_temp']
         self.diri = Directory()
-
+        self.u_fname = u_fname
         self.yy = 37
-
  
     def PrepForAlgorithm(self):
 
@@ -253,23 +253,30 @@ class Method_2PV_STJ(object):
             self.sort_index_cby = np.argsort(self.phi_2PV_peak_cby)
             self.STJ_lat_sort_cby = np.sort(self.phi_2PV_peak_cby)
             # use unsorted array
-            self.peak_mag_cby = (self.dtdphi_val_peak_cby).min()
+            if len(self.dtdphi_val_peak_cby) != 0:
+              self.peak_mag_cby = (self.dtdphi_val_peak_cby).min()
 
             # finite diff
-            self.sort_index_fd = np.argsort(self.phi_2PV_peak_fd)
-            self.STJ_lat_sort_fd = np.sort(self.phi_2PV_peak_fd)
-            self.peak_mag_fd = (self.dtdphi_val_peak_fd).min()
+            if len(self.phi_2PV_peak_fd) != 0:
+              self.sort_index_fd = np.argsort(self.phi_2PV_peak_fd)
+              self.STJ_lat_sort_fd = np.sort(self.phi_2PV_peak_fd)
+              self.peak_mag_fd = (self.dtdphi_val_peak_fd).min()
 
         else:
+
             # cby fit
             self.sort_index_cby = np.argsort(self.phi_2PV_peak_cby)[::-1]
             self.STJ_lat_sort_cby = np.sort(self.phi_2PV_peak_cby)[::-1]
-            self.peak_mag_cby = (self.dtdphi_val_peak_cby).max()
+            if len(self.dtdphi_val_peak_cby) != 0.0:
+              self.peak_mag_cby = (self.dtdphi_val_peak_cby).max()
 
             # finite diff
             self.sort_index_fd = np.argsort(self.phi_2PV_peak_fd)[::-1]
             self.STJ_lat_sort_fd = np.sort(self.phi_2PV_peak_fd)[::-1]
-            self.peak_mag_fd = (self.dtdphi_val_peak_fd).max()
+            if self.dtdphi_val_peak_fd.shape[0] == 0:
+              self.peak_mag_fd = None 
+            else:
+              self.peak_mag_fd = (self.dtdphi_val_peak_fd).max()
 
         if print_messages:
             print('Where are peaks: cby ', self.STJ_lat_sort_cby[:])
@@ -310,12 +317,16 @@ class Method_2PV_STJ(object):
         shear_elem = shear_elem.tolist()
 
         # max shear line
-        shear_max_elem = np.where(shear == shear.max())[0]
-        if len(shear_max_elem) > 1:
-            pdb.set_trace()
+        if len(shear) != 0:
+          shear_max_elem = np.where(shear == shear.max())[0]
+          if len(shear_max_elem) > 1:
+             pdb.set_trace()
 
-        best_guess = self.phi_2PV[local_elem][FindClosestElem(
-            self.lat[lat_elem][shear_elem][shear_max_elem], self.phi_2PV[local_elem])]
+          best_guess = self.phi_2PV[local_elem][FindClosestElem(
+              self.lat[lat_elem][shear_elem][shear_max_elem], self.phi_2PV[local_elem])]
+        else:
+           shear_max_elem=None
+           best_guess=None
 
         testing = False
         if testing:
@@ -323,6 +334,14 @@ class Method_2PV_STJ(object):
                 self.phi_2PV, self.theta_2PV, self.lat, lat_elem, self.theta_lev, u_zonal)
 
         return shear_elem, shear_max_elem, best_guess
+
+    def Trop_H_at_jet(self,hemi,lat_elem):
+   
+        jet_lat = self.best_guess_cby
+        jet_lat_elem = np.where(self.phi_2PV ==  jet_lat)[0]
+        if len(jet_lat_elem) != 0:
+          self.trop_height_at_STJ = self.theta_2PV[jet_lat_elem]
+
 
     def JetIntensity(self, hemi, u_zonal, lat_elem):
         'At the best guess lat find the spline fitted u wind'
@@ -334,31 +353,34 @@ class Method_2PV_STJ(object):
 
         # At the jet latitude find the maximum uwind - cby
         elem = np.where(self.best_guess_cby == self.lat_hemi)[0]
-        slice_at_jet = self.u_fitted[:, elem][:, 0]
-        jet_max_wind_elem = np.where(slice_at_jet == slice_at_jet.max())[0]
-        self.jet_max_wind_cby = slice_at_jet[jet_max_wind_elem]
-        # The level of the max wind - for plotting
-        self.jet_max_theta_cby = self.theta_domain[jet_max_wind_elem]
+        if len(elem) != 0:
+          slice_at_jet = self.u_fitted[:, elem][:, 0]
+          jet_max_wind_elem = np.where(slice_at_jet == slice_at_jet.max())[0]
+          self.jet_max_wind_cby = slice_at_jet[jet_max_wind_elem]
+          # The level of the max wind - for plotting
+          self.jet_max_theta_cby = self.theta_domain[jet_max_wind_elem]
 
         # fd
-        elem_fd = np.where(self.best_guess_fd == self.lat_hemi)[0]
-        slice_at_jet_fd = self.u_fitted[:, elem_fd][:, 0]
-        jet_max_wind_elem_fd = np.where(slice_at_jet_fd == slice_at_jet_fd.max())[0]
-        self.jet_max_wind_fd = slice_at_jet_fd[jet_max_wind_elem_fd]
-        self.jet_max_theta_fd = self.theta_domain[jet_max_wind_elem_fd]
+        if self.best_guess_fd  is not None:
+          elem_fd = np.where(self.best_guess_fd == self.lat_hemi)[0]
+          slice_at_jet_fd = self.u_fitted[:, elem_fd][:, 0]
+          jet_max_wind_elem_fd = np.where(slice_at_jet_fd == slice_at_jet_fd.max())[0]
+          self.jet_max_wind_fd = slice_at_jet_fd[jet_max_wind_elem_fd]
+          self.jet_max_theta_fd = self.theta_domain[jet_max_wind_elem_fd]
 
-    def AnnualCorrelations(self, best_guess_cby, cross_lat, jet_max_wind_cby,
-                           jet_max_theta_cby):
+    def AnnualCorrelations(self, best_guess_cby, jet_H_lev, jet_max_wind_cby, jet_max_theta_cby,
+                           crossing, group):
 
-        num_var = 4
-        var_name = ['lat', 'int', 'lev', 'cross']
-        hemi = ['NH', 'SH']
-
+        var_name, num_var, hemi = plot_group_info(group)
         data = np.zeros([best_guess_cby.shape[0], num_var, 2])
         data[:, 0, :] = best_guess_cby
         data[:, 1, :] = jet_max_wind_cby
         data[:, 2, :] = jet_max_theta_cby
-        data[:, 3, :] = cross_lat
+        if group == 'h':
+          data[:, 3, :] = jet_H_lev
+        if group == 'x':
+          data[:, 3, :] = crossing
+
 
         self.AnnualCC = GetCorrelation(hemi, num_var, var_name, data)
 
@@ -369,17 +391,18 @@ class Method_2PV_STJ(object):
 
         self.AnnualPC = pc
 
-    def MonthlyCorrelations(self, best_guess_cby, cross_lat, jet_max_wind_cby,
-                            jet_max_theta_cby):
+    def MonthlyCorrelations(self, best_guess_cby, jet_H_lev, jet_max_wind_cby,
+                            jet_max_theta_cby, crossing, group):
 
-        num_var = 4
-        var_name = ['lat', 'int', 'lev', 'cross']
-        hemi = ['NH', 'SH']
+        var_name, num_var, hemi = plot_group_info(group)
 
         best_guess_cby = best_guess_cby.reshape([self.yy, 12, 2])
-        cross_lat = cross_lat.reshape([self.yy, 12, 2])
         jet_max_wind_cby = jet_max_wind_cby.reshape([self.yy, 12, 2])
         jet_max_theta_cby = jet_max_theta_cby.reshape([self.yy, 12, 2])
+        if group == 'h':
+          jet_H_lev = jet_H_lev.reshape([self.yy, 12, 2])
+        if group == 'x':
+          cross = crossing.reshape([self.yy, 12, 2])
 
         data = np.zeros([best_guess_cby.shape[0], num_var, 2])
         corr = np.zeros([best_guess_cby.shape[1], num_var, num_var, 2])
@@ -390,9 +413,12 @@ class Method_2PV_STJ(object):
             data[:, 0, :] = best_guess_cby[:, mm, :]
             data[:, 1, :] = jet_max_wind_cby[:, mm, :]
             data[:, 2, :] = jet_max_theta_cby[:, mm, :]
-            data[:, 3, :] = cross_lat[:, mm, :]
+            if group == 'h':
+                data[:, 3, :] = jet_H_lev[:, mm, :]
+            if group == 'x':
+                data[:, 3, :] = cross[:, mm, :]
 
-            corr[mm, :, :, :] = GetCorrelation(hemi, num_var, var_name, data)
+                corr[mm, :, :, :] = GetCorrelation(hemi, num_var, var_name, data)
 
             # Now get the partial correlation
 
@@ -402,11 +428,9 @@ class Method_2PV_STJ(object):
         self.MonthlyCC = corr
         self.MonthlyPC = pc
 
-    def SeasonCorrelations(self):
+    def SeasonCorrelations(self,group):
 
-        num_var = 4
-        var_name = ['lat', 'int', 'lev', 'cross']
-        hemi = ['NH', 'SH']
+        var_name, num_var, hemi = plot_group_info(group)
         season_names = ['DJF', 'MAM', 'JJA', 'SON']
 
         data = np.zeros([self.STJ_seasons['DJF'].shape[0],
@@ -416,10 +440,14 @@ class Method_2PV_STJ(object):
         corr = {}
         pc = {}
         for season_count in range(4):
+
             data[:, 0, :] = self.STJ_seasons[season_names[season_count]]
             data[:, 1, :] = self.STJ_I_seasons[season_names[season_count]]
             data[:, 2, :] = self.STJ_th_seasons[season_names[season_count]]
-            data[:, 3, :] = self.cross_seasons[season_names[season_count]]
+            if group == 'h':
+                data[:, 3, :] = self.H_th_seasons[season_names[season_count]]
+            if group == 'x':
+                data[:, 3, :] = self.cross_seasons[season_names[season_count]]
 
             corr[season_names[season_count]] = GetCorrelation(
                 hemi, num_var, var_name, data)
@@ -427,8 +455,8 @@ class Method_2PV_STJ(object):
             # Now get the partial correlation
             pc_store[:, :, 0] = partial_corr(data[:, :, 0])
             pc_store[:, :, 1] = partial_corr(data[:, :, 1])
-            pc[season_names[season_count]] = pc_store
-
+            pc[season_names[season_count]] = copy.deepcopy(pc_store)
+ 
         self.SeasonCC = corr
         self.SeasonPC = pc
         self.var_name = var_name
@@ -442,10 +470,13 @@ class Method_2PV_STJ(object):
 
         local_lat = phi_val.tolist()
         local_elem_cp = copy.deepcopy(local_elem)
-
         # find the peaks closest to know location
-        STJ_elem = FindClosestElem(STJ_mean, np.array(local_lat))
-        STJ_lat_near_mean = local_lat[STJ_elem]
+
+        if len(local_lat) == 0:
+          STJ_lat_near_mean = None
+        else:
+          STJ_elem = FindClosestElem(STJ_mean, np.array(local_lat))
+          STJ_lat_near_mean = local_lat[STJ_elem]
 
         if len(local_lat) >= 2:
             # don't identify the same element so remove it from the sample
@@ -508,7 +539,7 @@ class Method_2PV_STJ(object):
 
     def SaveOutput(self, STJ, cross, intens, theta):
 
-        filename = '{}/STJ_data.nc'.format(data_out_dir)
+        filename = '{}/STJ_data_test.nc'.format(data_out_dir)
         f = io.netcdf.netcdf_file(filename, mode='w')
 
         f.createDimension('hemi', 2)
@@ -538,9 +569,10 @@ class Method_2PV_STJ(object):
         cross_lat[:,:] = cross[:,:]
 
         f.close()
+        print 'Created file: ', filename
+        pdb.set_trace()
 
-
-    def SeasonalPeaks(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th):
+    def SeasonalPeaks(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th,jet_H_lev):
 
         # this is an overkill way to treat the seasons but has reduced risk of
         # mixing them up
@@ -549,8 +581,16 @@ class Method_2PV_STJ(object):
         cross_seasons = np.zeros([crossing_lat.shape[0] / 4, crossing_lat.shape[1], 4])
         STJ_I_seasons = np.zeros([crossing_lat.shape[0] / 4, crossing_lat.shape[1], 4])
         STJ_th_seasons = np.zeros([crossing_lat.shape[0] / 4, crossing_lat.shape[1], 4])
+        STJ_H_lev_seasons = np.zeros([crossing_lat.shape[0] / 4, crossing_lat.shape[1], 4])
+
+        STJ_DJF =  np.zeros([STJ_array.shape[0], STJ_array.shape[1]])
+        STJ_MAM =  np.zeros([STJ_array.shape[0], STJ_array.shape[1]])
+        STJ_JJA =  np.zeros([STJ_array.shape[0], STJ_array.shape[1]])
+        STJ_SON =  np.zeros([STJ_array.shape[0], STJ_array.shape[1]])
 
         count_DJF, count_MAM, count_JJA, count_SON = 0, 0, 0, 0
+
+        STJ_DJF[:,:],STJ_MAM[:,:],STJ_JJA[:,:],STJ_SON[:,:]  = np.nan,np.nan,np.nan,np.nan 
 
         for i in range(STJ_array.shape[0]):
             if seasons[i] == 'DJF':
@@ -558,6 +598,8 @@ class Method_2PV_STJ(object):
                 cross_seasons[count_DJF, :, 0] = crossing_lat[i, :]
                 STJ_I_seasons[count_DJF, :, 0] = STJ_I[i, :]
                 STJ_th_seasons[count_DJF, :, 0] = STJ_th[i, :]
+                STJ_H_lev_seasons[count_DJF, :, 0] = jet_H_lev[i, :]
+                STJ_DJF[i,:] = STJ_array[i, :]
                 count_DJF = count_DJF + 1
 
             if seasons[i] == 'MAM':
@@ -565,6 +607,8 @@ class Method_2PV_STJ(object):
                 cross_seasons[count_MAM, :, 1] = crossing_lat[i, :]
                 STJ_I_seasons[count_MAM, :, 1] = STJ_I[i, :]
                 STJ_th_seasons[count_MAM, :, 1] = STJ_th[i, :]
+                STJ_H_lev_seasons[count_MAM, :, 1] = jet_H_lev[i, :]
+                STJ_MAM[i,:] = STJ_array[i, :]
                 count_MAM = count_MAM + 1
 
             if seasons[i] == 'JJA':
@@ -572,6 +616,8 @@ class Method_2PV_STJ(object):
                 cross_seasons[count_JJA, :, 2] = crossing_lat[i, :]
                 STJ_I_seasons[count_JJA, :, 2] = STJ_I[i, :]
                 STJ_th_seasons[count_JJA, :, 2] = STJ_th[i, :]
+                STJ_H_lev_seasons[count_JJA, :, 2] = jet_H_lev[i, :]
+                STJ_JJA[i,:] = STJ_array[i, :]
                 count_JJA = count_JJA + 1
 
             if seasons[i] == 'SON':
@@ -579,6 +625,8 @@ class Method_2PV_STJ(object):
                 cross_seasons[count_SON, :, 3] = crossing_lat[i, :]
                 STJ_I_seasons[count_SON, :, 3] = STJ_I[i, :]
                 STJ_th_seasons[count_SON, :, 3] = STJ_th[i, :]
+                STJ_H_lev_seasons[count_SON, :, 3] = jet_H_lev[i, :]
+                STJ_SON[i,:] = STJ_array[i, :]
                 count_SON = count_SON + 1
 
         output = {}
@@ -610,12 +658,27 @@ class Method_2PV_STJ(object):
         self.STJ_I_seasons = intensity
         self.STJ_th_seasons = theta
 
+        STJ_year = {}
+        STJ_year['DJF'] = STJ_DJF
+        STJ_year['MAM'] = STJ_MAM
+        STJ_year['JJA'] = STJ_JJA
+        STJ_year['SON'] = STJ_SON
+        self.STJ_year = STJ_year
+
+        H_th = {}
+        H_th['DJF'] = STJ_H_lev_seasons[:, :, 0]  # month, hemi, season
+        H_th['MAM'] = STJ_H_lev_seasons[:, :, 1]
+        H_th['JJA'] = STJ_H_lev_seasons[:, :, 2]
+        H_th['SON'] = STJ_H_lev_seasons[:, :, 3]
+        self.H_th_seasons = H_th
+
+
         make_ts_seasonal_plot = True
         if make_ts_seasonal_plot:
             print_min_max_mean(output)
-            plot_seasonal_stj_ts(output, cross)
+            plot_seasonal_stj_ts(output, cross, STJ_year)
 
-    def CalendarMean(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th):
+    def CalendarMean(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th,jet_H_lev,group):
 
         STJ_cal = STJ_array.reshape([self.yy, 12, 2])
         STJ_cal_mean = MeanOverDim(data=STJ_cal, dim=0)
@@ -629,15 +692,29 @@ class Method_2PV_STJ(object):
         STJ_cal_x = crossing_lat.reshape([self.yy, 12, 2])
         STJ_cal_x_mean = MeanOverDim(data=STJ_cal_x, dim=0)
 
+        STJ_cal_H = jet_H_lev.reshape([self.yy, 12, 2])
+        STJ_cal_H_mean = MeanOverDim(data=STJ_cal_H, dim=0)
+
+
+
         mean_val = {}
         for season in ['DJF', 'MAM', 'JJA', 'SON']:
             mean_val[season, 'lat'] = MeanOverDim(data=self.STJ_seasons[season], dim=0)
             mean_val[season, 'I'] = MeanOverDim(data=self.STJ_I_seasons[season], dim=0)
             mean_val[season, 'th'] = MeanOverDim(data=self.STJ_th_seasons[season], dim=0)
-            mean_val[season, 'x'] = MeanOverDim(data=self.cross_seasons[season], dim=0)
+            if group == 'x':
+                mean_val[season, 'x'] = MeanOverDim(data=self.cross_seasons[season], dim=0)
+                var_4 = STJ_cal_x_mean
+            if group == 'h':
+                mean_val[season, 'h'] = MeanOverDim(data=self.H_th_seasons[season], dim=0)
+                var_4 = STJ_cal_H_mean
 
-        PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean,
-                               STJ_cal_th_mean, STJ_cal_x_mean, mean_val, self.AnnualPC)
+        if group == 'core':
+          var_4 = None
+          print 'Need to change plot for none as input'
+        else:
+            PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean,
+                               STJ_cal_th_mean, var_4, mean_val, self.AnnualPC,group)
 
     def validate_near_mean(self, hemi_count, season, input_string, hemi, time_loop):
 
@@ -718,7 +795,7 @@ class Method_2PV_STJ(object):
 
         plt.legend(loc=0)
         plt.savefig('{}/test_second_der{}.eps'.format(self.diri.plot_loc, time_loop))
-        plt.show()
+        #plt.show()
 
     def PV_differentiate(self):
         'Finite difference method to calculate the change in derivative in PV'
@@ -790,7 +867,7 @@ class Method_2PV_STJ(object):
         plt.title('U wind. 2PV contour (red). 0th month. X close 2PV (Red max der).')
         plt.ylim(300, 400)
         plt.savefig(filename)
-        plt.show()
+        #plt.show()
         pdb.set_trace()
 
 def IPV_get_2PV(data, pv_line):
@@ -844,10 +921,21 @@ def TropoCrossing(hemi, H, H_lat, theta_IPV, phi_IPV, time_loop):
     IPV_spline_fit = spline_function2(new_lat)
 
     # subtract the two tropopause definitions and the minimum is where they cross
-    diff = np.abs(h_spline_fit - IPV_spline_fit)
-    loc = np.where(diff == diff.min())[0]
-    cross_lat = new_lat[loc]
-    cross_lev = IPV_spline_fit[loc]
+    #diff = np.abs(h_spline_fit - IPV_spline_fit)
+    #loc = np.where(diff == diff.min())[0]
+    #cross_lat = new_lat[loc]
+    #cross_lev = IPV_spline_fit[loc]
+
+    #Find the 2PV line data that is higher than thermal definition
+    dyn_gt_thermal = np.where(IPV_spline_fit> h_spline_fit)[0] 
+    if hemi == 'SH':
+      x_elem = np.where(new_lat == new_lat[dyn_gt_thermal].min())[0]
+      cross_lat =  new_lat[x_elem - 1]
+      cross_lev = IPV_spline_fit[x_elem - 1]
+    if hemi == 'NH':
+      x_elem = np.where(new_lat == new_lat[dyn_gt_thermal].max())[0]
+      cross_lat =  new_lat[x_elem - 1]
+      cross_lev = IPV_spline_fit[x_elem - 1]
 
     testing = False
     if testing:
@@ -856,6 +944,18 @@ def TropoCrossing(hemi, H, H_lat, theta_IPV, phi_IPV, time_loop):
 
     return cross_lat, cross_lev
 
+def plot_group_info(group):
+    if group == 'core':
+      var_name = ['lat', 'int', 'lev']
+    if group == 'x':
+      var_name = ['lat', 'int', 'lev', 'x']
+    if group == 'h':
+      var_name = ['lat', 'int', 'lev', 'h']
+    num_var = len(var_name)
+    hemi = ['NH', 'SH']
+ 
+    return var_name, num_var, hemi
+
 
 def IsolatePeaks(hemi, x, y, y2, time_loop, cross_lat, print_messages):
     """ Find the peaks in the two derivatives of the 2.0 Pv line.
@@ -863,15 +963,18 @@ def IsolatePeaks(hemi, x, y, y2, time_loop, cross_lat, print_messages):
             Peaks can not be first or last two points.
     """
 
-    # for peak fining allow the element before the crossing point to be
+    #Find the peaks first. Then restrict between zero crossing and the pole
+
+
+    # for peak finding allow the element before the crossing point to be
     # included in case its a peak
     cross_lat_elem = FindClosestElem(cross_lat, x)[0]
-    elem = np.arange(len(x)).tolist()
+    #elem = np.arange(len(x)).tolist()
 
-    list_elem = [0, cross_lat_elem + 2]
-    x = x[list_elem[0]:list_elem[1]]
-    y = y[list_elem[0]:list_elem[1]]
-    elem = elem[list_elem[0]:list_elem[1]]
+    #list_elem = [0, cross_lat_elem + 2]
+    #x = x[list_elem[0]:list_elem[1]]
+    #y = y[list_elem[0]:list_elem[1]]
+    #elem = elem[list_elem[0]:list_elem[1]]
 
     # isolate data poleward of the crossing latitude and equatorward of the
     # upper limit (currently 90 deg)
@@ -879,24 +982,49 @@ def IsolatePeaks(hemi, x, y, y2, time_loop, cross_lat, print_messages):
             # do not keep first or last two points. Magnitude of derivative oftern large
             # elem = elem[2:-2]
             # find the local maxima in NH
-        local_elem = np.array(elem)[(argrelmin(y)[0])].tolist()
+        #local_elem = np.array(elem)[(argrelmin(y)[0])].tolist()
+        local_elem = argrelmin(y)[0].tolist()
+
         if y2 is not None:  # find the second derivative local peaks
-            y2 = y2[list_elem[0]:list_elem[1]]
-            local_elem_2 = np.array(elem)[(argrelmin(y2)[0])].tolist()
+            #y2 = y2[list_elem[0]:list_elem[1]]
+            #local_elem_2 = np.array(elem)[(argrelmin(y2)[0])].tolist()
+            local_elem_2 = argrelmin(y2)[0].tolist()
     else:
         # do not keep first or last two points. Magnitude of derivative oftern large
         # elem = elem[2:-2]
         # find the local minima in SH (due to -ve lat)
-        local_elem = np.array(elem)[(argrelmax(y)[0])].tolist()
+        #local_elem = np.array(elem)[(argrelmax(y)[0])].tolist()
+        local_elem = argrelmax(y)[0].tolist()
+
         if y2 is not None:
-            y2 = y2[list_elem[0]:list_elem[1]]
-            local_elem_2 = np.array(elem)[(argrelmax(y2)[0])].tolist()
+            #y2 = y2[list_elem[0]:list_elem[1]]
+            #local_elem_2 = np.array(elem)[(argrelmax(y2)[0])].tolist()
+            local_elem_2 = argrelmax(y2)[0].tolist()
 
     # assign the local maxima
-    x_peak, y_peak = x[local_elem], y[local_elem]
+  #  x_peak, y_peak = x[local_elem], y[local_elem]
+    #restrict to poleward side of tropopause crossing
+    cross_lat = x[cross_lat_elem]
+    if hemi == 'NH':
+      value_peaks =  np.where(x[local_elem]>=cross_lat )[0]
+    if hemi == 'SH':
+      value_peaks =  np.where(x[local_elem]<=cross_lat )[0]
+
+    x_peak = x[local_elem][value_peaks]
+    y_peak = y[local_elem][value_peaks]
+    #the valid lat range
+    elem = np.arange(len(x)).tolist()
+    list_elem = [0, cross_lat_elem + 2]
+    elem = elem[list_elem[0]:list_elem[1]]
 
     if y2 is not None:
-        x2_peak, y2_peak = x[local_elem_2], y2[local_elem_2]
+        #x2_peak, y2_peak = x[local_elem_2], y2[local_elem_2]
+        if hemi == 'NH':
+          value_peaks =  np.where(x[local_elem_2]>=cross_lat )[0]
+        if hemi == 'SH':
+          value_peaks =  np.where(x[local_elem_2]<=cross_lat )[0]
+        x2_peak = x[local_elem_2][value_peaks]
+        y2_peak = y[local_elem_2][value_peaks]
     else:
         x2_peak, y2_peak, local_elem_2 = None, None, None
 
@@ -963,13 +1091,13 @@ def MakeOutfileSavez_derived(filename, phi_2PV, theta_2PV, dth, dth_lat, d2th):
     pdb.set_trace()
 
 
-def calc_metric(IPV_data, diri):
+def calc_metric(IPV_data, diri, u_fname):
     'Input assumed to be a dictionary'
 
     output_plotting = {}
 
     # Define the object and init the variables of interest
-    Method = Method_2PV_STJ(IPV_data, diri)
+    Method = Method_2PV_STJ(IPV_data, diri,u_fname)
 
     # Manage arrays for interpolation
     Method.PrepForAlgorithm()
@@ -1009,6 +1137,8 @@ def calc_metric(IPV_data, diri):
     jet_intensity = np.zeros([Method.IPV.shape[0], len(Method.lon_loc), 2, 2])
     # [time_loop, lon_loop, hemi_count, cby or fd]
     jet_th_lev = np.zeros([Method.IPV.shape[0], len(Method.lon_loc), 2, 2])
+    #
+    jet_H_lev = np.zeros([Method.IPV.shape[0], len(Method.lon_loc), 2])
 
     # fill with nans
     phi_2PV_out[:, :, :] = np.nan
@@ -1055,6 +1185,7 @@ def calc_metric(IPV_data, diri):
 
                 if slide_method == 'lon_slices':
                     lon_elem = Method.lon_loc[lon_loop]
+
 
                 # Method Step 1:
 
@@ -1112,6 +1243,8 @@ def calc_metric(IPV_data, diri):
                  Method.best_guess_fd) = Method.MaxShear(hemi, u_zonal, lat_elem,
                                                          Method.local_elem_fd)
 
+                Method.Trop_H_at_jet(hemi,lat_elem)
+
                 Method.JetIntensity(hemi, u_zonal, lat_elem)
 
                 # vars of interest outside of loop
@@ -1137,6 +1270,9 @@ def calc_metric(IPV_data, diri):
                 jet_intensity[time_loop, lon_loop, hemi_count, 1] = Method.jet_max_wind_fd
                 jet_th_lev[time_loop, lon_loop, hemi_count, 0] = Method.jet_max_theta_cby
                 jet_th_lev[time_loop, lon_loop, hemi_count, 1] = Method.jet_max_theta_fd
+                jet_H_lev[time_loop, lon_loop, hemi_count] = Method.trop_height_at_STJ
+
+
 
                 if((hemi == 'NH' and Method.best_guess_cby > 45) or
                    (hemi == 'SH' and Method.best_guess_cby < -40)):
@@ -1150,7 +1286,7 @@ def calc_metric(IPV_data, diri):
                 #test_with_plots = False
  
                 #for specific test cases create a 2 figure subplot
-                if (time_loop >= 1000):    
+                if time_loop > 1000:#(time_loop == 168) or (time_loop == 432) or (time_loop == 437) :    
 
                   plot_subplot = True
                   test_with_plots = True
@@ -1176,33 +1312,52 @@ def calc_metric(IPV_data, diri):
                     plot_validation_for_paper(Method, u_zonal, method_choice, 
                                               plot_subplot, hemi, time_loop, lat_elem,
                                               Method_NH, u_zonal_NH, lat_elem_NH)
+ 
+                plot_u = False
+                if test_with_plots:
+                  if plot_u :
+                    print 'Plot validation and map on same plot'
+                    make_single, make_with_metric = False, True
+                    make_u_plot(Method.u_fname, make_single, make_with_metric, 
+                                u_zonal=u_zonal, u_zonal_NH=u_zonal_NH,
+                                Method=Method, Method_NH=Method_NH, 
+                                lat_elem_SH=lat_elem, lat_elem_NH = lat_elem_NH,
+                                STJ_lat = jet_best_guess[time_loop,0,:,0],
+                                method_choice=method_choice, time=time_loop )
+
 
     if testing_make_output:
         filename = '{}/STJ_PV_metric_derived.npz'.format(data_dir)
         MakeOutfileSavez_derived(filename, phi_2PV_out,
                                  theta_2PV_out, dth_out, dth_lat_out, d2th_out)
 
-    # annual values
-    Method.AnnualCorrelations(jet_best_guess[:, 0, :, 0], crossing_lat,
-                              jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
-    Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], crossing_lat,
-                               jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
+    do_correlations = False
+    if do_correlations:
+      print 'Get correlations'
+      group_opt = ['core','x','h']
+      group = group_opt[2]
+      # annual values
+      Method.AnnualCorrelations(jet_best_guess[:, 0, :, 0], jet_H_lev[:,0,:],
+                              jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0], crossing_lat, group)
 
-    # seasonally seperate the data
-    Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
-                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
+      Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], jet_H_lev[:,0,:],
+                               jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0], crossing_lat, group)
 
-    # calendar values
-    Method.SeasonCorrelations()
+      # seasonally seperate the data
+      Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
+                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:])
 
-    Method.CalendarMean(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
-                        jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
+      # calendar values
+      Method.SeasonCorrelations(group)
 
-    PlotPC(Method.AnnualPC, Method.SeasonPC,
+      Method.CalendarMean(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
+                        jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],group)
+
+
+      PlotPC(group, Method.AnnualPC, Method.SeasonPC,
            Method.MonthlyPC, Method.var_name, Method.diri)
 
-    
-    pdb.set_trace()
+
     #Save output
     Method.SaveOutput(jet_best_guess[:, 0, :, 0], crossing_lat, 
                       jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
@@ -1240,11 +1395,11 @@ def test_finite_difference(phi_2PV, theta_2PV, dTHdlat_lat, dTHdlat):
     diri = Directory()
     plt.plot(phi_2PV, theta_2PV)
     plt.savefig('{}/testing1.eps'.format(diri.plot_loc))
-    plt.show()
+    #plt.show()
 
     plt.plot(dTHdlat_lat, dTHdlat)
     plt.savefig('{}/finite_diff_test.eps'.format(diri.plot_loc))
-    plt.show()
+    #plt.show()
     pdb.set_trace()
 
 
@@ -1258,7 +1413,7 @@ def Poly_testing(phi_2PV, theta_2PV, theta_cby_val, dtdphi_val, d2tdphi2_val):
     plt.legend()
     plt.ylim(300, 420)
     plt.savefig('{}/cbyfit_10.eps'.format(diri.plot_loc))
-    plt.show()
+    #plt.show()
 
     # plot the derivative to identify local maxima in.
     plt.plot(phi_2PV, dtdphi_val, label='dTh/dy')
@@ -1266,21 +1421,25 @@ def Poly_testing(phi_2PV, theta_2PV, theta_cby_val, dtdphi_val, d2tdphi2_val):
     plt.legend()
     plt.ylim(-20, 20)
     plt.savefig('{}/cbyfit_10_derivative.eps'.format(diri.plot_loc))
-    plt.show()
+    #plt.show()
 
 
 def test_crossing_lat(H_lat_hemi, H_hemi, new_lat, h_spline_fit, phi_IPV, theta_IPV,
                       IPV_spline_fit, cross_lat):
+
     fig1 = plt.figure(figsize=(14, 8))
     ax1 = fig1.add_axes([0.1, 0.15, 0.8, 0.8])
+
     ax1.plot(H_lat_hemi, H_hemi, c='blue', linestyle=' ',
              marker='.', label='Thermal tropopause')
     ax1.plot(new_lat, h_spline_fit, c='blue', linestyle=' ',
              marker='x', label='Thermal tropopause linear fit')
+
     ax1.plot(phi_IPV, theta_IPV, c='red', linestyle=' ',
              marker='.', label='Dynamic tropopause')
     ax1.plot(new_lat, IPV_spline_fit, c='red', linestyle=' ',
              marker='x', label='Dynamic tropopause linear fit')
+
     ax1.plot([cross_lat, cross_lat], [100, 500], c='green',
              linestyle='-', label='Crossing Lat')
     plt.show()
@@ -1315,7 +1474,7 @@ def AttemptMeanFind(hemi, time_loop, dtdphi_val, elem, phi_2PV):
     plt.plot([20, 50], [valid_data.mean(), valid_data.mean()],
              c='r', linestyle='--', label='Mean')
     plt.legend()
-    plt.show()
+    #plt.show()
 
     # Normalized to unit variance by removing the long-term mean and dividing
     # by the standard deviation.
@@ -1340,7 +1499,7 @@ def AttemptMeanFind(hemi, time_loop, dtdphi_val, elem, phi_2PV):
              marker='.', markersize=8, linestyle=' ', label='peaks')
     plt.plot(phi_2PV[local_elem], dtdphi_val_normal[local_elem], c='r',
              marker='x', markersize=8, linestyle=' ', label=' allpeaks')
-    plt.show()
+    #plt.show()
 
 
 def test_max_shear_across_lats(phi_2PV, theta_2PV, lat, lat_elem, theta_lev, u_zonal):
@@ -1397,9 +1556,10 @@ def test_max_shear_across_lats(phi_2PV, theta_2PV, lat, lat_elem, theta_lev, u_z
     ax2.plot(phi_2PV, theta_2PV, linestyle='-', c='k', marker='x',
              markersize=8, label='2PV line - Dynamical Tropopause')
 
-    plt.show()
+    #plt.show()
 
     pdb.set_trace()
+
 
 
 def print_min_max_mean(output):
@@ -1423,8 +1583,10 @@ def print_min_max_mean(output):
           output['SON'][:, 1].mean())
 
 
-def plot_seasonal_stj_ts(output, cross):
+def plot_seasonal_stj_ts(output, cross, STJ_year):
+
     diri = Directory()
+
     fig = plt.figure(figsize=(14, 8))
     ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
     ax.plot(output['DJF'][:, 0], 'blue', label='NH Winter' +
@@ -1435,18 +1597,43 @@ def plot_seasonal_stj_ts(output, cross):
             ('  {0:.2f}').format(output['MAM'][:, 0].mean()), ls=' ', marker='x')
     ax.plot(output['SON'][:, 1], 'green', label='SH Spring' +
             (' {0:.2f}').format(output['SON'][:, 1].mean()), ls=' ', marker='x')
-    ax.plot(output['SON'][:, 0], 'orange', label='NH Autumn' +
-            ('  {0:.2f}').format(output['SON'][:, 0].mean()), ls=' ', marker='x')
-    ax.plot(output['MAM'][:, 1], 'orange', label='SH Autumn' +
-            (' {0:.2f}').format(output['MAM'][:, 1].mean()), ls=' ', marker='x')
     ax.plot(output['JJA'][:, 0], 'red', label='NH Summer' +
             ('  {0:.2f}').format(output['JJA'][:, 0].mean()), ls=' ', marker='x')
     ax.plot(output['DJF'][:, 1], 'red', label='SH Summer' +
             (' {0:.2f}').format(output['DJF'][:, 1].mean()), ls=' ', marker='x')
+    ax.plot(output['SON'][:, 0], 'orange', label='NH Autumn' +
+            ('  {0:.2f}').format(output['SON'][:, 0].mean()), ls=' ', marker='x')
+    ax.plot(output['MAM'][:, 1], 'orange', label='SH Autumn' +
+            (' {0:.2f}').format(output['MAM'][:, 1].mean()), ls=' ', marker='x')
+
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1))
     plt.savefig('{}/index_ts.eps'.format(diri.plot_loc))
     #plt.show()
     #pdb.set_trace()
+    plt.close()
+
+    fig = plt.figure(figsize=(14, 8))
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
+    ax.plot(STJ_year['DJF'][:, 0], 'blue', label='NH Winter' +
+            ('  {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['JJA'][:, 1], 'blue', label='SH Winter' +
+            (' {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['MAM'][:, 0], 'green', label='NH Spring' +
+            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['SON'][:, 1], 'green', label='SH Spring' +
+            (' {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['JJA'][:, 0], 'red', label='NH Summer' +
+            ('  {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['DJF'][:, 1], 'red', label='SH Summer' +
+            (' {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['SON'][:, 0], 'orange', label='NH Autumn' +
+            ('  {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['MAM'][:, 1], 'orange', label='SH Autumn' +
+            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 1])), ls=' ', marker='x')
+    plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1), numpoints=1)
+    plt.savefig('{}/index_ts_year.eps'.format(diri.plot_loc))
+    #plt.show()
+    plt.close()
 
     # plot the crossing points
 
@@ -1456,15 +1643,15 @@ def plot_seasonal_stj_ts(output, cross):
     ax.plot(cross['JJA'][:, 1], 'blue', label='SH Winter', ls=' ', marker='x')
     ax.plot(cross['MAM'][:, 0], 'green', label='NH Spring', ls=' ', marker='x')
     ax.plot(cross['SON'][:, 1], 'green', label='SH Spring', ls=' ', marker='x')
-    ax.plot(cross['SON'][:, 0], 'orange', label='NH Autumn', ls=' ', marker='x')
-    ax.plot(cross['MAM'][:, 1], 'orange', label='SH Autumn', ls=' ', marker='x')
     ax.plot(cross['JJA'][:, 0], 'red', label='NH Summer', ls=' ', marker='x')
     ax.plot(cross['DJF'][:, 1], 'red', label='SH Summer', ls=' ', marker='x')
+    ax.plot(cross['SON'][:, 0], 'orange', label='NH Autumn', ls=' ', marker='x')
+    ax.plot(cross['MAM'][:, 1], 'orange', label='SH Autumn', ls=' ', marker='x')
     ax.set_ylim(-25, 25)
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1))
-    plt.savefig('{}/cross.png'.format(diri.plot_loc))
+    plt.savefig('{}/cross.eps'.format(diri.plot_loc))
     #plt.show()
-
+    plt.close()
 
 def GetCorrelation(hemi, num_var, var_name, data):
 

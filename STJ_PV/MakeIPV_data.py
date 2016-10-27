@@ -86,7 +86,7 @@ class Generate_IPV_Data(object):
 
         # Spline fit the temperature in 10hPa intervals from surface to aloft
         # (data must be monotonic increasing)
-        # call the external function TropopauseHeightLeve to calculate H
+        # call the external function TropopauseHeightLevel to calculate H
 
         TropH = np.zeros([self.end_time, len(self.lat)])
         TropH_pressure = np.zeros([self.end_time, len(self.lat)])
@@ -94,7 +94,6 @@ class Generate_IPV_Data(object):
 
         t_zonal = MeanOverDim(data=self.t, dim=3)  # [time,level,lat]
         P_spline = np.arange(10, 1001, 10)  # pressured between 10hPa and 1000 hPa
-
         for time in range(self.end_time):
             for lat in range(len(self.lat)):
                 # use hPa instead of Pa

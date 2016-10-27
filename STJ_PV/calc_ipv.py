@@ -272,6 +272,7 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon):
         u_th : array_like
                 Zonal wind on isentropic levels [m/s]
     """
+
     # Calculate potential temperature on isobaric (pressure) levels
     thta = theta(tair, pres)
     # Interpolate zonal, meridional wind, pressure to isentropic from isobaric levels

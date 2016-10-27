@@ -51,7 +51,7 @@ class Directory:
             self.work_loc = 'MKiMac'
             self.data_loc = '/Volumes/FN_2187/erai/'
 
-        self.plot_loc = self.base + '/Plots/'
+        self.plot_loc = self.base + '/Plot/Jet/'
 
         # Create plotting directory, if it doesn't exist already
         if not os.path.exists(self.plot_loc):
@@ -128,9 +128,10 @@ def main():
         print('Currently code only works for Era-Int data format')
         pdb.set_trace()
 
-    plot_u_wind = True
+    plot_u_wind = False
     if plot_u_wind:
-        make_u_plot(Exp.u_fname)
+        make_single, make_with_metric = True, False
+        make_u_plot(Exp.u_fname, make_single, make_with_metric, None, None)
         pdb.set_trace()
     file_type_opt = ['.nc', '.p']          # nc file or pickle
     file_type = file_type_opt[0]
@@ -154,7 +155,7 @@ def main():
         STJ_PV.open_ipv_data(fileIPV_1, fileIPV_2, file_type)
 
         # Now that IPV has been calculated - calculate the STJ metric
-        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri)
+        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri,Exp.u_fname)
 
         pdb.set_trace()
         # STJ_NH, STJ_SH = STJ_PV.Get_uwind_strength()

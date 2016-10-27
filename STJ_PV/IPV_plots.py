@@ -13,6 +13,7 @@ from matplotlib import rc
 import copy as copy
 import math
 import os.path
+import re
 # Dependent code
 from general_functions import (MeanOverDim, FindClosestElem, openNetCDF4_get_data,
                                latex_table)
@@ -123,7 +124,7 @@ class Plotting(object):
         plt.legend()
         plt.ylim(-10, 10)
         plt.savefig('{}/cbyfit_vs_finite.eps'.format(plot_dir))
-        plt.show()
+        #plt.show()
 
     def test_second_der(self):
         fig = plt.figure(figsize=(6, 6))
@@ -147,7 +148,7 @@ class Plotting(object):
 
         plt.legend(loc=0)
         plt.savefig('{}/test_second_der.eps'.format(plot_dir))
-        plt.show()
+        #plt.show()
 
     def poly_2PV_line(self, hemi, u_zonal, lat_elem, time_loop, fig, ax, plot_cbar, ax_cb,
                       plot_type, pause, click, save_plot):
@@ -165,7 +166,7 @@ class Plotting(object):
             legend_font = 12
             label_font  = 18
             loc1 = (0.42, 0.92)
-            loc2 = (0.42, 0.76)
+            loc2 = (0.42, 0.74)
             jet_marker_size   = 10
             cross_marker_size = 10
             peak_marker_size  = 8
@@ -208,18 +209,19 @@ class Plotting(object):
                   cbar.set_label(r'$\bar{u} (ms^{-1})$', fontsize=16)
 
 
+        line9 = ax.plot(self.STJ_lat, self.jet_max_theta, linestyle=' ', marker='o',
+                        c='#0033ff', markersize=jet_marker_size, markeredgecolor='none',
+                        label='subtropical jet')
         line6 = ax.plot(self.phi_2PV, self.theta_2PV, linestyle='-', c='k',
                         marker='x', markersize=8, label='dynamical H')
         line7 = ax.plot(self.lat, self.TropH_theta[time_loop, :], linestyle='-', c='k',
                         marker='.', markersize=4, label='thermodynamic H')
         line8 = ax.plot(self.cross_lat, self.cross_lev, linestyle=' ', marker='o',
                         mfc='none', c='#006600',
-                        markersize=cross_marker_size, mew=2, label='tropopause crossing')
-        line9 = ax.plot(self.STJ_lat, self.jet_max_theta, linestyle=' ', marker='o',
-                        c='#0033ff', markersize=jet_marker_size, markeredgecolor='none',
-                        label='Subtropical jet')
+                        markersize=cross_marker_size, mew=2, label='tropopause cross')
+
         line10 = ax.plot(self.phi_2PV[self.elem], self.pv_fit[self.elem], linestyle=':',
-                         linewidth=1, c='k', label='Poly fit')
+                         linewidth=1, c='k', label='poly fit')
 
         ax3 = ax.twinx()
         # move axis off main
@@ -262,6 +264,11 @@ class Plotting(object):
             legend2.legendHandles[3]._legmarker.set_markersize(8)  # STJ marker size in legend
 
 
+        #make secondary axis blue
+        #ax3.spines['right'].set_color('#0033ff')
+        ax3.yaxis.label.set_color('#0033ff')
+        ax3.tick_params(axis='y', colors='#0033ff')
+
 
         if (plot_type == 'single') or (hemi == 'SH'):
             ax.set_ylabel(r'$\theta$',rotation=0, fontsize=label_font )
@@ -277,7 +284,7 @@ class Plotting(object):
             if plot_type == 'single':
                 start, end, inc = 0, 91, 5
                 ax.set_xlim(0, 90)
-            if plot_type == 'subplot':
+            else:
                 start, end, inc = 0, 91, 10
                 ax.set_xlim(0, 90)
 
@@ -285,13 +292,27 @@ class Plotting(object):
             if plot_type == 'single':
                 start, end, inc = 0, -91, -10
                 ax.set_xlim(0, -90)
-            if plot_type == 'subplot':
+            else:
                 start, end, inc = -90, 1, 10
                 ax.set_xlim(-90,0)
 
         ax.xaxis.set_ticks(np.arange(start, end, inc))
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%1.0f'))
 
+
+
+        if plot_type == 'subplot_all': 
+            if hemi == 'NH':
+                #move ax plot to the left
+                pos = ax.get_position()
+                # [Left,Bottom,Width,Height] - zonal mean wind
+                ax.set_position([pos.x0, pos.y0, pos.width, pos.height])
+                #Annontate
+                ax.text(-5,400,'b)',fontsize=14,fontweight='bold')
+                
+            else:
+                ax.text(-104,400,'a)',fontsize=14,fontweight='bold')
+ 
         print('  Peaks at: ', self.phi_2PV[self.local_elem], 'ST Jet at :', self.STJ_lat)
 
         if save_plot == True:
@@ -315,7 +336,7 @@ class Plotting(object):
         # plt.legend()
         # plt.ylim(300,380)
         plt.savefig('{}/STJ_ts.eps'.format(plot_dir))
-        plt.show()
+        #plt.show()
 
 def plot_validation_for_paper(Method, u_zonal, method_choice, 
                               plot_subplot, hemi, time_loop, lat_elem,
@@ -329,6 +350,7 @@ def plot_validation_for_paper(Method, u_zonal, method_choice,
         ax = fig.add_axes([0.06, 0.1, 0.85, 0.88])
         ax_cb = fig.add_axes([0.09, 0.05, 0.60, 0.02])
         plot_cbar = True
+
         PlottingObject.poly_2PV_line(hemi, u_zonal, lat_elem, time_loop, fig, ax, plot_cbar, ax_cb, 
                                      plot_type = 'single', pause=False, click=True, save_plot=True)
     else:
@@ -434,7 +456,7 @@ def MakeOutputFile(filename, data, dim_name, var_name, var_type):
     print('created file: ', filename)
 
 
-def plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,t,t_elem,fname_out,save_plot):
+def plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,time,fname_out,save_plot,make_single):
 
         bounds = np.arange(-50, 51, 5)
         draw_map_model(plt, ax1, ax_cb, uwnd, var['lon'], var['lat'], '', '', 'BuRd',
@@ -465,88 +487,146 @@ def plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,t,t_elem,fname_out,save_plot
         # set plot colour
         # ax2.patch.set_facecolor('#CCCCCC')
 
-        plt.tight_layout()
 
-        # reshape plots so on same horizontal
-        pos1 = ax1.get_position()
-        pos2 = ax2.get_position()
-        pos3 = ax_cb.get_position()
+        if make_single:
+            plt.tight_layout()
+            # reshape plots so on same horizontal
+            pos1 = ax1.get_position()
+            pos2 = ax2.get_position()
+            pos3 = ax_cb.get_position()
 
-        new_height = pos1.height  # height = y1-y0
-        y0 = pos1.y0 - 0.045
+            new_height = pos1.height  # height = y1-y0
+            y0 = pos1.y0 - 0.045
 
-        # [Left,Bottom,Width,Hight]
-        ax1.set_position([pos1.x0, y0, pos1.width, new_height])
+            # [Left,Bottom,Width,Hight]
+            ax1.set_position([pos1.x0, y0, pos1.width, new_height])
 
-        # [Left,Bottom,Width,Hight]
-        ax2.set_position([pos2.x0 - 0.03, pos2.y0, pos2.width, pos2.height - 0.09])
+            # [Left,Bottom,Width,Hight]
+            ax2.set_position([pos2.x0 - 0.03, pos2.y0, pos2.width, pos2.height - 0.09])
 
-        ax_cb.set_position([pos3.x0, pos3.y0 + 0.025, pos3.width -
-                            0.182, pos3.height])  # [Left,Bottom,Width,Hight]
+            ax_cb.set_position([pos3.x0, pos3.y0 + 0.025, pos3.width -
+                                0.182, pos3.height])  # [Left,Bottom,Width,Hight]
+        else:
+            plt.tight_layout()
+            # reshape plots so on same horizontal
+            pos1 = ax1.get_position()
+            pos2 = ax2.get_position()
+            pos3 = ax_cb.get_position()
+
+            new_height = pos1.height  # height = y1-y0
+            y0 = pos1.y0 - 0.015 #subtract to lower plot
+
+            # [Left,Bottom,Width,Hight] - wind
+            ax1.set_position([pos1.x0, y0, pos1.width, new_height])
+
+            # [Left,Bottom,Width,Hight] - zonal mean wind
+            ax2.set_position([pos2.x0 - 0.06, pos2.y0-0.004, pos2.width, pos2.height - 0.023])
+
+            ax_cb.set_position([pos3.x0, pos3.y0 + 0.02, pos3.width  - 0.1
+                                , pos3.height])  # [Left,Bottom,Width,Hight]
+
+            ax1.text(-20.0,100,'c)',fontsize=14,fontweight='bold')
+            ax2.text(0,100,'d)',fontsize=14,fontweight='bold')
+
+
         ax_cb.set_xlabel(r'$\bar{u}$ $(ms^{-1})$')
 
         if save_plot :
           plt.savefig(fname_out)
           print 'Saved file: ', fname_out
-          plt.show()
+          #plt.show()
           plt.close()
+
+        #pdb.set_trace()
 
         return
 
-def make_u_plot(fname):
+def make_u_plot(u_fname, make_single, make_with_metric, 
+                u_zonal=None, u_zonal_NH=None, Method=None, Method_NH=None, 
+                lat_elem_SH=None, lat_elem_NH=None,
+                STJ_lat = None,
+                method_choice=None, time=None ):
 
-    #open jet data
-    filename = '{}/STJ_data.nc'.format(data_out_dir)
-    assert os.path.isfile(filename), 'File '+ filename +' does not exist. Need jet latitude for plotting.' 
-    var_jet = openNetCDF4_get_data(filename)
+    open_data = False
 
-    #open u wind data
-    filename = '{}/u79_15.nc'.format(u_data_dir)
-    assert os.path.isfile(filename), 'File '+ filename +' does not exist.' 
-    var = openNetCDF4_get_data(filename)
+    if open_data:
+        #open jet data from file
+        filename = '{}/STJ_data.nc'.format(data_out_dir)
+        assert os.path.isfile(filename), 'File '+ filename +' does not exist. Need jet latitude for plotting.' 
+        var_jet = openNetCDF4_get_data(filename)
+        jet_NH = var_jet['STJ_lat'][:,0]
+        jet_SH = var_jet['STJ_lat'][:,1]
+    else:
+        #use data just calculated
+        jet_NH = STJ_lat[0]
+        jet_SH = STJ_lat[1]
 
+    #open u wind data - on pressure levels
+    assert os.path.isfile(u_fname), 'File '+ u_fname +' does not exist.' 
+    var = openNetCDF4_get_data(u_fname)
 
     lev250 = FindClosestElem(25000, var['lev'])[0]
 
     #Which time elements are of interest?
-    t_elem = [431,440]
+    #t_elem = [431,440]
+    #for t in range(len(t_elem)):
 
-    for t in range(len(t_elem)):
 
+    uwnd = var['var131'][time, lev250, :, :]
+       
+    if make_single:
+            fname_out = '{}/uwind_{}_with_wind.eps'.format(plot_dir, t_elem[t])
 
-        uwnd = var['var131'][t_elem[t], lev250, :, :]
-        # from running the code i know where the jet is. Plot it on a map as a
-        # sanity check
-        jet_NH = var_jet['STJ_lat'][t_elem[t],0]
-        jet_SH = var_jet['STJ_lat'][t_elem[t],1]
-        fname_out = '{}/uwind_{}_with_wind.eps'.format(plot_dir, t_elem[t])
+            fig = plt.figure(figsize=(10, 5))
 
-        fig = plt.figure(figsize=(10, 5))
+            # wind plot
+            ax1 = plt.subplot2grid((10, 20), (0, 0), colspan=16, rowspan=9)
+            # zonal mean
+            ax2 = plt.subplot2grid((10, 20), (0, 16), colspan=5, rowspan=9)
+            # colour bar
+            ax_cb = plt.subplot2grid((10, 20), (9, 0), colspan=20)
 
-        # gs = mpl.gridspec.GridSpec(2,2, height_ratios=[0.4,0.1,0.2],
-        #                            width_ratios=[4,1.25,0.1])    #wide[plot,plot,space]
-        # gs.update(left=0.05, right=0.95, bottom=0.08, top=0.93,x
-        #           wspace=0.02, hspace=0.03)
-        # ax1 = plt.subplot(gs[0])
-        # ax2 = plt.subplot(gs[1])
-        # ax_cb = plt.subplot(gs[2])
+            save_plot = True
+            plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,t,t_elem,fname_out,save_plot,make_single=make_single) 
 
-        # wind plot
-        ax1 = plt.subplot2grid((10, 20), (0, 0), colspan=16, rowspan=9)
-        # zonal mean
-        ax2 = plt.subplot2grid((10, 20), (0, 16), colspan=5, rowspan=9)
-        # colour bar
-        ax_cb = plt.subplot2grid((10, 20), (9, 0), colspan=20)
+    if make_with_metric :
 
-        save_plot = True
-        plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,t,t_elem,fname_out,save_plot) 
-    pdb.set_trace()
+            fname_out = '{}/validation_uwind_{}.eps'.format(plot_dir, time)
+
+            fig = plt.figure(figsize=(10, 12))
+            #SH
+            ax1 = plt.subplot2grid((37, 26), (0, 0), rowspan=22, colspan=12)  #half across/gap/half accross. 18 deep
+            #NH
+            ax2 = plt.subplot2grid((37, 26), (0, 12), rowspan=22, colspan=12)
+            # wind plot
+            ax3 = plt.subplot2grid((37, 26), (22, 0), rowspan=13, colspan=20)
+            # zonal mean
+            ax4 = plt.subplot2grid((37, 26), (22, 20), rowspan=13, colspan=5)
+            # colour bar
+            ax_cb = plt.subplot2grid((37, 26), (35, 0), rowspan=2, colspan=37)
+
+            PlottingObject = Plotting(Method, 'cby')
+            plot_cbar = False
+            PlottingObject.poly_2PV_line('SH', u_zonal, lat_elem_SH, time, fig, ax1, plot_cbar, ax_cb, plot_type = 'subplot_all',pause=False, click=False, save_plot=False)
+            # NH
+            PlottingObject2 = Plotting(Method_NH, method_choice)
+            PlottingObject2.poly_2PV_line('NH', u_zonal_NH, lat_elem_NH, time, fig, ax2, plot_cbar, None, plot_type = 'subplot_all',pause=False, click=False, save_plot=False)
+ 
+            save_plot = True
+            plot_u(plt,ax3,ax4,ax_cb,jet_NH,jet_SH,uwnd,var,time,fname_out,save_plot,make_single=False) 
+
+   #pdb.set_trace()
 
 
 def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
-                           STJ_cal_x_mean, mean_val, PC):
+                           var_4, mean_val, PC, group):
+
+    #change latex rendering for table
+    rc('text', usetex=True)
 
     months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+    months_wrap = ['','J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D','',]
+
     colour_mark = ['r', 'b']
 
     fig = plt.figure(figsize=(14, 8))
@@ -556,109 +636,140 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
     ax2 = plt.subplot2grid((9, 6), (2, 0), colspan=6, rowspan=2)
     # theta
     ax3 = plt.subplot2grid((9, 6), (4, 0), colspan=6, rowspan=2)
-    # theta
+    # H or x
     ax4 = plt.subplot2grid((9, 6), (6, 0), colspan=6, rowspan=2)
-
     # table
     ax5 = plt.subplot2grid((9, 6), (8, 0), colspan=6)
 
-    ax1.set_xlim(0, 11)
-    ax1.set_ylabel(r'$\phi_{STJ}$  ', rotation=0)
-    ax2.set_xlim(0, 11)
-    ax2.set_ylabel(r'$I (ms^{-1})$  ', rotation=0)
-    ax3.set_xlim(0, 11)
-    ax3.set_ylabel(r'$\theta (K)$  ', rotation=0)
-    ax4.set_xlim(0, 11)
-    ax4.set_ylabel(r'$\phi_x$  ', rotation=0)
+
+    ax1.set_ylabel(r'$\phi_{STJ}$  ', rotation=0, labelpad=20)
+    ax2.set_ylabel(r'$I (ms^{-1})$  ', rotation=0, labelpad=20)
+    ax3.set_ylabel(r'$\theta (K)$  ', rotation=0, labelpad=20)
+    if group == 'h':
+      ax4.set_ylabel(r'$H (K)$  ', rotation=0, labelpad=20)
+    if group == 'x':
+      ax4.set_ylabel(r'$x $  ', rotation=0, labelpad=20)
+
+    store_data = np.zeros(14)
 
     hemi = ['NH', 'SH']
     for hemi_count in range(2):
         # position
-        ax1.plot(np.arange(0, 12, 1), np.abs(STJ_cal_mean[:, hemi_count]),
-                 c=colour_mark[hemi_count], marker='x', markersize=8, linestyle='-')
+        tmp = np.abs(STJ_cal_mean[:, hemi_count])
+        store_data[0],store_data[1:13], store_data[-1] = tmp[-1], tmp, tmp[0]
+        ax1.plot(np.arange(0, 14, 1),store_data , c=colour_mark[hemi_count], marker='x', markersize=8, linestyle='-')
         lat_mean = [mean_val['DJF', 'lat'][hemi_count],
                     mean_val['MAM', 'lat'][hemi_count],
                     mean_val['JJA', 'lat'][hemi_count],
                     mean_val['SON', 'lat'][hemi_count]]
-        ax1.plot([0, 3, 6, 9], np.abs(lat_mean), c=colour_mark[hemi_count], marker='o',
+        ax1.plot([1, 4, 7, 10], np.abs(lat_mean), c=colour_mark[hemi_count], marker='o',
                  markersize=8, linestyle=' ')
-
         # Intensity
-        ax2.plot(np.arange(0, 12, 1), STJ_cal_int_mean[:, hemi_count],
+        tmp = STJ_cal_int_mean[:, hemi_count]
+        store_data[0],store_data[1:13], store_data[-1] = tmp[-1], tmp, tmp[0]
+        ax2.plot(np.arange(0, 14, 1), store_data ,
                  c=colour_mark[hemi_count], marker='x', markersize=8, linestyle='-')
         I_mean = [mean_val['DJF', 'I'][hemi_count], mean_val['MAM', 'I'][hemi_count],
                   mean_val['JJA', 'I'][hemi_count], mean_val['SON', 'I'][hemi_count]]
-        ax2.plot([0, 3, 6, 9], I_mean, c=colour_mark[hemi_count],
+        ax2.plot([1, 4, 7, 10], I_mean, c=colour_mark[hemi_count],
                  marker='o', markersize=8, linestyle=' ')
-
-        ax3.plot(np.arange(0, 12, 1), STJ_cal_th_mean[:, hemi_count],
+        #theta
+        tmp = STJ_cal_th_mean[:, hemi_count]
+        store_data[0],store_data[1:13], store_data[-1] = tmp[-1], tmp, tmp[0]
+        ax3.plot(np.arange(0, 14, 1), store_data,
                  c=colour_mark[hemi_count], marker='x', markersize=8, linestyle='-')
         th_mean = [mean_val['DJF', 'th'][hemi_count], mean_val['MAM', 'th'][hemi_count],
                    mean_val['JJA', 'th'][hemi_count], mean_val['SON', 'th'][hemi_count]]
-        ax3.plot([0, 3, 6, 9], th_mean, c=colour_mark[hemi_count],
+        ax3.plot([1, 4, 7, 10], th_mean, c=colour_mark[hemi_count],
                  marker='o', markersize=8, linestyle=' ')
+        #h
+        if group == 'x':
+          key_name = 'x'
+        if group == 'h':
+          key_name = 'h'
 
-        ax4.plot(np.arange(0, 12, 1), np.abs(STJ_cal_x_mean[:, hemi_count]),
+        tmp =np.abs(var_4[:, hemi_count])
+        store_data[0],store_data[1:13], store_data[-1] = tmp[-1], tmp, tmp[0]
+        ax4.plot(np.arange(0, 14, 1), store_data,
                  c=colour_mark[hemi_count], marker='x', markersize=8, linestyle='-',
                  label=hemi[hemi_count])
-        x_mean = [mean_val['DJF', 'x'][hemi_count], mean_val['MAM', 'x'][hemi_count],
-                  mean_val['JJA', 'x'][hemi_count], mean_val['SON', 'x'][hemi_count]]
-        ax4.plot([0, 3, 6, 9], np.abs(x_mean), c=colour_mark[hemi_count], marker='o',
+        x_mean = [mean_val['DJF', key_name ][hemi_count], mean_val['MAM', key_name ][hemi_count],
+                  mean_val['JJA', key_name ][hemi_count], mean_val['SON', key_name ][hemi_count]]
+        ax4.plot([1, 4, 7, 10], np.abs(x_mean), c=colour_mark[hemi_count], marker='o',
                  markersize=8, linestyle=' ')
 
-    # add season horizintal lines
+    # add season horizontal lines
     xx = np.arange(14)
     cut = (xx > 0) & (xx % 3 == 0)
 
     for x in xx[cut]:
-        ax1.axvline(x=x - 1.5, ymin=-1.2, ymax=1, c="k", linestyle=':',
+        ax1.axvline(x=x - 0.5, ymin=-1.2, ymax=1, c="k", linestyle=':',
                     linewidth=1, zorder=0, clip_on=False)
-        ax2.axvline(x=x - 1.5, ymin=-1.2, ymax=1.2, c="k",
+        ax2.axvline(x=x - 0.5, ymin=-1.2, ymax=1.2, c="k",
                     linestyle=':', linewidth=1, zorder=0, clip_on=False)
-        ax3.axvline(x=x - 1.5, ymin=-1.2, ymax=1.2, c="k",
+        ax3.axvline(x=x - 0.5, ymin=-1.2, ymax=1.2, c="k",
                     linestyle=':', linewidth=1, zorder=0, clip_on=False)
-        ax4.axvline(x=x - 1.5, ymin=0, ymax=1.2, c="k", linestyle=':',
+        ax4.axvline(x=x - 0.5, ymin=0, ymax=1.2, c="k", linestyle=':',
                     linewidth=1, zorder=0, clip_on=False)
+       
+       
 
     # months as labels
-    ax4.set_xticks(np.arange(0, 12, 1))
-    ax4.set_xticklabels(months)
+    ax4.set_xticks(np.arange(0, 14, 1))
+    ax4.set_xticklabels(months_wrap)
 
-    plt.legend(loc=1)
+    handles, labels = ax4.get_legend_handles_labels()
+    ax4.legend(handles, labels)
+
+    ax1.set_xlim(0.5,12.5)
+    ax2.set_xlim(0.5,12.5)
+    ax3.set_xlim(0.5,12.5)
+    ax4.set_xlim(0.5,12.5)
+
+    ax1.set_ylim(15,45)
+    ax2.set_ylim(15,45)
+    ax3.set_ylim(340,370)
+    if group == 'h':
+      ax4.set_ylim(340,370)
+    
 
     # turn off x axis labels on plots 1-2
     plt.setp(ax1.get_xticklabels(), visible=False)
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.setp(ax3.get_xticklabels(), visible=False)
 
-    # var_name  = ['lat','int','lev','cross']
-
-    # label1 = '         ' + r'$r_{\phi,I}=$'+ '{0:.2f}'.format(PC[0,1,1])
-    # label2 = (r'$r_{\phi,\theta}=$'+ '{0:.2f}'.format(PC[0,2,0]) + '  ' +
-    #           r'$r_{\phi,\theta}=$'+ '{0:.2f}'.format(PC[0,2,1]))
-    # label3 = (r'$r_{\phi,x}=$'+ '{0:.2f}'.format(PC[0,3,0]) + '           ' +
-    #           r'$r_{\phi,x}=$'+ '{0:.2f}'.format(PC[0,3,1]))
-
     # add the table to the plot
-    celldata = [['{0:.2f}'.format(PC[0, 1, 0]), '{0:.2f}'.format(PC[0, 2, 0]),   # |
-                 '{0:.2f}'.format(PC[0, 3, 0]), '{0:.2f}'.format(PC[1, 2, 0]),   # NH
-                 '{0:.2f}'.format(PC[1, 3, 0]), '{0:.2f}'.format(PC[2, 3, 0])],  # |
-                ['{0:.2f}'.format(PC[0, 1, 1]), '{0:.2f}'.format(PC[0, 2, 1]),   # -
-                 '{0:.2f}'.format(PC[0, 3, 1]), '{0:.2f}'.format(PC[1, 2, 1]),   # SH
-                 '{0:.2f}'.format(PC[1, 3, 1]), '{0:.2f}'.format(PC[2, 3, 1])]]  # -
+    
+    celldata = [['{0:.2f}'.format(PC[0, 1, 0]), '{0:.2f}'.format(PC[0, 2, 0]), 
+                 '{0:.2f}'.format(PC[0, 3, 0]), '{0:.2f}'.format(PC[1, 2, 0]),
+                 '{0:.2f}'.format(PC[1, 3, 0]), '{0:.2f}'.format(PC[2, 3, 0])],
+                ['{0:.2f}'.format(PC[0, 1, 1]), '{0:.2f}'.format(PC[0, 2, 1]),
+                 '{0:.2f}'.format(PC[0, 3, 1]), '{0:.2f}'.format(PC[1, 2, 1]),
+                 '{0:.2f}'.format(PC[1, 3, 1]), '{0:.2f}'.format(PC[2, 3, 1]),
+               ]] 
+    print 'NH:', PC[:,:,0]
+    print 'SH:', PC[:,:,1]
+
     rowlabel = ['NH', 'SH']
-    collabel = ['  ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
-                r'$r_{\phi,x}$', r'$r_{I,\theta}$', r'$r_{I,x}$', r'$r_{\theta,x}$']
+    if group == 'h':
+      collabel = ['  ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
+                  r'$r_{\phi,H}$', r'$r_{I,\theta}$', r'$r_{I,H}$', r'$r_{\theta,H}$']
+    if group == 'x':
+      collabel = ['  ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
+                  r'$r_{\phi,x}$', r'$r_{I,\theta}$', r'$r_{I,x}$', r'$r_{\theta,x}$']
+
+    #collabel = ['  ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
+    #            r'$r_{I,\theta}$']
+
     table = latex_table(celldata, rowlabel, collabel)
     ax5.text(0.3, -.5, table, size=14)
     ax5.axis('off')
 
     plt.savefig('{}/calendar_mean.eps'.format(plot_dir))
-    # plt.show()
+    #plt.show()
     plt.close()
     hemi_count = hemi_count + 1
 
-    # pdb.set_trace()
 
     fig = plt.figure(figsize=(15, 6))
     # position vs intensity
@@ -743,7 +854,7 @@ def PlotPC_Matrix_subplot(ax1, ax1_position, ax_cb, matrix, var_name_latex):
     cmap.set_bad(color='Gainsboro', alpha=1.)  # grey to Nan
 
     # can use either matshow or imshow
-    cax = ax1.matshow(matrix, cmap=cmap, interpolation='nearest')
+    cax = ax1.matshow(matrix, cmap=cmap, norm=norm, interpolation='nearest')
     ax1.set_position(ax1_position)
 
     # labels onto matrix
@@ -757,7 +868,6 @@ def PlotPC_Matrix_subplot(ax1, ax1_position, ax_cb, matrix, var_name_latex):
     cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, norm=norm, ticks=bounds,
                                      spacing='uniform', orientation='horizontal',
                                      boundaries=bounds, format='%1.1g')
-
 
 def PlotPC_matrix_single(matrix, var_name_latex, filename):
 
@@ -774,12 +884,12 @@ def PlotPC_matrix_single(matrix, var_name_latex, filename):
     plt.close()
 
 
-def PlotPC(Annual, Seasonal, Monthly, var_name, diri):
+def PlotPC(group,Annual, Seasonal, Monthly, var_name, diri):
 
-    var_name_latex = [r'$\phi$', r'I', r'$\theta$', r'x']
-
+    var_name_latex = [r'$\phi$', r'I', r'$\theta$', r'H']
+     
     # prep storage matrix
-    matrix = np.zeros([4, 4])
+    matrix = np.zeros([len(var_name), len(var_name)])
     tmp = np.tri(matrix.shape[0], k=-1)
     tmp[np.where(tmp == 1)] = np.nan  # lower triangular as nan
     matrix = tmp + matrix
