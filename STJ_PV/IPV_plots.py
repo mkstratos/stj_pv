@@ -14,6 +14,7 @@ import copy as copy
 import math
 import os.path
 import re
+import pylab
 # Dependent code
 from general_functions import (MeanOverDim, FindClosestElem, openNetCDF4_get_data,
                                latex_table)
@@ -22,7 +23,8 @@ from general_plotting import draw_map_model, draw_deg, gfdl_lat_change_map
 # see https://pypi.python.org/pypi/colormap
 
 
-rc('text', usetex=True)
+mpl.rc('text', usetex=False)  # turning this flag on/off changes g=hatching with eps
+#rc('text', usetex=True)
 
 __author__ = "Penelope Maher"
 
@@ -50,8 +52,9 @@ class Plotting(object):
             self.dxdy = data.dtdphi_val
             self.dy = data.phi_2PV
 
-            # local peaks
-            self.local_elem = data.local_elem_cby
+            # local peaks poleward of crossing
+            pole_peaks = np.where(np.abs(self.dy[data.local_elem_cby]) >=np.abs(data.cross_lat))[0]
+            self.local_elem = np.array(data.local_elem_cby)[pole_peaks].tolist()
 
             # elements to poleward side of tropopause crossing
             self.elem = data.elem_cby
@@ -150,7 +153,7 @@ class Plotting(object):
         plt.savefig('{}/test_second_der.eps'.format(plot_dir))
         #plt.show()
 
-    def poly_2PV_line(self, hemi, u_zonal, lat_elem, time_loop, fig, ax, plot_cbar, ax_cb,
+    def poly_2PV_line(self, hemi, u_zonal, lat_elem, time_loop, fig, ax, plot_cbar, ax_cb, bounds,cmap,
                       plot_type, pause, click, save_plot):
 
         #set specifics depending on if making a single plot or subplots
@@ -176,8 +179,8 @@ class Plotting(object):
         plot_raw_data = False
         if wind_on_plot:
             if plot_raw_data:
-                cmap = plt.cm.RdBu_r
-                bounds = np.arange(-50, 51, 5.0)
+#                cmap = plt.cm.RdBu_r
+                cmap = plt.cm.PuOr
                 norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
                 # u wind as a contour
                 ax.pcolormesh(self.lat[lat_elem],
@@ -191,23 +194,20 @@ class Plotting(object):
                   cbar.set_label(r'$\bar{u} (ms^{-1})$')
             else:
                 # contour
-                cm = Colormap()
-                # (neg)/white/(pos)
-                mycmap = cm.cmap_linear('#0033ff', '#FFFFFF', '#990000')
-                levels = np.arange(-60, 61, 5).tolist()
-                ax.contourf(self.lat[lat_elem], self.theta_lev,
-                            u_zonal[:, lat_elem][:, 0, :], levels, cmap=mycmap)
-                ax.set_ylim(300, 400)
 
-                norm = mpl.colors.BoundaryNorm(levels, mycmap.N)
+                # (neg)/white/(pos)
+                bounds = bounds.tolist()
+                ax.contourf(self.lat[lat_elem], self.theta_lev,
+                            u_zonal[:, lat_elem][:, 0, :], bounds, cmap=cmap)
+                ax.set_ylim(300, 400)
+                norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
 
                 #ax.xaxis.set_visible(False)
                 #remove labels and ticks
                 if plot_cbar == True:
-                  cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=mycmap, norm=norm,
-                                                 ticks=levels, orientation='horizontal')
+                  cbar = mpl.colorbar.ColorbarBase(ax_cb, cmap=cmap, norm=norm,
+                                                 ticks=bounds, orientation='horizontal')
                   cbar.set_label(r'$\bar{u} (ms^{-1})$', fontsize=16)
-
 
         line9 = ax.plot(self.STJ_lat, self.jet_max_theta, linestyle=' ', marker='o',
                         c='#0033ff', markersize=jet_marker_size, markeredgecolor='none',
@@ -228,8 +228,9 @@ class Plotting(object):
         # ax3.spines['right'].set_position(('axes', 1.07))
         # ax3.set_frame_on(True)
         # ax3.patch.set_visible(False)
-
+   
         line1 = ax3.plot(self.dy[self.elem], self.dxdy[self.elem], linestyle='-', linewidth=1,
+#        line1 = ax3.plot(self.dy, self.dxdy, linestyle='-', linewidth=1, marker = '+',
                          c='#0033ff', label=r'$\frac{d \theta}{d \phi}$')
         line2 = ax3.plot(self.dy[self.local_elem], self.dxdy[self.local_elem],
                          linestyle=' ', mew=2, c='#0033ff', marker='x', markersize=peak_marker_size,
@@ -254,7 +255,7 @@ class Plotting(object):
             text.set_size(18)
 
             #All other lines
-            lines2 = line6 + line7 + line8 + line9 + line10
+            lines2 = line9 + line10  + line6 + line7 + line8
             labels2 = [l.get_label() for l in lines2]
             legend2 = ax.legend(lines2, labels2, loc=loc2,fontsize=legend_font,
                                frameon=False, numpoints=1,ncol=1)
@@ -264,6 +265,7 @@ class Plotting(object):
             legend2.legendHandles[3]._legmarker.set_markersize(8)  # STJ marker size in legend
 
 
+
         #make secondary axis blue
         #ax3.spines['right'].set_color('#0033ff')
         ax3.yaxis.label.set_color('#0033ff')
@@ -271,7 +273,7 @@ class Plotting(object):
 
 
         if (plot_type == 'single') or (hemi == 'SH'):
-            ax.set_ylabel(r'$\theta$',rotation=0, fontsize=label_font )
+            ax.set_ylabel(r'$\theta$ (K)',rotation=0, fontsize=label_font )
             #turn off other label axis
             ax3.set_yticklabels('')
         if (plot_type == 'single') or (hemi == 'NH'):
@@ -296,10 +298,11 @@ class Plotting(object):
                 start, end, inc = -90, 1, 10
                 ax.set_xlim(-90,0)
 
-        ax.xaxis.set_ticks(np.arange(start, end, inc))
-        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%1.0f'))
-
-
+        lat_array = np.arange(start, end, inc)
+        lat_plot = draw_deg(lat_array)
+        ax.xaxis.set_ticks(lat_array)
+        ax.xaxis.set_ticklabels(lat_plot)
+        #ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%1.0f'))
 
         if plot_type == 'subplot_all': 
             if hemi == 'NH':
@@ -308,10 +311,10 @@ class Plotting(object):
                 # [Left,Bottom,Width,Height] - zonal mean wind
                 ax.set_position([pos.x0, pos.y0, pos.width, pos.height])
                 #Annontate
-                ax.text(-5,400,'b)',fontsize=14,fontweight='bold')
+                ax.text(-6,400,'b)',fontsize=14,fontweight='bold')
                 
             else:
-                ax.text(-104,400,'a)',fontsize=14,fontweight='bold')
+                ax.text(-105,400,'a)',fontsize=14,fontweight='bold')
  
         print('  Peaks at: ', self.phi_2PV[self.local_elem], 'ST Jet at :', self.STJ_lat)
 
@@ -346,16 +349,17 @@ def plot_validation_for_paper(Method, u_zonal, method_choice,
     PlottingObject = Plotting(Method, method_choice)
     if plot_subplot == False:
 
+        print 'Plotting single hemisphere only'
         fig = plt.figure(figsize=(12, 12))
         ax = fig.add_axes([0.06, 0.1, 0.85, 0.88])
         ax_cb = fig.add_axes([0.09, 0.05, 0.60, 0.02])
         plot_cbar = True
 
-        PlottingObject.poly_2PV_line(hemi, u_zonal, lat_elem, time_loop, fig, ax, plot_cbar, ax_cb, 
+        PlottingObject.poly_2PV_line(hemi, u_zonal, lat_elem, time_loop, fig, ax, plot_cbar, ax_cb, bounds,
                                      plot_type = 'single', pause=False, click=True, save_plot=True)
     else:
 
-        print 'Plotting subplot'
+        print 'Plotting NH and SH'
 
         fig = plt.figure(figsize=(10, 10))
         #SH
@@ -367,14 +371,15 @@ def plot_validation_for_paper(Method, u_zonal, method_choice,
 
         plot_cbar = True 
         # SH and colorbar
-        PlottingObject.poly_2PV_line('SH', u_zonal, lat_elem, time_loop, fig, ax1, plot_cbar, ax_cb,
+        PlottingObject.poly_2PV_line('SH', u_zonal, lat_elem, time_loop, fig, ax1, plot_cbar, ax_cb,bounds,
                                            plot_type = 'subplot',pause=False, click=False, save_plot=False)
 
         # NH
         PlottingObject2 = Plotting(Method_NH, method_choice)
         plot_cbar = False
-        PlottingObject2.poly_2PV_line('NH', u_zonal_NH, lat_elem_NH, time_loop, fig, ax2, plot_cbar, None, 
+        PlottingObject2.poly_2PV_line('NH', u_zonal_NH, lat_elem_NH, time_loop, fig, ax2, plot_cbar, None, bounds,
                                             plot_type = 'subplot',pause=False, click=True, save_plot=True)
+        pdb.set_trace()
 
 def main():
 
@@ -456,10 +461,10 @@ def MakeOutputFile(filename, data, dim_name, var_name, var_type):
     print('created file: ', filename)
 
 
-def plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,time,fname_out,save_plot,make_single):
+def plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,bounds,cmap,time,fname_out,save_plot,make_single):
 
-        bounds = np.arange(-50, 51, 5)
-        draw_map_model(plt, ax1, ax_cb, uwnd, var['lon'], var['lat'], '', '', 'BuRd',
+
+        draw_map_model(plt, ax1, ax_cb, uwnd, var['lon'], var['lat'], '', '', cmap,
                        bounds, None, True, domain=None, name_cbar=None,
                        coastline=True)
 
@@ -534,7 +539,7 @@ def plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,time,fname_out,save_plot,mak
         if save_plot :
           plt.savefig(fname_out)
           print 'Saved file: ', fname_out
-          #plt.show()
+          plt.show()
           plt.close()
 
         #pdb.set_trace()
@@ -565,7 +570,7 @@ def make_u_plot(u_fname, make_single, make_with_metric,
     assert os.path.isfile(u_fname), 'File '+ u_fname +' does not exist.' 
     var = openNetCDF4_get_data(u_fname)
 
-    lev250 = FindClosestElem(25000, var['lev'])[0]
+    lev250 = FindClosestElem(25000, var['lev'],0)[0]
 
     #Which time elements are of interest?
     #t_elem = [431,440]
@@ -605,15 +610,22 @@ def make_u_plot(u_fname, make_single, make_with_metric,
             # colour bar
             ax_cb = plt.subplot2grid((37, 26), (35, 0), rowspan=2, colspan=37)
 
+            bounds = np.arange(-50,51,5)
+            cm = Colormap()
+            cmap = cm.cmap_linear('#0033ff', '#FFFFFF', '#990000') #blue/red
+            #cmap = pylab.cm.get_cmap('RdBu_r')
+
             PlottingObject = Plotting(Method, 'cby')
             plot_cbar = False
-            PlottingObject.poly_2PV_line('SH', u_zonal, lat_elem_SH, time, fig, ax1, plot_cbar, ax_cb, plot_type = 'subplot_all',pause=False, click=False, save_plot=False)
+            PlottingObject.poly_2PV_line('SH', u_zonal, lat_elem_SH, time, fig, ax1, plot_cbar, ax_cb, bounds,cmap,
+                                          plot_type = 'subplot_all',pause=False, click=False, save_plot=False)
             # NH
             PlottingObject2 = Plotting(Method_NH, method_choice)
-            PlottingObject2.poly_2PV_line('NH', u_zonal_NH, lat_elem_NH, time, fig, ax2, plot_cbar, None, plot_type = 'subplot_all',pause=False, click=False, save_plot=False)
+            PlottingObject2.poly_2PV_line('NH', u_zonal_NH, lat_elem_NH, time, fig, ax2, plot_cbar, None, bounds,cmap,
+                                          plot_type = 'subplot_all',pause=False, click=False, save_plot=False)
  
             save_plot = True
-            plot_u(plt,ax3,ax4,ax_cb,jet_NH,jet_SH,uwnd,var,time,fname_out,save_plot,make_single=False) 
+            plot_u(plt,ax3,ax4,ax_cb,jet_NH,jet_SH,uwnd,var,bounds,cmap,time,fname_out,save_plot,make_single=False) 
 
    #pdb.set_trace()
 

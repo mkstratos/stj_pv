@@ -119,16 +119,16 @@ def FindClosest(in_val, in_list):
     return closest(in_val, in_list)
 
 
-def FindClosestElem(in_val, in_list):
+def FindClosestElem(in_val, in_list, time_loop):
     'Find the location of the elements in in_list that is closest to in_val'
+    #note: time loop is only used in this context to debug algorithm
     value = FindClosest(in_val=in_val, in_list=in_list)
     element = np.where(value == in_list)[0]
 
     # print value, element
 
-    if len(element) != 1:
-        print('Cant find closest element')
-        pdb.set_trace()
+    #if len(element) != 1:
+    #    print('Cant find closest element for time '+ str(time_loop))
 
     return element
 

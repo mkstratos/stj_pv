@@ -25,7 +25,7 @@ mpl.rc('text', usetex=False)  # turning this flag on/off changes g=hatching with
 # mpl.rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
 
 
-def draw_map_model(plt, ax, ax_cb, data, lon, lat, title, cbar_title, colour, bounds,
+def draw_map_model(plt, ax, ax_cb, data, lon, lat, title, cbar_title, cmap, bounds,
                    file_name, show_plot, domain=None, name_cbar=None, coastline=False):
     'Plot a map, latex flags off when using unicode for deg'
 
@@ -57,7 +57,6 @@ def draw_map_model(plt, ax, ax_cb, data, lon, lat, title, cbar_title, colour, bo
     lon2d, lat2d = np.meshgrid(lon, lat)  # meshed lon lat needed for basemap
     x, y = m(lon2d, lat2d)                # apply mesh
 
-    cmap = get_cmap_for_maps(colour=colour, bounds=bounds)
     norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
 
     # make the plot
@@ -69,8 +68,8 @@ def draw_map_model(plt, ax, ax_cb, data, lon, lat, title, cbar_title, colour, bo
                                      orientation='horizontal')
     cbar.set_label(cbar_title)
 
-    if colour != 'BuRd' or colour != 'BuRd_r':
-        cmap.set_under('white')
+
+    cmap.set_under('white')
     mpl.rc('text', usetex=False)  # turning this flag on/off changes g=hatching with eps
     fix_ax_label = gfdl_lon_change_map(ax=ax)
     fix_ax_label = gfdl_lat_change_map(ax=ax)
