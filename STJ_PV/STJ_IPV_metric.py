@@ -10,6 +10,8 @@ import copy as copy
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.stats import mstats, t
+import math
+from matplotlib.ticker import MultipleLocator
 # Dependent code
 from STJ_PV_main import Directory
 from general_plotting import draw_map_model
@@ -1345,14 +1347,16 @@ def calc_metric(IPV_data, diri, u_fname):
                 #test_with_plots = False
  
                 #for specific test cases create a 2 figure subplot
-                if   ((time_loop >= 419 and time_loop <= 421) #DJF 2014
-                  or (time_loop >= 425 and time_loop <= 427) #JJA 2014 
-                  or (time_loop >= 431 and time_loop <= 433) #DJF 2015 
-                  or (time_loop >= 437 and time_loop <= 439)): #JJA 2015 
-                #if time_loop == 439:
+                #if   ((time_loop >= 419 and time_loop <= 421) #DJF 2014
+                #  or (time_loop >= 425 and time_loop <= 427) #JJA 2014 
+                #  or (time_loop >= 431 and time_loop <= 433) #DJF 2015 
+                #  or (time_loop >= 437 and time_loop <= 439)): #JJA 2015 
+                if (Method.best_guess_cby < -40):
+                     print 'time ', time_loop, ' of interest ', Method.best_guess_cby
+                     date_string = DateFromElem(time_loop, 1979)
+                if time_loop == 168:
                   plot_subplot = True
                   test_with_plots = True
-
                   if hemi == 'NH':
                     #store NH object for plotting
                     Method_NH = copy.deepcopy(Method)
@@ -1372,6 +1376,7 @@ def calc_metric(IPV_data, diri, u_fname):
                     method_opt = ['cby', 'fd']
                     method_choice = method_opt[0]
 
+  
                     plot_validation_only = False
                     if plot_validation_only:
                         print('plot for: hemi', hemi, ', time: ', time_loop)
@@ -1397,6 +1402,14 @@ def calc_metric(IPV_data, diri, u_fname):
         MakeOutfileSavez_derived(filename, phi_2PV_out,
                                  theta_2PV_out, dth_out, dth_lat_out, d2th_out)
 
+    print 'NH mean position: ', jet_best_guess[:, 0, 0, 0].mean()
+    print 'SH mean position: ', jet_best_guess[:, 0, 1, 0].mean()
+
+    # seasonally seperate the data
+    Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
+                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:])
+
+    pdb.set_trace()
     do_correlations = False
     if do_correlations:
       print 'Get correlations'
@@ -1408,10 +1421,6 @@ def calc_metric(IPV_data, diri, u_fname):
 
       Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], jet_H_lev[:,0,:],
                                jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0], crossing_lat, group)
-
-      # seasonally seperate the data
-      Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
-                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:])
 
       # calendar values
       Method.SeasonCorrelations(group)
@@ -1451,6 +1460,17 @@ def calc_metric(IPV_data, diri, u_fname):
     pdb.set_trace()
 
     return output_plotting
+
+def DateFromElem(elem, first_year):
+  'For the given input element what is the date. year*12 + month = elem -1'
+  month_name = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  year_num = math.floor((elem)/12.0)  #year_num = 0 is first year of data
+  year_date = first_year + year_num 
+  month_num = int((elem)-(12.*year_num))
+  month = month_name[month_num] #month 0 is Jan
+  print 'Date is: ' +  str(year_date) + ' ' + str(month)
+
+
 
 # ------------------------
 # Testing functions only
@@ -1680,26 +1700,68 @@ def plot_seasonal_stj_ts(output, cross, STJ_year):
 
     fig = plt.figure(figsize=(14, 8))
     ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
-    ax.plot(STJ_year['DJF'][:, 0], 'blue', label='NH Winter' +
-            ('  {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['JJA'][:, 1], 'blue', label='SH Winter' +
-            (' {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 1])), ls=' ', marker='x')
-    ax.plot(STJ_year['MAM'][:, 0], 'green', label='NH Spring' +
-            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['SON'][:, 1], 'green', label='SH Spring' +
-            (' {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 1])), ls=' ', marker='x')
-    ax.plot(STJ_year['JJA'][:, 0], 'red', label='NH Summer' +
-            ('  {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['DJF'][:, 1], 'red', label='SH Summer' +
-            (' {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 1])), ls=' ', marker='x')
-    ax.plot(STJ_year['SON'][:, 0], 'orange', label='NH Autumn' +
-            ('  {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['MAM'][:, 1], 'orange', label='SH Autumn' +
-            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 1])), ls=' ', marker='x')
-    plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1), numpoints=1)
+    ax.plot(STJ_year['DJF'][:, 0], 'blue', label='NH Winter' +             ('  {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['JJA'][:, 1], 'blue', label='SH Winter' +             (' {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['MAM'][:, 0], 'green', label='NH Spring' +            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['SON'][:, 1], 'green', label='SH Spring' +           (' {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['JJA'][:, 0], 'red', label='NH Summer' +              ('  {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['DJF'][:, 1], 'red', label='SH Summer' +            (' {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['SON'][:, 0], 'orange', label='NH Autumn' +            ('  {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['MAM'][:, 1], 'orange', label='SH Autumn' +            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 1])), ls=' ', marker='x')
+    #plt.xticks(np.arange(0, 450, 24))
+    plt.xticks(np.arange(0, 450, 24),np.arange(1979, 2016, 2))
+    plt.yticks(np.arange(-50, 51, 10))
+    minorLocator   = MultipleLocator(6)
+    ax.xaxis.set_minor_locator(minorLocator)
+    minorLocator   = MultipleLocator(5)
+    ax.yaxis.set_minor_locator(minorLocator)
+    plt.legend(loc=7, ncol=4, bbox_to_anchor=(0.982, -0.1), numpoints=1)
     plt.savefig('{}/index_ts_year.eps'.format(diri.plot_loc))
-    #plt.show()
+    plt.show()
     plt.close()
+
+    pdb.set_trace()
+    #plot a cut down section
+    start,end = 216, 288
+    fig = plt.figure(figsize=(8, 4))
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
+    x = np.arange(start, end, 1)
+    ax.plot(x,STJ_year['DJF'][start-1:end-1, 0], 'blue',  ls=' ', marker='x')
+    ax.plot(x,STJ_year['MAM'][start-1:end-1, 0], 'green', ls=' ', marker='x')
+    ax.plot(x,STJ_year['JJA'][start-1:end-1, 0], 'red',   ls=' ', marker='x')
+    ax.plot(x,STJ_year['SON'][start-1:end-1, 0], 'orange',ls=' ', marker='x')
+    plt.xticks(np.arange(216,288+1, 12),np.arange(1997, 2004, 1))
+    ax.set_xlim(start, end)
+    plt.yticks(np.arange(15, 45+1, 5))
+    minorLocator   = MultipleLocator(3)
+    ax.xaxis.set_minor_locator(minorLocator)
+    minorLocator   = MultipleLocator(2)
+    ax.yaxis.set_minor_locator(minorLocator)
+    plt.savefig('{}/index_ts_year_{}-{}_NH.eps'.format(diri.plot_loc,start,end))
+    plt.show()
+    plt.close()
+
+    start,end = 216, 288
+    fig = plt.figure(figsize=(8, 4))
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
+    x = np.arange(start, end, 1)
+    ax.plot(x,STJ_year['JJA'][start-1:end-1, 1], 'blue',  ls=' ', marker='x')
+    ax.plot(x,STJ_year['SON'][start-1:end-1, 1], 'green', ls=' ', marker='x')
+    ax.plot(x,STJ_year['DJF'][start-1:end-1, 1], 'red',   ls=' ', marker='x')
+    ax.plot(x,STJ_year['MAM'][start-1:end-1, 1], 'orange',ls=' ', marker='x')
+    plt.xticks(STJ_year['DJF'][start-1:end-1, 0],np.arange(1997, 2003+1, 12))
+    plt.xticks(np.arange(216,288+1, 12),np.arange(1997, 2004, 1))
+    ax.set_xlim(start, end)
+    plt.yticks(np.arange(-45, -15+1, 5))
+    minorLocator   = MultipleLocator(3)
+    ax.xaxis.set_minor_locator(minorLocator)
+    minorLocator   = MultipleLocator(2)
+    ax.yaxis.set_minor_locator(minorLocator)
+    plt.savefig('{}/index_ts_year_{}-{}_SH.eps'.format(diri.plot_loc,start,end))
+    plt.show()
+    plt.close()
+
+
 
     # plot the crossing points
 
