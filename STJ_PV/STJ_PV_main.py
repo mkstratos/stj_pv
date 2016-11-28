@@ -73,17 +73,13 @@ class Experiment(object):
         # Save: Run and save data. Open: Open data from previous run
         # RunNotSave: run code but do not save output
         RunFlag = ['Open', 'Save', 'RunNotSave']
-        self.RunOpt = RunFlag[1]
+        self.RunOpt = RunFlag[0]
 
         # Using daily or monthly data? Code designed around monthly data
         time_unit_opt = ['dd', 'mm']
         self.time_units = time_unit_opt[0]
 
-
-        self.TestDaily = True
-        if self.TestDaily:
-          self.test_month = [4,5]  #may (4) and june (5)
-
+        self.test_daily = True
 
         # Flag options for different data use. In this case model output or ERA data
         data_options = ['GFDL', 'Era']
@@ -102,12 +98,14 @@ class Experiment(object):
             time_syn = '_monthly.nc'
             short_title = '79_15.nc'
             u_name,v_name = 'var131','var132'
+            self.end_time = 444 
         else:
             #testing subset of data only - May June daily generated with cdo
             path = "{}{}".format(self.diri.data_loc, 'Data/ERA_INT/1979_2015/Daily/')
             time_syn = '_daily.nc'
             short_title = '_79_15_daily_May_June.nc'
             u_name,v_name = 'u','v'
+            self.end_time = 2257  #May and June daily data from 1979-2015
 
         self.u_fname = "{}{}".format(path, 'u'+short_title)
         self.v_fname = "{}{}".format(path, 'v'+short_title)
@@ -123,7 +121,6 @@ class Experiment(object):
 
         # Data window to use
         self.start_time = 0  # first month of data to use from file
-        self.end_time = 443+1  # last month of data to use from file +1
         self.path = path
 
 
@@ -148,7 +145,7 @@ def main():
 
     file_type_opt = ['.nc', '.p']          # nc file or pickle
     file_type = file_type_opt[0]
-    if Exp.TestDaily:
+    if Exp.test_daily:
         fileIPV_1 = Exp.path + 'IPV_data_daily'
         fileIPV_2 = Exp.path + 'IPV_data_u_H_daily'  
     else:
@@ -157,7 +154,7 @@ def main():
 
     if (Exp.RunOpt == 'Save') or (Exp.RunOpt == 'RunNotSave'):
         # init the object
-        STJ_PV = Generate_IPV_Data(Exp,Exp.test_month)
+        STJ_PV = Generate_IPV_Data(Exp)
         # Open the data
         STJ_PV.OpenFile()
         # Calculate the thermal definition of tropopause height
@@ -172,7 +169,7 @@ def main():
         STJ_PV.open_ipv_data(fileIPV_1, fileIPV_2, file_type)
 
         # Now that IPV has been calculated - calculate the STJ metric
-        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri,Exp.u_fname, Exp.diri.data_loc)
+        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri,Exp.u_fname, Exp.diri.data_loc, Exp.test_daily)
 
         pdb.set_trace()
         # STJ_NH, STJ_SH = STJ_PV.Get_uwind_strength()

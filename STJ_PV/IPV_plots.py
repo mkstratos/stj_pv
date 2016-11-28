@@ -550,10 +550,9 @@ def make_u_plot(u_fname, make_single, make_with_metric,
                 u_zonal=None, u_zonal_NH=None, Method=None, Method_NH=None, 
                 lat_elem_SH=None, lat_elem_NH=None,
                 STJ_lat = None,
-                method_choice=None, time=None ):
+                method_choice=None, time=None,test_daily=None ):
 
     open_data = False
-
     if open_data:
         #open jet data from file
         filename = '{}/STJ_data.nc'.format(data_out_dir)
@@ -576,9 +575,11 @@ def make_u_plot(u_fname, make_single, make_with_metric,
     #t_elem = [431,440]
     #for t in range(len(t_elem)):
 
-
-    uwnd = var['var131'][time, lev250, :, :]
-       
+    if 'var131' in var:
+      uwnd = var['var131'][time, lev250, :, :]
+    else:
+      uwnd = var['u'][time, lev250, :, :]
+     
     if make_single:
             fname_out = '{}/uwind_{}_with_wind.eps'.format(plot_dir, t_elem[t])
 

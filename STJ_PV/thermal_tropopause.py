@@ -99,9 +99,8 @@ def TropopauseHeightLevel(T_spline, P_spline, tck, T_orig, p_orig, lat):
     pressure_tropopause = P_spline[TropHeightIndex]
     temperature_tropopause = T_spline[TropHeightIndex]
 
-    test_plot = True
+    test_plot = False
     if test_plot:
-        pdb.set_trace()
         TestTropoHeightPlot(T_spline, P_spline, dTdz, pressure_tropopause)
 
     return TropHeightIndex, pressure_tropopause, temperature_tropopause

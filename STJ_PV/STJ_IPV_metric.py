@@ -1260,7 +1260,7 @@ def T_to_theta_for_plotting(data_loc):
 
     return theta_val,  P_spline
 
-def calc_metric(IPV_data, diri, u_fname,data_loc):
+def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
     'Input assumed to be a dictionary'
 
     output_plotting = {}
@@ -1273,9 +1273,11 @@ def calc_metric(IPV_data, diri, u_fname,data_loc):
 
     # Get theta level of thermal tropopause height
     Method.TropopauseTheta()
-    theta_zonal, pres  = T_to_theta_for_plotting(data_loc)
-
-    plot_thermap_trop_vs_pressure(IPV_data,Method.TropH_theta, theta_zonal,pres)
+ 
+    plot_trop = False
+    if plot_trop:
+        theta_zonal, pres  = T_to_theta_for_plotting(data_loc)
+        plot_thermap_trop_vs_pressure(IPV_data,Method.TropH_theta, theta_zonal,pres)
 
 
     # Flag to assign if using zonal or run code along multiple longitude slices.
@@ -1471,7 +1473,7 @@ def calc_metric(IPV_data, diri, u_fname,data_loc):
                 if (Method.best_guess_cby < -40):
                      print 'time ', time_loop, ' of interest ', Method.best_guess_cby
                      date_string = DateFromElem(time_loop, 1979)
-                if time_loop >1000: #== 168:
+                if time_loop  > 0: #== 168:
                   plot_subplot = True
                   test_with_plots = True
                   if hemi == 'NH':
@@ -1510,7 +1512,7 @@ def calc_metric(IPV_data, diri, u_fname,data_loc):
                                     Method=Method, Method_NH=Method_NH, 
                                     lat_elem_SH=lat_elem, lat_elem_NH = lat_elem_NH,
                                     STJ_lat = jet_best_guess[time_loop,0,:,0],
-                                    method_choice=method_choice, time=time_loop )
+                                    method_choice=method_choice, time=time_loop, test_daily=test_daily )
                        # pdb.set_trace()
 
     Method.trends_annual(jet_best_guess[:, 0, :, 0], jet_intensity[:, 0, :, 0],
