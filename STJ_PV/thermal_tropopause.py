@@ -66,7 +66,7 @@ def TropopauseHeightLevel(T_spline, P_spline, tck, T_orig, p_orig, lat):
     Assumes data is spline fit with monotonically incresing pressure.
     Assumes data is in hPa.
     """
-
+    
     dTdz = np.zeros(len(P_spline - 1))
     rho = np.zeros(len(P_spline - 1))
     rate_change = np.zeros(len(P_spline - 1))
@@ -99,8 +99,9 @@ def TropopauseHeightLevel(T_spline, P_spline, tck, T_orig, p_orig, lat):
     pressure_tropopause = P_spline[TropHeightIndex]
     temperature_tropopause = T_spline[TropHeightIndex]
 
-    test_plot = False
+    test_plot = True
     if test_plot:
+        pdb.set_trace()
         TestTropoHeightPlot(T_spline, P_spline, dTdz, pressure_tropopause)
 
     return TropHeightIndex, pressure_tropopause, temperature_tropopause

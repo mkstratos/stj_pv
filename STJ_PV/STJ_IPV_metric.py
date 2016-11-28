@@ -9,7 +9,8 @@ from numpy.polynomial import chebyshev as cby
 import copy as copy
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from scipy.stats import mstats, t
+from scipy.stats import mstats, t, linregress
+from scipy import linalg
 import math
 from matplotlib.ticker import MultipleLocator
 # Dependent code
@@ -17,8 +18,10 @@ from STJ_PV_main import Directory
 from general_plotting import draw_map_model
 from general_functions import (openNetCDF4_get_data,
                                apply_mask_inf, MeanOverDim, FindClosestElem)
+from calc_ipv import theta
 import calc_ipv  # assigns th_levels_trop
-from IPV_plots import Plotting, PlotCalendarTimeseries, PlotPC,plot_validation_for_paper, make_u_plot
+from IPV_plots import Plotting, PlotCalendarTimeseries, PlotPC,plot_validation_for_paper 
+from IPV_plots import make_u_plot,plot_thermap_trop_vs_pressure
 # partial correlation code forked from
 # https://gist.github.com/fabianp/9396204419c7b638d38f
 from partial_corr import partial_corr
@@ -399,6 +402,64 @@ class Method_2PV_STJ(object):
           self.jet_max_wind_fd = slice_at_jet_fd[jet_max_wind_elem_fd]
           self.jet_max_theta_fd = self.theta_domain[jet_max_wind_elem_fd]
 
+
+    def trends_annual(self, pos,intensity,level,height):
+    #null hypothesis is that the slope is zero
+        hemi = ['NH','SH']
+        time = (len(pos[:,0])/12)/10  #units per decade
+        print 'Trends in the annual timeseries'
+        for hemi_count in xrange(2):
+            print hemi[hemi_count]
+            slope, p_val = Get_slope(pos[:,hemi_count])
+            print 'Position',slope/time , ' deg per decade with p val:',  p_val
+            slope, p_val = Get_slope(intensity[:,hemi_count])
+            print 'Intensity', slope/time, ' m/s per decade with p val:',  p_val
+            slope, p_val = Get_slope(level[:,hemi_count])
+            print 'Level', slope/time, ' K per decade with p val:',  p_val
+            slope, p_val = Get_slope(height[:,hemi_count])
+            print 'Height',slope/time, ' K per decade with p val:',  p_val
+
+        save_data = False
+        if save_data:
+            #data for testing trends
+            filename = '/home/links/pm366/Documents/Data/STJ_ts.nc'
+            f = io.netcdf.netcdf_file(filename, mode='w')
+
+            f.createDimension('hemi', 2)
+            hemi = f.createVariable('hemi', 'f', ('hemi',))
+            hemi[0],hemi[0] = 0, 1
+            hemi.string = 'NH(0), SH(1)'
+  
+            f.createDimension('time',  pos.shape[0])
+            time = f.createVariable('time', 'f', ('time',))
+            time[:] =  np.arange(0,pos.shape[0],1)
+            time.range = 'Start date = Jan 1979, end is Dec 2015'
+
+            # STJ metric
+            STJ_lat = f.createVariable('STJ_lat', 'f', ('time','hemi',))
+            STJ_lat[:,:] = pos[:,:]
+            f.close()
+        pdb.set_trace()
+
+
+    def trends_season(self):
+        time = (len(self.STJ_seasons['DJF'][:,0])/3.0)/10.0 #seasonal change per decade time = years/10
+        hemi = ['NH','SH']
+        print 'Trends in the seasons'
+        for hemi_count in xrange(2):
+            print hemi[hemi_count]
+            for season in ['DJF', 'MAM', 'JJA', 'SON']:
+                print season
+                slope, p_val = Get_slope(self.STJ_seasons[season][:,hemi_count])
+                print 'Position',slope/time , ' deg seasonal change per decade with p val:',  p_val
+                slope, p_val = Get_slope(self.STJ_I_seasons[season][:,hemi_count])
+                print 'Intensity', slope/time, ' m/s seasonal change per decade with p val:',  p_val
+                slope, p_val = Get_slope(self.STJ_th_seasons[season][:,hemi_count])
+                print 'Level', slope/time, ' K seasonal change per decade with p val:',  p_val
+                slope, p_val = Get_slope(self.H_th_seasons[season][:,hemi_count])
+                print 'Height',slope/time, ' K seasonal change per decade with p val:',  p_val
+        pdb.set_trace()
+
     def AnnualCorrelations(self, best_guess_cby, jet_H_lev, jet_max_wind_cby, jet_max_theta_cby,
                            crossing, group):
 
@@ -414,6 +475,9 @@ class Method_2PV_STJ(object):
 
 
         self.AnnualCC = GetCorrelation(hemi, num_var, var_name, data)
+        print 'Correlations:' 
+        print 'NH:', self.AnnualCC[:,:,0]
+        print 'SH:', self.AnnualCC[:,:,1]
 
         # Now get the partial correlation
         pc = np.zeros([num_var, num_var, 2])
@@ -421,6 +485,18 @@ class Method_2PV_STJ(object):
         pc[:, :, 1] = partial_corr(data[:, :, 1])
 
         self.AnnualPC = pc
+        print 'Partial Correlations all four metrics: '
+        print 'NH:', pc[:,:,0]
+        print 'SH:', pc[:,:,1]
+
+        print 'Partial Correlations only three metrics: '
+        var_name, num_var, hemi = plot_group_info('core')
+        pc_3_var = np.zeros([num_var, num_var, 2])
+        pc_3_var[:, :, 0] = partial_corr(data[:, 0:3, 0])
+        pc_3_var[:, :, 1] = partial_corr(data[:, 0:3, 1])
+        print 'NH:', pc_3_var[:,:,0]
+        print 'SH:', pc_3_var[:,:,1]
+        self.AnnualPC_3_var = pc_3_var
 
     def MonthlyCorrelations(self, best_guess_cby, jet_H_lev, jet_max_wind_cby,
                             jet_max_theta_cby, crossing, group):
@@ -684,23 +760,23 @@ class Method_2PV_STJ(object):
         theta['JJA'] = STJ_th_seasons[:, :, 2]
         theta['SON'] = STJ_th_seasons[:, :, 3]
 
-        self.STJ_seasons = output
-        self.cross_seasons = cross
-        self.STJ_I_seasons = intensity
-        self.STJ_th_seasons = theta
-
         STJ_year = {}
         STJ_year['DJF'] = STJ_DJF
         STJ_year['MAM'] = STJ_MAM
         STJ_year['JJA'] = STJ_JJA
         STJ_year['SON'] = STJ_SON
-        self.STJ_year = STJ_year
 
         H_th = {}
         H_th['DJF'] = STJ_H_lev_seasons[:, :, 0]  # month, hemi, season
         H_th['MAM'] = STJ_H_lev_seasons[:, :, 1]
         H_th['JJA'] = STJ_H_lev_seasons[:, :, 2]
         H_th['SON'] = STJ_H_lev_seasons[:, :, 3]
+
+        self.STJ_seasons = output
+        self.cross_seasons = cross
+        self.STJ_I_seasons = intensity
+        self.STJ_th_seasons = theta
+        self.STJ_year = STJ_year
         self.H_th_seasons = H_th
 
 
@@ -745,7 +821,7 @@ class Method_2PV_STJ(object):
           print 'Need to change plot for none as input'
         else:
             PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean,
-                               STJ_cal_th_mean, var_4, mean_val, self.AnnualPC,group)
+                               STJ_cal_th_mean, var_4, self.AnnualPC_3_var,mean_val, self.AnnualPC,group)
 
     def validate_near_mean(self, hemi_count, season, input_string, hemi, time_loop):
 
@@ -900,6 +976,20 @@ class Method_2PV_STJ(object):
         plt.savefig(filename)
         #plt.show()
         pdb.set_trace()
+
+
+
+def Get_slope(timeseries):
+    time = np.arange(0,len(timeseries))
+    slope, intercept, r_value, p_value, std_err = linregress(timeseries, time)
+    #beta_i = linalg.lstsq(pos[:,0], time)[0]
+    #pdb.set_trace()
+
+    #if p<=0.05 then reject the null.
+    if p_value > 0.05: 
+      slope, p_value = 0.0,p_value
+
+    return slope, p_value
 
 def IPV_get_2PV(data, pv_line,time_loop):
 
@@ -1148,8 +1238,29 @@ def MakeOutfileSavez_derived(filename, phi_2PV, theta_2PV, dth, dth_lat, d2th):
 
     pdb.set_trace()
 
+def T_to_theta_for_plotting(data_loc):
 
-def calc_metric(IPV_data, diri, u_fname):
+    path = "{}{}".format(data_loc, 'Data/ERA_INT/1979_2015/')
+    t_fname = "{}{}".format(path, 't79_15.nc')
+
+    var = openNetCDF4_get_data(t_fname)
+
+    T_zonal =  MeanOverDim(data=var['t'], dim=3)
+
+    P_spline = np.arange(10, 1001, 10)
+    T_spline = np.zeros([T_zonal.shape[0],len(P_spline) ,T_zonal.shape[2]])
+
+    for time in range(T_zonal.shape[0]):
+        for lat in range(T_zonal.shape[2]):
+           # use hPa instead of Pa
+           tck = interpolate.splrep(var['lev'], T_zonal[time, :, lat])
+           T_spline[time,:,lat] = interpolate.splev(P_spline, tck, der=0)
+
+    theta_val = theta(T_spline,P_spline*100)
+
+    return theta_val,  P_spline
+
+def calc_metric(IPV_data, diri, u_fname,data_loc):
     'Input assumed to be a dictionary'
 
     output_plotting = {}
@@ -1162,6 +1273,10 @@ def calc_metric(IPV_data, diri, u_fname):
 
     # Get theta level of thermal tropopause height
     Method.TropopauseTheta()
+    theta_zonal, pres  = T_to_theta_for_plotting(data_loc)
+
+    plot_thermap_trop_vs_pressure(IPV_data,Method.TropH_theta, theta_zonal,pres)
+
 
     # Flag to assign if using zonal or run code along multiple longitude slices.
     # Default is zonal mean. Lon slices untested
@@ -1311,6 +1426,8 @@ def calc_metric(IPV_data, diri, u_fname):
                 theta_2PV_out[time_loop, hemi_count, 0:len(
                     Method.phi_2PV)] = Method.theta_2PV
 
+                #
+
 
                 # restricted in phi
                 # dth_lat_out[time_loop, hemi_count,
@@ -1354,7 +1471,7 @@ def calc_metric(IPV_data, diri, u_fname):
                 if (Method.best_guess_cby < -40):
                      print 'time ', time_loop, ' of interest ', Method.best_guess_cby
                      date_string = DateFromElem(time_loop, 1979)
-                if time_loop == 168:
+                if time_loop >1000: #== 168:
                   plot_subplot = True
                   test_with_plots = True
                   if hemi == 'NH':
@@ -1396,6 +1513,8 @@ def calc_metric(IPV_data, diri, u_fname):
                                     method_choice=method_choice, time=time_loop )
                        # pdb.set_trace()
 
+    Method.trends_annual(jet_best_guess[:, 0, :, 0], jet_intensity[:, 0, :, 0],
+           jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],)
 
     if testing_make_output:
         filename = '{}/STJ_PV_metric_derived.npz'.format(data_dir)
@@ -1409,8 +1528,9 @@ def calc_metric(IPV_data, diri, u_fname):
     Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
                          jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:])
 
-    pdb.set_trace()
-    do_correlations = False
+    Method.trends_season()
+
+    do_correlations = True
     if do_correlations:
       print 'Get correlations'
       group_opt = ['core','x','h']
@@ -1717,10 +1837,9 @@ def plot_seasonal_stj_ts(output, cross, STJ_year):
     ax.yaxis.set_minor_locator(minorLocator)
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(0.982, -0.1), numpoints=1)
     plt.savefig('{}/index_ts_year.eps'.format(diri.plot_loc))
-    plt.show()
+    #plt.show()
     plt.close()
 
-    pdb.set_trace()
     #plot a cut down section
     start,end = 216, 288
     fig = plt.figure(figsize=(8, 4))
@@ -1738,7 +1857,7 @@ def plot_seasonal_stj_ts(output, cross, STJ_year):
     minorLocator   = MultipleLocator(2)
     ax.yaxis.set_minor_locator(minorLocator)
     plt.savefig('{}/index_ts_year_{}-{}_NH.eps'.format(diri.plot_loc,start,end))
-    plt.show()
+    #plt.show()
     plt.close()
 
     start,end = 216, 288
@@ -1758,7 +1877,7 @@ def plot_seasonal_stj_ts(output, cross, STJ_year):
     minorLocator   = MultipleLocator(2)
     ax.yaxis.set_minor_locator(minorLocator)
     plt.savefig('{}/index_ts_year_{}-{}_SH.eps'.format(diri.plot_loc,start,end))
-    plt.show()
+    #plt.show()
     plt.close()
 
 

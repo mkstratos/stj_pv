@@ -29,7 +29,7 @@ if not os.path.exists(plot_dir):
 
 class Generate_IPV_Data(object):
 
-    def __init__(self, Exp):
+    def __init__(self, Exp,test_month):
         'To avoid calling object within object assign vars of use to this routine'
         self.time_units = Exp.time_units
         self.diri = Exp.diri
@@ -38,6 +38,7 @@ class Generate_IPV_Data(object):
         self.start_time = Exp.start_time
         self.end_time = Exp.end_time
         self.file_names = {'u': Exp.u_fname, 'v': Exp.v_fname, 't': Exp.t_fname}
+        self.test_month = test_month
 
     def OpenFile(self):
         'Data assumed to be of the format [time, pressure,lat,lon]'
@@ -77,6 +78,25 @@ class Generate_IPV_Data(object):
 
         self.time = var['time'][self.start_time:self.end_time]
 
+        pdb.set_trace()
+
+        #if using a test month - isolate the months of interest.
+        start_month = self.test_month[0]
+        end_month = self.test_month[1]
+        num_months = end_month-start_month+1
+        yrs = int(len(self.time)/12)
+        blank_time =np.arange(0,yrs*12,1) 
+        isolate_months_interest = np.zeros([num_months*yrs])
+        count = 0
+        for i in xrange(yrs):
+          isolate_months_interest[count:count+num_months] = blank_time[start_month+12*i:end_month+12*i+1]
+          count =count + (end_month-start_month+1)
+
+        self.time = self.time[isolate_months_interest]
+        self.t    = self.t[isolate_months_interest.tolist(),:,:,:]
+        self.u    = self.u[isolate_months_interest.tolist(),:,:,:]
+        self.v    = self.v[isolate_months_interest.tolist(),:,:,:]
+
         print('Finished opening data')
 
     def GetThermalTropopause(self):
@@ -109,6 +129,7 @@ class Generate_IPV_Data(object):
         self.TropH = TropH
         self.TropH_pressure = TropH_pressure
         self.TropH_temp = TropH_temp
+        self.TropH_spline_p =  np.arange(10, 1001, 10) 
 
         print('Finished calculating tropopause height')
 

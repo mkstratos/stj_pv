@@ -73,18 +73,24 @@ class Experiment(object):
         # Save: Run and save data. Open: Open data from previous run
         # RunNotSave: run code but do not save output
         RunFlag = ['Open', 'Save', 'RunNotSave']
-        self.RunOpt = RunFlag[0]
+        self.RunOpt = RunFlag[1]
 
         # Using daily or monthly data? Code designed around monthly data
         time_unit_opt = ['dd', 'mm']
-        self.time_units = time_unit_opt[1]
+        self.time_units = time_unit_opt[0]
+
+
+        self.TestDaily = True
+        if self.TestDaily:
+          self.test_month = [4,5]  #may (4) and june (5)
+
 
         # Flag options for different data use. In this case model output or ERA data
         data_options = ['GFDL', 'Era']
         self.data_type = data_options[1]
 
         # Set true to check if data exists in location specified in file_loc
-        skip_server_warning = True
+        skip_server_warning = False
         file_loc = 'emps-gv1.ex.ac.uk'
         if not skip_server_warning:
             assert platform.node() == file_loc, 'Data is not on ' + platform.node()
@@ -92,21 +98,27 @@ class Experiment(object):
     def PathFilenameERA(self):
 
         if self.time_units == 'mm':
+            path = "{}{}".format(self.diri.data_loc, 'Data/ERA_INT/1979_2015/')
             time_syn = '_monthly.nc'
+            short_title = '79_15.nc'
+            u_name,v_name = 'var131','var132'
         else:
+            #testing subset of data only - May June daily generated with cdo
+            path = "{}{}".format(self.diri.data_loc, 'Data/ERA_INT/1979_2015/Daily/')
             time_syn = '_daily.nc'
+            short_title = '_79_15_daily_May_June.nc'
+            u_name,v_name = 'u','v'
 
-        path = "{}{}".format(self.diri.data_loc, 'Data/ERA_INT/1979_2015/')
-        self.u_fname = "{}{}".format(path, 'u79_15.nc')
-        self.v_fname = "{}{}".format(path, 'v79_15.nc')
-        self.t_fname = "{}{}".format(path, 't79_15.nc')
+        self.u_fname = "{}{}".format(path, 'u'+short_title)
+        self.v_fname = "{}{}".format(path, 'v'+short_title)
+        self.t_fname = "{}{}".format(path, 't'+short_title)
 
         # used a named tuple to manage the file variable label
         # (what the .nc file calls it) and
         # working letter (what this code will call the variable)
         self.var_names = {'t': data_name(letter='t', label='t'),
-                          'u': data_name(letter='u', label='var131'),
-                          'v': data_name(letter='v', label='var132'),
+                          'u': data_name(letter='u', label=u_name),
+                          'v': data_name(letter='v', label=v_name),
                           'p': data_name(letter='p', label='lev')}
 
         # Data window to use
@@ -133,14 +145,19 @@ def main():
         make_single, make_with_metric = True, False
         make_u_plot(Exp.u_fname, make_single, make_with_metric, None, None)
         pdb.set_trace()
+
     file_type_opt = ['.nc', '.p']          # nc file or pickle
     file_type = file_type_opt[0]
-    fileIPV_1 = Exp.path + 'IPV_data_79_15'      # IPV every 5K between 300-500
-    fileIPV_2 = Exp.path + 'IPV_data_u_H_79_15'  # If using pickle this file is not needed
+    if Exp.TestDaily:
+        fileIPV_1 = Exp.path + 'IPV_data_daily'
+        fileIPV_2 = Exp.path + 'IPV_data_u_H_daily'  
+    else:
+        fileIPV_1 = Exp.path + 'IPV_data_79_15'      # IPV every 5K between 300-500
+        fileIPV_2 = Exp.path + 'IPV_data_u_H_79_15'  # If using pickle this file is not needed
 
     if (Exp.RunOpt == 'Save') or (Exp.RunOpt == 'RunNotSave'):
         # init the object
-        STJ_PV = Generate_IPV_Data(Exp)
+        STJ_PV = Generate_IPV_Data(Exp,Exp.test_month)
         # Open the data
         STJ_PV.OpenFile()
         # Calculate the thermal definition of tropopause height
@@ -155,7 +172,7 @@ def main():
         STJ_PV.open_ipv_data(fileIPV_1, fileIPV_2, file_type)
 
         # Now that IPV has been calculated - calculate the STJ metric
-        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri,Exp.u_fname)
+        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri,Exp.u_fname, Exp.diri.data_loc)
 
         pdb.set_trace()
         # STJ_NH, STJ_SH = STJ_PV.Get_uwind_strength()

@@ -631,7 +631,7 @@ def make_u_plot(u_fname, make_single, make_with_metric,
 
 
 def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
-                           var_4, mean_val, PC, group):
+                           var_4, PC_3_var,mean_val, PC, group):
 
     #change latex rendering for table
     rc('text', usetex=True)
@@ -654,13 +654,13 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
     ax5 = plt.subplot2grid((9, 6), (8, 0), colspan=6)
 
 
-    ax1.set_ylabel(r'$\phi_{STJ}$  ', rotation=0, labelpad=20)
-    ax2.set_ylabel(r'$I (ms^{-1})$  ', rotation=0, labelpad=20)
-    ax3.set_ylabel(r'$\theta (K)$  ', rotation=0, labelpad=20)
+    ax1.set_ylabel(r'$\phi_{STJ}$  ', rotation=0, labelpad=22, fontsize=16)
+    ax2.set_ylabel(r'$I (ms^{-1})$  ', rotation=0, labelpad=28, fontsize=16)
+    ax3.set_ylabel(r'$\theta (K)$  ', rotation=0, labelpad=22, fontsize=16)
     if group == 'h':
-      ax4.set_ylabel(r'$H (K)$  ', rotation=0, labelpad=20)
+      ax4.set_ylabel(r'$H (K)$  ', rotation=0, labelpad=22, fontsize=16)
     if group == 'x':
-      ax4.set_ylabel(r'$x $  ', rotation=0, labelpad=20)
+      ax4.set_ylabel(r'$x $  ', rotation=0, labelpad=22, fontsize=16)
 
     store_data = np.zeros(14)
 
@@ -731,7 +731,7 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
     ax4.set_xticklabels(months_wrap)
 
     handles, labels = ax4.get_legend_handles_labels()
-    ax4.legend(handles, labels)
+    ax4.legend(handles, labels, ncol=2)
 
     ax1.set_xlim(0.5,12.5)
     ax2.set_xlim(0.5,12.5)
@@ -759,27 +759,79 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
                  '{0:.2f}'.format(PC[0, 3, 1]), '{0:.2f}'.format(PC[1, 2, 1]),
                  '{0:.2f}'.format(PC[1, 3, 1]), '{0:.2f}'.format(PC[2, 3, 1]),
                ]] 
-    print 'NH:', PC[:,:,0]
-    print 'SH:', PC[:,:,1]
 
     rowlabel = ['NH', 'SH']
     if group == 'h':
-      collabel = ['  ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
+      collabel = [' T1 ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
                   r'$r_{\phi,H}$', r'$r_{I,\theta}$', r'$r_{I,H}$', r'$r_{\theta,H}$']
     if group == 'x':
-      collabel = ['  ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
+      collabel = [' T1 ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
                   r'$r_{\phi,x}$', r'$r_{I,\theta}$', r'$r_{I,x}$', r'$r_{\theta,x}$']
 
-    #collabel = ['  ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
-    #            r'$r_{I,\theta}$']
 
     table = latex_table(celldata, rowlabel, collabel)
-    ax5.text(0.3, -.5, table, size=14)
+    ax5.text(0.1, -.5, table, size=14)
     ax5.axis('off')
 
+    #secondary table
+    celldata2 = [['{0:.2f}'.format(PC_3_var[0, 1, 0]), '{0:.2f}'.format(PC_3_var[0, 2, 0]), 
+                 '{0:.2f}'.format(PC_3_var[1, 2, 0])],
+                ['{0:.2f}'.format(PC_3_var[0, 1, 1]), '{0:.2f}'.format(PC_3_var[0, 2, 1]),
+                 '{0:.2f}'.format(PC_3_var[1, 2, 1])]
+               ] 
+
+    collabel2 = [' T2 ', r'$r_{\phi,I}$', r'$r_{\phi,\theta}$',
+                r'$r_{I,\theta}$']
+    table = latex_table(celldata2, rowlabel, collabel2)
+    ax5.text(0.65, -.5, table, size=14)
+
+
+    ax1.text(0.6,40,'a)',fontsize=16,fontweight='bold')
+    ax2.text(0.6,40,'b)',fontsize=16,fontweight='bold')
+    ax3.text(0.6,365,'c)',fontsize=16,fontweight='bold')
+    ax4.text(0.6,365,'d)',fontsize=16,fontweight='bold')
+    ax3.text(1,363,'Winter',fontsize=16,color='b')
+    ax3.text(1,342,'Summer',fontsize=16,color='r')
+    ax3.text(6.7,363,'Summer',fontsize=16,color='b')
+    ax3.text(6.7,342,'Winter',fontsize=16,color='r')
+
+    #add space between subplots
+    # [Left,Bottom,Width,Height] 
+    #for ax in [ax1,ax2,ax3,ax4,ax5]:
+    pos = ax1.get_position()
+    ax1.set_position([pos.x0, pos.y0+0.06, pos.width, pos.height])
+    pos = ax2.get_position()
+    ax2.set_position([pos.x0, pos.y0+0.04, pos.width, pos.height])
+    pos = ax3.get_position()
+    ax3.set_position([pos.x0, pos.y0+0.02, pos.width, pos.height])
+    #pos = ax4.get_position()
+    #ax4set_position([pos.x0, pos.y0-0.02, pos.width, pos.height])
+
     plt.savefig('{}/calendar_mean.eps'.format(plot_dir))
-    #plt.show()
+    plt.show()
     plt.close()
+
+    np.set_printoptions(linewidth=150,precision=7,suppress=True)
+    print_vals = True
+    if print_vals == True:
+      hemi_count = 0
+      for hemi in ['NH','SH']:
+        print hemi
+        for var in ['lat','I','th',key_name]:
+          if var == 'lat':
+              data = STJ_cal_mean[:, hemi_count]
+          if var == 'I':
+              data = STJ_cal_int_mean[:, hemi_count]
+          if var == 'th':
+              data = var_4[:, hemi_count]
+ 
+          print var, data
+          print 'DJF', mean_val['DJF', var][hemi_count], 'MAM', mean_val['MAM', var][hemi_count], \
+                'JJA', mean_val['JJA', var][hemi_count], 'SON', mean_val['SON', var][hemi_count]
+
+        hemi_count = hemi_count + 1 
+    pdb.set_trace()
+
     hemi_count = hemi_count + 1
 
 
@@ -930,3 +982,35 @@ def PlotPC(group,Annual, Seasonal, Monthly, var_name, diri):
             hemi_count = hemi_count + 1
 
     #pdb.set_trace()
+
+def plot_thermap_trop_vs_pressure(IPV_data,H_theta,theta_zonal,pres):
+
+
+    t = 0
+    H_T = IPV_data['TropH_temp'][t,:]#time,lat
+    H_p = IPV_data['TropH_p'][t,:]
+    H_th  = H_theta[t,:]
+    theta_zn = theta_zonal[t,:,:]
+
+    fig = plt.figure(figsize=(6, 6))
+    ax = fig.add_axes([0.1, 0.2, 0.78, 0.75])
+
+    #first do an unfilled contour plot of isentropes
+    levels = np.arange(300,520,20)
+    CS = plt.contour(IPV_data['lat'],pres,theta_zn, levels=levels, colors='k')
+    plt.clabel(CS,levels[1::2], fontsize=9, inline=1,)
+
+    ax.plot(IPV_data['lat'],H_p,  linestyle='-', c='blue')  
+    ax.tick_params(axis='y', colors='blue')
+    ax.set_ylim(400,10)
+    ax.set_xlim(-90,90)
+    ax.set_ylabel('p (hPa)')
+
+    ax2 = ax.twinx()
+    ax2.plot(IPV_data['lat'],H_th, linestyle='-', c='r')  
+    ax2.set_ylim(300,400)
+    ax2.tick_params(axis='y', colors='red')
+    ax2.set_ylabel(r'$\theta$ (K)')
+    plt.savefig('{}/Trop_height_theta_v_p.eps'.format(plot_dir))
+    plt.show()
+    pdb.set_trace()
