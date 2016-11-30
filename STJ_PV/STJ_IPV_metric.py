@@ -403,7 +403,7 @@ class Method_2PV_STJ(object):
           self.jet_max_theta_fd = self.theta_domain[jet_max_wind_elem_fd]
 
 
-    def trends_annual(self, pos,intensity,level,height):
+    def trends_annual(self, pos,intensity,level,height,file_out_syntax):
     #null hypothesis is that the slope is zero
         hemi = ['NH','SH']
         time = (len(pos[:,0])/12)/10  #units per decade
@@ -422,7 +422,7 @@ class Method_2PV_STJ(object):
         save_data = False
         if save_data:
             #data for testing trends
-            filename = '/home/links/pm366/Documents/Data/STJ_ts.nc'
+            filename = '/home/links/pm366/Documents/Data/STJ_ts_{0}.nc'.format(file_out_syntax)
             f = io.netcdf.netcdf_file(filename, mode='w')
 
             f.createDimension('hemi', 2)
@@ -439,7 +439,7 @@ class Method_2PV_STJ(object):
             STJ_lat = f.createVariable('STJ_lat', 'f', ('time','hemi',))
             STJ_lat[:,:] = pos[:,:]
             f.close()
-        pdb.set_trace()
+
 
 
     def trends_season(self):
@@ -644,9 +644,9 @@ class Method_2PV_STJ(object):
 
         f.close()
 
-    def SaveOutput(self, STJ, cross, intens, theta):
+    def SaveOutput(self, STJ, cross, intens, theta,file_out_syntax):
 
-        filename = '{}/STJ_data_test.nc'.format(data_out_dir)
+        filename = '{0}/STJ_data_{1}.nc'.format(data_out_dir,file_out_syntax)
         f = io.netcdf.netcdf_file(filename, mode='w')
 
         f.createDimension('hemi', 2)
@@ -679,7 +679,7 @@ class Method_2PV_STJ(object):
         print 'Created file: ', filename
         pdb.set_trace()
 
-    def SeasonalPeaks(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th,jet_H_lev):
+    def SeasonalPeaks(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th,jet_H_lev,file_out_syntax):
 
         # this is an overkill way to treat the seasons but has reduced risk of
         # mixing them up
@@ -698,6 +698,7 @@ class Method_2PV_STJ(object):
         count_DJF, count_MAM, count_JJA, count_SON = 0, 0, 0, 0
 
         STJ_DJF[:,:],STJ_MAM[:,:],STJ_JJA[:,:],STJ_SON[:,:]  = np.nan,np.nan,np.nan,np.nan 
+
 
         for i in range(STJ_array.shape[0]):
             if seasons[i] == 'DJF':
@@ -783,9 +784,9 @@ class Method_2PV_STJ(object):
         make_ts_seasonal_plot = True
         if make_ts_seasonal_plot:
             print_min_max_mean(output)
-            plot_seasonal_stj_ts(output, cross, STJ_year)
+            plot_seasonal_stj_ts(output, cross, STJ_year,file_out_syntax)
 
-    def CalendarMean(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th,jet_H_lev,group):
+    def CalendarMean(self, seasons, STJ_array, crossing_lat, STJ_I, STJ_th,jet_H_lev,group,file_out_syntax):
 
         STJ_cal = STJ_array.reshape([self.yy, 12, 2])
         STJ_cal_mean = MeanOverDim(data=STJ_cal, dim=0)
@@ -821,7 +822,7 @@ class Method_2PV_STJ(object):
           print 'Need to change plot for none as input'
         else:
             PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean,
-                               STJ_cal_th_mean, var_4, self.AnnualPC_3_var,mean_val, self.AnnualPC,group)
+                               STJ_cal_th_mean, var_4, self.AnnualPC_3_var,mean_val, self.AnnualPC,group,file_out_syntax)
 
     def validate_near_mean(self, hemi_count, season, input_string, hemi, time_loop):
 
@@ -1473,7 +1474,7 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
                 if (Method.best_guess_cby < -40):
                      print 'time ', time_loop, ' of interest ', Method.best_guess_cby
                      date_string = DateFromElem(time_loop, 1979)
-                if time_loop  > 0: #== 168:
+                if time_loop  > 3000: #== 168:
                   plot_subplot = True
                   test_with_plots = True
                   if hemi == 'NH':
@@ -1512,52 +1513,66 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
                                     Method=Method, Method_NH=Method_NH, 
                                     lat_elem_SH=lat_elem, lat_elem_NH = lat_elem_NH,
                                     STJ_lat = jet_best_guess[time_loop,0,:,0],
-                                    method_choice=method_choice, time=time_loop, test_daily=test_daily )
+                                    method_choice=method_choice, time=time_loop,
+                                    file_out_syntax=file_out_syntax)
+
                        # pdb.set_trace()
+    if test_daily:
+        file_out_syntax = 'daily'
+    else:
+        file_out_syntax = 'monthly'
 
     Method.trends_annual(jet_best_guess[:, 0, :, 0], jet_intensity[:, 0, :, 0],
-           jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],)
+           jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],file_out_syntax)
 
     if testing_make_output:
-        filename = '{}/STJ_PV_metric_derived.npz'.format(data_dir)
+        filename = '{0}/STJ_PV_metric_derived_{1}.npz'.format(data_dir,file_out_syntax)
         MakeOutfileSavez_derived(filename, phi_2PV_out,
                                  theta_2PV_out, dth_out, dth_lat_out, d2th_out)
 
     print 'NH mean position: ', jet_best_guess[:, 0, 0, 0].mean()
     print 'SH mean position: ', jet_best_guess[:, 0, 1, 0].mean()
 
-    # seasonally seperate the data
-    Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
-                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:])
+    if not test_daily:
+        # seasonally seperate the data
+        Method.SeasonalPeaks(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
+                         jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],file_out_syntax)
 
-    Method.trends_season()
+        Method.trends_season()
 
     do_correlations = True
     if do_correlations:
       print 'Get correlations'
       group_opt = ['core','x','h']
       group = group_opt[2]
+
       # annual values
       Method.AnnualCorrelations(jet_best_guess[:, 0, :, 0], jet_H_lev[:,0,:],
                               jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0], crossing_lat, group)
 
-      Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], jet_H_lev[:,0,:],
+      if not test_daily:
+
+
+          Method.MonthlyCorrelations(jet_best_guess[:, 0, :, 0], jet_H_lev[:,0,:],
                                jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0], crossing_lat, group)
 
-      # calendar values
-      Method.SeasonCorrelations(group)
+          Method.SeasonCorrelations(group)
 
-      Method.CalendarMean(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
-                        jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],group)
-
-
-      PlotPC(group, Method.AnnualPC, Method.SeasonPC,
-           Method.MonthlyPC, Method.var_name, Method.diri)
+          Method.CalendarMean(seasons, jet_best_guess[:, 0, :, 0], crossing_lat,
+                        jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],group,file_out_syntax)
 
 
+          PlotPC(group, Method.AnnualPC, Method.SeasonPC,
+               Method.MonthlyPC, Method.var_name, Method.diri,file_out_syntax)
+
+      else:    
+          plot_daily_stj_ts(jet_best_guess[:, 0, :, 0], crossing_lat,
+                            jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:] )
+
+          pdb.set_trace()
     #Save output
     Method.SaveOutput(jet_best_guess[:, 0, :, 0], crossing_lat, 
-                      jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0])
+                      jet_intensity[:, 0, :, 0], jet_th_lev[:, 0, :, 0],file_out_syntax)
 
     pdb.set_trace()
 
@@ -1592,6 +1607,10 @@ def DateFromElem(elem, first_year):
   month = month_name[month_num] #month 0 is Jan
   print 'Date is: ' +  str(year_date) + ' ' + str(month)
 
+
+def DateFromElemDays(elem, first_year):
+ 
+  print 'Not attempted yet as need leap years etc'
 
 
 # ------------------------
@@ -1791,7 +1810,7 @@ def print_min_max_mean(output):
           output['SON'][:, 1].mean())
 
 
-def plot_seasonal_stj_ts(output, cross, STJ_year):
+def plot_seasonal_stj_ts(output, cross, STJ_year,file_out_syntax):
 
     diri = Directory()
 
@@ -1815,21 +1834,29 @@ def plot_seasonal_stj_ts(output, cross, STJ_year):
             (' {0:.2f}').format(output['MAM'][:, 1].mean()), ls=' ', marker='x')
 
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1))
-    plt.savefig('{}/index_ts.eps'.format(diri.plot_loc))
+    plt.savefig('{0}/index_ts_{1}.eps'.format(diri.plot_loc,file_out_syntax))
     #plt.show()
     #pdb.set_trace()
     plt.close()
 
     fig = plt.figure(figsize=(14, 8))
     ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
-    ax.plot(STJ_year['DJF'][:, 0], 'blue', label='NH Winter' +             ('  {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['JJA'][:, 1], 'blue', label='SH Winter' +             (' {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 1])), ls=' ', marker='x')
-    ax.plot(STJ_year['MAM'][:, 0], 'green', label='NH Spring' +            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['SON'][:, 1], 'green', label='SH Spring' +           (' {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 1])), ls=' ', marker='x')
-    ax.plot(STJ_year['JJA'][:, 0], 'red', label='NH Summer' +              ('  {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['DJF'][:, 1], 'red', label='SH Summer' +            (' {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 1])), ls=' ', marker='x')
-    ax.plot(STJ_year['SON'][:, 0], 'orange', label='NH Autumn' +            ('  {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 0])), ls=' ', marker='x')
-    ax.plot(STJ_year['MAM'][:, 1], 'orange', label='SH Autumn' +            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['DJF'][:, 0], 'blue', label='NH Winter' +           
+            ('  {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['JJA'][:, 1], 'blue', label='SH Winter' +
+            (' {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['MAM'][:, 0], 'green', label='NH Spring' + 
+            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['SON'][:, 1], 'green', label='SH Spring' +   
+            (' {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['JJA'][:, 0], 'red', label='NH Summer' +    
+            ('  {0:.2f}').format(np.nanmean(STJ_year['JJA'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['DJF'][:, 1], 'red', label='SH Summer' +   
+            (' {0:.2f}').format(np.nanmean(STJ_year['DJF'][:, 1])), ls=' ', marker='x')
+    ax.plot(STJ_year['SON'][:, 0], 'orange', label='NH Autumn' +  
+            ('  {0:.2f}').format(np.nanmean(STJ_year['SON'][:, 0])), ls=' ', marker='x')
+    ax.plot(STJ_year['MAM'][:, 1], 'orange', label='SH Autumn' +  
+            (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 1])), ls=' ', marker='x')
     #plt.xticks(np.arange(0, 450, 24))
     plt.xticks(np.arange(0, 450, 24),np.arange(1979, 2016, 2))
     plt.yticks(np.arange(-50, 51, 10))
@@ -1871,7 +1898,7 @@ def plot_seasonal_stj_ts(output, cross, STJ_year):
     ax.plot(x,STJ_year['DJF'][start-1:end-1, 1], 'red',   ls=' ', marker='x')
     ax.plot(x,STJ_year['MAM'][start-1:end-1, 1], 'orange',ls=' ', marker='x')
     plt.xticks(STJ_year['DJF'][start-1:end-1, 0],np.arange(1997, 2003+1, 12))
-    plt.xticks(np.arange(216,288+1, 12),np.arange(1997, 2004, 1))
+    plt.xticks(np.arange(start,end+1, 12),np.arange(1997, 2004, 1))
     ax.set_xlim(start, end)
     plt.yticks(np.arange(-45, -15+1, 5))
     minorLocator   = MultipleLocator(3)
@@ -1901,6 +1928,63 @@ def plot_seasonal_stj_ts(output, cross, STJ_year):
     plt.savefig('{}/cross.eps'.format(diri.plot_loc))
     #plt.show()
     plt.close()
+
+def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
+
+    num_may = 31  
+    num_june = 30
+    num_mm = num_may + num_june #number of days in a 'year'
+
+    years = len(pos)/(num_mm)
+    may_elem  = np.zeros(num_may*years)
+    june_elem = np.zeros(num_june*years)
+
+    time_elem = np.arange(0,len(pos),1)
+
+    for i in xrange(years):
+
+        may_elem[i*num_may:(i*num_may+num_may)]  = time_elem[(num_mm)*i:((num_mm)*i+num_may)] 
+        june_elem[i*num_june:(i*num_june+num_june)] = time_elem[((num_mm)*i+num_may):((num_mm)*i+num_mm)]
+
+    may_elem = may_elem.tolist()
+    june_elem = june_elem.tolist()
+
+    diri = Directory()
+
+    fig = plt.figure(figsize=(14, 8))
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
+    ax.plot(time_elem[may_elem],  pos[may_elem,0], 'green', label='NH May' +  ('  {0:.2f}').format(pos[may_elem,0].mean()), ls=' ', marker='x')
+    ax.plot(time_elem[june_elem], pos[june_elem,0], 'red', label='NH June' +  ('  {0:.2f}').format(pos[june_elem,0].mean()), ls=' ', marker='x')
+    #ax.plot(time_elem[may_elem],  pos[may_elem,1], 'green', label='SH May' +  ('  {0:.2f}').format(pos[may_elem,1].mean()), ls=' ', marker='x')
+    #ax.plot(time_elem[june_elem], pos[june_elem,1], 'red', label='SH June' +  ('  {0:.2f}').format(pos[june_elem,1].mean()), ls=' ', marker='x')
+    plt.legend(loc=7, ncol=2, bbox_to_anchor=(1.0, -0.1))
+    ax.set_xlim(0, len(pos)+1)
+    plt.xticks(np.arange(0, len(pos), 122),np.arange(1979, 2016, 2))
+    ax.set_ylim(10,60)
+    plt.yticks(np.arange(10, 61, 5))
+    plt.savefig('{0}/index_ts_may_june.eps'.format(diri.plot_loc))
+    plt.show()
+    plt.close()
+    #pdb.set_trace()
+
+    print 'Currently May/june plotted over each other as single array'
+    pdb.set_trace()
+    start,end = 1098,1524 #absolute elements
+    tmp = np.where(np.logical_and(time_elem>=1098,time_elem<=1524))[0] #may and june from 97-03
+    fig = plt.figure(figsize=(14, 8))
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
+    ax.plot(time_elem[start:end+1],pos[start:end+1, 0], 'green', label='NH May', ls=' ', marker='x')
+    ax.plot(time_elem[start:end+1],pos[start:end+1, 0], 'red', label='NH June', ls=' ', marker='x')
+    #ax.plot(time_elem[start:end+1],pos[start:end+1, 1], 'green', label='SH May', ls=' ', marker='x')
+    #ax.plot(time_elem[start:end+1],pos[start:end+1, 1], 'red', label='SH June', ls=' ', marker='x')
+    plt.legend(loc=7, ncol=2, bbox_to_anchor=(1.0, -0.1))
+    plt.xticks(np.arange(start,end+1, 61),np.arange(1997, 2004, 1))
+    ax.set_xlim(start, end)
+    plt.savefig('{0}/index_ts_may_june_97_03.eps'.format(diri.plot_loc))
+    plt.show()
+    #pdb.set_trace()
+    plt.close()
+
 
 def GetCorrelation(hemi, num_var, var_name, data):
 

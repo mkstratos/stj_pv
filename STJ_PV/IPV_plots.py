@@ -550,12 +550,12 @@ def make_u_plot(u_fname, make_single, make_with_metric,
                 u_zonal=None, u_zonal_NH=None, Method=None, Method_NH=None, 
                 lat_elem_SH=None, lat_elem_NH=None,
                 STJ_lat = None,
-                method_choice=None, time=None,test_daily=None ):
+                method_choice=None, time=None,file_out_syntax=None):
 
     open_data = False
     if open_data:
         #open jet data from file
-        filename = '{}/STJ_data.nc'.format(data_out_dir)
+        filename = '{0}/STJ_data_{1}.nc'.format(data_out_dir,file_out_syntax)
         assert os.path.isfile(filename), 'File '+ filename +' does not exist. Need jet latitude for plotting.' 
         var_jet = openNetCDF4_get_data(filename)
         jet_NH = var_jet['STJ_lat'][:,0]
@@ -581,7 +581,7 @@ def make_u_plot(u_fname, make_single, make_with_metric,
       uwnd = var['u'][time, lev250, :, :]
      
     if make_single:
-            fname_out = '{}/uwind_{}_with_wind.eps'.format(plot_dir, t_elem[t])
+            fname_out = '{}/uwind_{}_with_wind_{}.eps'.format(plot_dir, t_elem[t],file_out_syntax)
 
             fig = plt.figure(figsize=(10, 5))
 
@@ -597,7 +597,7 @@ def make_u_plot(u_fname, make_single, make_with_metric,
 
     if make_with_metric :
 
-            fname_out = '{}/validation_uwind_{}.eps'.format(plot_dir, time)
+            fname_out = '{}/validation_uwind_{}_{}.eps'.format(plot_dir, time,file_out_syntax)
 
             fig = plt.figure(figsize=(10, 12))
             #SH
@@ -632,7 +632,7 @@ def make_u_plot(u_fname, make_single, make_with_metric,
 
 
 def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
-                           var_4, PC_3_var,mean_val, PC, group):
+                           var_4, PC_3_var,mean_val, PC, group,file_out_syntax):
 
     #change latex rendering for table
     rc('text', usetex=True)
@@ -808,7 +808,7 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
     #pos = ax4.get_position()
     #ax4set_position([pos.x0, pos.y0-0.02, pos.width, pos.height])
 
-    plt.savefig('{}/calendar_mean.eps'.format(plot_dir))
+    plt.savefig('{0}/calendar_mean{1}.eps'.format(plot_dir,file_out_syntax))
     plt.show()
     plt.close()
 
@@ -949,7 +949,7 @@ def PlotPC_matrix_single(matrix, var_name_latex, filename):
     plt.close()
 
 
-def PlotPC(group,Annual, Seasonal, Monthly, var_name, diri):
+def PlotPC(group,Annual, Seasonal, Monthly, var_name, diri,file_out_syntax):
 
     var_name_latex = [r'$\phi$', r'I', r'$\theta$', r'H']
      
@@ -966,10 +966,9 @@ def PlotPC(group,Annual, Seasonal, Monthly, var_name, diri):
     matrix_SH = Annual[:, :, 1] + matrix
 
     path = diri.plot_loc
-
     # Annual plots
-    PlotPC_matrix_single(matrix_NH, var_name_latex, filename=path + 'NH_PC_matrix.eps')
-    PlotPC_matrix_single(matrix_SH, var_name_latex, filename=path + 'SH_PC_matrix.eps')
+    PlotPC_matrix_single(matrix_NH, var_name_latex, filename=path + 'NH_PC_matrix_{0}.eps'.format(file_out_syntax))
+    PlotPC_matrix_single(matrix_SH, var_name_latex, filename=path + 'SH_PC_matrix_{0}.eps'.format(file_out_syntax))
 
     # SeasonalPlots
     for season in ['DJF', 'MAM', 'JJA', 'SON']:
@@ -979,7 +978,7 @@ def PlotPC(group,Annual, Seasonal, Monthly, var_name, diri):
             matrix_season = copy.deepcopy(matrix)
             plot_matrix = Seasonal[season][:, :, hemi_count] + matrix_season
             PlotPC_matrix_single(plot_matrix, var_name_latex,
-                                 filename=path + hemi + '_PC_matrix_' + season + '.eps')
+                                 filename='{0}_{1}_PC_matrix_{2}_{3}.eps'.format(path,hemi,season,file_out_syntax))
             hemi_count = hemi_count + 1
 
     #pdb.set_trace()
