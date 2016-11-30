@@ -13,6 +13,7 @@ from scipy.stats import mstats, t, linregress
 from scipy import linalg
 import math
 from matplotlib.ticker import MultipleLocator
+from datetime import date
 # Dependent code
 from STJ_PV_main import Directory
 from general_plotting import draw_map_model
@@ -1942,7 +1943,6 @@ def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
     time_elem = np.arange(0,len(pos),1)
 
     for i in xrange(years):
-
         may_elem[i*num_may:(i*num_may+num_may)]  = time_elem[(num_mm)*i:((num_mm)*i+num_may)] 
         june_elem[i*num_june:(i*num_june+num_june)] = time_elem[((num_mm)*i+num_may):((num_mm)*i+num_mm)]
 
@@ -1959,30 +1959,47 @@ def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
     #ax.plot(time_elem[june_elem], pos[june_elem,1], 'red', label='SH June' +  ('  {0:.2f}').format(pos[june_elem,1].mean()), ls=' ', marker='x')
     plt.legend(loc=7, ncol=2, bbox_to_anchor=(1.0, -0.1))
     ax.set_xlim(0, len(pos)+1)
-    plt.xticks(np.arange(0, len(pos), 122),np.arange(1979, 2016, 2))
+    elem_for_yr_tks = np.arange(0, len(pos), 122)
+    plt.xticks(elem_for_yr_tks,np.arange(1979, 2016, 2))
     ax.set_ylim(10,60)
     plt.yticks(np.arange(10, 61, 5))
+    for i in xrange(len(elem_for_yr_tks)):
+      ax.plot([elem_for_yr_tks[i],elem_for_yr_tks[i]],[10,60], 'gray',ls=':')
+
     plt.savefig('{0}/index_ts_may_june.eps'.format(diri.plot_loc))
     plt.show()
     plt.close()
     #pdb.set_trace()
 
-    print 'Currently May/june plotted over each other as single array'
-    pdb.set_trace()
-    start,end = 1098,1524 #absolute elements
-    tmp = np.where(np.logical_and(time_elem>=1098,time_elem<=1524))[0] #may and june from 97-03
+    d_01_1979 = date(1979, 1, 1)
+    d_01_2003 = date(2003, 12, 31)
+    day_diff = d_01_2003 - d_01_1979
+
+
+    #absolute elements of may-june days 1979-2003
+    may_start = 1098 #May 79
+    june_end = 1524  #June 03
+    may_slice = np.where(np.logical_and(np.array(may_elem)>=may_start,np.array(may_elem)<=june_end))[0] #years * mday days = 217 element
+    june_slice = np.where(np.logical_and(np.array(june_elem)>=may_start,np.array(june_elem)<=june_end ))[0] #years * mday days = 210 element
+
+    may_absolute_elem = (np.array(may_elem)[may_slice]).tolist()
+    june_absolute_elem = (np.array(june_elem)[june_slice]).tolist()
+
     fig = plt.figure(figsize=(14, 8))
     ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
-    ax.plot(time_elem[start:end+1],pos[start:end+1, 0], 'green', label='NH May', ls=' ', marker='x')
-    ax.plot(time_elem[start:end+1],pos[start:end+1, 0], 'red', label='NH June', ls=' ', marker='x')
-    #ax.plot(time_elem[start:end+1],pos[start:end+1, 1], 'green', label='SH May', ls=' ', marker='x')
-    #ax.plot(time_elem[start:end+1],pos[start:end+1, 1], 'red', label='SH June', ls=' ', marker='x')
+    ax.plot(time_elem[may_absolute_elem],pos[may_absolute_elem, 0], 'green', label='NH May', ls=' ', marker='x')
+    ax.plot(time_elem[june_absolute_elem],pos[june_absolute_elem, 0], 'red', label='NH June', ls=' ', marker='x')
+    #horizontal lines to seperate years
     plt.legend(loc=7, ncol=2, bbox_to_anchor=(1.0, -0.1))
-    plt.xticks(np.arange(start,end+1, 61),np.arange(1997, 2004, 1))
-    ax.set_xlim(start, end)
+    elem_for_yr_tks = np.arange(may_start,june_end+1, 61)
+    plt.xticks(elem_for_yr_tks,np.arange(1997, 2004, 1))
+    ax.set_xlim(may_start,  june_end)
+
+    for i in xrange(len(elem_for_yr_tks)):
+      ax.plot([elem_for_yr_tks[i],elem_for_yr_tks[i]],[10,60], 'gray',ls=':')
     plt.savefig('{0}/index_ts_may_june_97_03.eps'.format(diri.plot_loc))
     plt.show()
-    #pdb.set_trace()
+    pdb.set_trace()
     plt.close()
 
 
