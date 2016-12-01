@@ -169,7 +169,8 @@ def main():
         STJ_PV.open_ipv_data(fileIPV_1, fileIPV_2, file_type)
 
         # Now that IPV has been calculated - calculate the STJ metric
-        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri,Exp.u_fname, Exp.diri.data_loc, Exp.test_daily)
+        STJ_IPV_metric.calc_metric(STJ_PV.IPV_data, STJ_PV.diri,Exp.u_fname, 
+                                   Exp.diri.data_loc, Exp.test_daily,STJ_PV.var_names['p'].label)
 
         pdb.set_trace()
         # STJ_NH, STJ_SH = STJ_PV.Get_uwind_strength()

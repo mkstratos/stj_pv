@@ -1262,7 +1262,7 @@ def T_to_theta_for_plotting(data_loc):
 
     return theta_val,  P_spline
 
-def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
+def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
     'Input assumed to be a dictionary'
 
     output_plotting = {}
@@ -1340,6 +1340,12 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
                               u_zonal_all_time, Method.TropH_theta)
 
     print_messages = False
+
+    if test_daily:
+        file_out_syntax = 'daily'
+    else:
+        file_out_syntax = 'monthly'
+
 
     for time_loop in range(Method.IPV.shape[0]):
         for lon_loop in range(len(Method.lon_loc)):
@@ -1472,10 +1478,10 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
                 #  or (time_loop >= 425 and time_loop <= 427) #JJA 2014 
                 #  or (time_loop >= 431 and time_loop <= 433) #DJF 2015 
                 #  or (time_loop >= 437 and time_loop <= 439)): #JJA 2015 
-                if (Method.best_guess_cby < -40):
+                if (Method.best_guess_cby > 45):
                      print 'time ', time_loop, ' of interest ', Method.best_guess_cby
                      date_string = DateFromElem(time_loop, 1979)
-                if time_loop  > 3000: #== 168:
+                if time_loop  == 401 or time_loop == 479 or time_loop == 966 or time_loop ==1262 :
                   plot_subplot = True
                   test_with_plots = True
                   if hemi == 'NH':
@@ -1509,7 +1515,7 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
                     if plot_u :
                         print 'Plot validation and map on same plot'
                         make_single, make_with_metric = False, True
-                        make_u_plot(Method.u_fname, make_single, make_with_metric, 
+                        make_u_plot(Method.u_fname, make_single, make_with_metric, label_p,
                                     u_zonal=u_zonal, u_zonal_NH=u_zonal_NH,
                                     Method=Method, Method_NH=Method_NH, 
                                     lat_elem_SH=lat_elem, lat_elem_NH = lat_elem_NH,
@@ -1518,10 +1524,6 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily):
                                     file_out_syntax=file_out_syntax)
 
                        # pdb.set_trace()
-    if test_daily:
-        file_out_syntax = 'daily'
-    else:
-        file_out_syntax = 'monthly'
 
     Method.trends_annual(jet_best_guess[:, 0, :, 0], jet_intensity[:, 0, :, 0],
            jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],file_out_syntax)
@@ -1957,15 +1959,15 @@ def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
     ax.plot(time_elem[june_elem], pos[june_elem,0], 'red', label='NH June' +  ('  {0:.2f}').format(pos[june_elem,0].mean()), ls=' ', marker='x')
     #ax.plot(time_elem[may_elem],  pos[may_elem,1], 'green', label='SH May' +  ('  {0:.2f}').format(pos[may_elem,1].mean()), ls=' ', marker='x')
     #ax.plot(time_elem[june_elem], pos[june_elem,1], 'red', label='SH June' +  ('  {0:.2f}').format(pos[june_elem,1].mean()), ls=' ', marker='x')
-    plt.legend(loc=7, ncol=2, bbox_to_anchor=(1.0, -0.1))
+    plt.legend(loc=1, ncol=2, bbox_to_anchor=(1.0, -0.1))
     ax.set_xlim(0, len(pos)+1)
-    elem_for_yr_tks = np.arange(0, len(pos), 122)
-    plt.xticks(elem_for_yr_tks,np.arange(1979, 2016, 2))
+    plt.xticks(np.arange(0, len(pos), 122),np.arange(1979, 2016, 2))
     ax.set_ylim(10,60)
     plt.yticks(np.arange(10, 61, 5))
-    for i in xrange(len(elem_for_yr_tks)):
-      ax.plot([elem_for_yr_tks[i],elem_for_yr_tks[i]],[10,60], 'gray',ls=':')
-
+    elem_for_yr_tks= np.arange(0, len(pos), 122)
+    tick_sep=np.arange(0, len(pos), 61)
+    for i in xrange(len(tick_sep)):
+      ax.plot([tick_sep[i],tick_sep[i]],[10,60], 'gray',ls=':')
     plt.savefig('{0}/index_ts_may_june.eps'.format(diri.plot_loc))
     plt.show()
     plt.close()
@@ -1990,18 +1992,19 @@ def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
     ax.plot(time_elem[may_absolute_elem],pos[may_absolute_elem, 0], 'green', label='NH May', ls=' ', marker='x')
     ax.plot(time_elem[june_absolute_elem],pos[june_absolute_elem, 0], 'red', label='NH June', ls=' ', marker='x')
     #horizontal lines to seperate years
-    plt.legend(loc=7, ncol=2, bbox_to_anchor=(1.0, -0.1))
+    #plt.legend(loc=7, ncol=2, bbox_to_anchor=(1.0, -0.1))
     elem_for_yr_tks = np.arange(may_start,june_end+1, 61)
     plt.xticks(elem_for_yr_tks,np.arange(1997, 2004, 1))
     ax.set_xlim(may_start,  june_end)
-
+    ax.set_ylim(15,55)
     for i in xrange(len(elem_for_yr_tks)):
-      ax.plot([elem_for_yr_tks[i],elem_for_yr_tks[i]],[10,60], 'gray',ls=':')
+      ax.plot([elem_for_yr_tks[i],elem_for_yr_tks[i]],[15,55], 'gray',ls=':')
     plt.savefig('{0}/index_ts_may_june_97_03.eps'.format(diri.plot_loc))
     plt.show()
     pdb.set_trace()
     plt.close()
 
+    pdb.set_trace()
 
 def GetCorrelation(hemi, num_var, var_name, data):
 

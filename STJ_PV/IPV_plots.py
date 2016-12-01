@@ -546,7 +546,7 @@ def plot_u(plt,ax1,ax2,ax_cb,jet_NH,jet_SH,uwnd,var,bounds,cmap,time,fname_out,s
 
         return
 
-def make_u_plot(u_fname, make_single, make_with_metric, 
+def make_u_plot(u_fname, make_single, make_with_metric, label_p,
                 u_zonal=None, u_zonal_NH=None, Method=None, Method_NH=None, 
                 lat_elem_SH=None, lat_elem_NH=None,
                 STJ_lat = None,
@@ -569,11 +569,12 @@ def make_u_plot(u_fname, make_single, make_with_metric,
     assert os.path.isfile(u_fname), 'File '+ u_fname +' does not exist.' 
     var = openNetCDF4_get_data(u_fname)
 
-    lev250 = FindClosestElem(25000, var['lev'],0)[0]
+    # check that input pressure is in pascal
+    if var[label_p].max() < 90000.0:
+        var[label_p] = var[label_p] * 100.0
 
-    #Which time elements are of interest?
-    #t_elem = [431,440]
-    #for t in range(len(t_elem)):
+
+    lev250 = FindClosestElem(25000, var[label_p],0)[0]
 
     if 'var131' in var:
       uwnd = var['var131'][time, lev250, :, :]
@@ -611,13 +612,16 @@ def make_u_plot(u_fname, make_single, make_with_metric,
             # colour bar
             ax_cb = plt.subplot2grid((37, 26), (35, 0), rowspan=2, colspan=37)
 
-            bounds = np.arange(-50,51,5)
+            bounds = np.arange(-50,60,5.0)
             cm = Colormap()
             cmap = cm.cmap_linear('#0033ff', '#FFFFFF', '#990000') #blue/red
             #cmap = pylab.cm.get_cmap('RdBu_r')
 
             PlottingObject = Plotting(Method, 'cby')
             plot_cbar = False
+
+            #u_zonal = MeanOverDim(data=uwnd, dim=1)
+
             PlottingObject.poly_2PV_line('SH', u_zonal, lat_elem_SH, time, fig, ax1, plot_cbar, ax_cb, bounds,cmap,
                                           plot_type = 'subplot_all',pause=False, click=False, save_plot=False)
             # NH
@@ -628,7 +632,7 @@ def make_u_plot(u_fname, make_single, make_with_metric,
             save_plot = True
             plot_u(plt,ax3,ax4,ax_cb,jet_NH,jet_SH,uwnd,var,bounds,cmap,time,fname_out,save_plot,make_single=False) 
 
-   #pdb.set_trace()
+    #pdb.set_trace()
 
 
 def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
