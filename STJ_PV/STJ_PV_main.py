@@ -77,8 +77,11 @@ class Experiment(object):
 
         # Using daily or monthly data? Code designed around monthly data
         time_unit_opt = ['dd', 'mm']
-        self.time_units = time_unit_opt[1]
         self.test_daily = False
+        if self.test_daily:
+          self.time_units = time_unit_opt[0]
+        else:
+          self.time_units = time_unit_opt[1]
 
         # Flag options for different data use. In this case model output or ERA data
         data_options = ['GFDL', 'Era']

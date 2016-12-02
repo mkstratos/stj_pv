@@ -136,14 +136,14 @@ class Method_2PV_STJ(object):
         self.ipv_zonal = ipv_zonal
 
 
-    def PolyFit2PV_der(self, time_loop):
+    def PolyFit2PV_der(self, time_loop,deg_fit):
         """
         Calculate the chebyshev polynomial fit of the 2.0 PV line
         and its first two derivatives
         """
 
         # find the chebyshev polynomial fit
-        theta_cby = cby.chebfit(self.phi_2PV, self.theta_2PV, 10)
+        theta_cby = cby.chebfit(self.phi_2PV, self.theta_2PV, deg_fit)
 
         # values of the fit
         self.theta_cby_val = cby.chebval(self.phi_2PV, theta_cby)
@@ -1378,8 +1378,9 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
                 # finite difference derivative
                 Method.PV_differentiate()
 
+                deg_fit = 12
                 # polynomial fit and derivative twice
-                Method.PolyFit2PV_der(time_loop)
+                Method.PolyFit2PV_der(time_loop,deg_fit)
 
                 # Find peaks in poly-fitted data of 2 pv line
                 Method.PolyFit2PV_peaks(print_messages, hemi, time_loop)
@@ -1476,10 +1477,20 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
                 #  or (time_loop >= 425 and time_loop <= 427) #JJA 2014 
                 #  or (time_loop >= 431 and time_loop <= 433) #DJF 2015 
                 #  or (time_loop >= 437 and time_loop <= 439)): #JJA 2015 
+ 
                 if (Method.best_guess_cby > 45):
                      print 'time ', time_loop, ' of interest ', Method.best_guess_cby
                      date_string = DateFromElem(time_loop, 1979)
-                if time_loop  == 401 or time_loop == 479 or time_loop == 966 or time_loop ==1262 :
+                     temp_time = True
+                else:
+                   if hemi == 'NH':
+                     temp_time = False
+                #if time_loop  == 401 or time_loop == 479 or time_loop == 966 or time_loop ==1262 : #daily interesting
+                if time_loop  == 186 or time_loop == 247: 
+
+                #if temp_time:
+                #if time_loop  >= 5000 :
+
                   plot_subplot = True
                   test_with_plots = True
                   if hemi == 'NH':
@@ -1520,8 +1531,8 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
                                     STJ_lat = jet_best_guess[time_loop,0,:,0],
                                     method_choice=method_choice, time=time_loop,
                                     file_out_syntax=file_out_syntax)
-
-                       # pdb.set_trace()
+        
+                    pdb.set_trace()
 
     Method.trends_annual(jet_best_guess[:, 0, :, 0], jet_intensity[:, 0, :, 0],
            jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],file_out_syntax)
@@ -1533,6 +1544,7 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
 
     print 'NH mean position: ', jet_best_guess[:, 0, 0, 0].mean()
     print 'SH mean position: ', jet_best_guess[:, 0, 1, 0].mean()
+
 
     if not test_daily:
         # seasonally seperate the data
@@ -1834,6 +1846,7 @@ def plot_seasonal_stj_ts(output, cross, STJ_year,file_out_syntax):
     ax.plot(output['MAM'][:, 1], 'orange', label='SH Autumn' +
             (' {0:.2f}').format(output['MAM'][:, 1].mean()), ls=' ', marker='x')
 
+    ax.set_xlim(-60,60)
     plt.legend(loc=7, ncol=4, bbox_to_anchor=(1.0, -0.1))
     plt.savefig('{0}/index_ts_{1}.eps'.format(diri.plot_loc,file_out_syntax))
     #plt.show()
@@ -1860,7 +1873,7 @@ def plot_seasonal_stj_ts(output, cross, STJ_year,file_out_syntax):
             (' {0:.2f}').format(np.nanmean(STJ_year['MAM'][:, 1])), ls=' ', marker='x')
     #plt.xticks(np.arange(0, 450, 24))
     plt.xticks(np.arange(0, 450, 24),np.arange(1979, 2016, 2))
-    plt.yticks(np.arange(-50, 51, 10))
+    plt.yticks(np.arange(-60, 61, 10))
     minorLocator   = MultipleLocator(6)
     ax.xaxis.set_minor_locator(minorLocator)
     minorLocator   = MultipleLocator(5)
@@ -1869,6 +1882,7 @@ def plot_seasonal_stj_ts(output, cross, STJ_year,file_out_syntax):
     plt.savefig('{}/index_ts_year.eps'.format(diri.plot_loc))
     #plt.show()
     plt.close()
+    pdb.set_trace()
 
     #plot a cut down section
     start,end = 216, 288

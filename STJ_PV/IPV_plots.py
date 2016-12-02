@@ -835,7 +835,7 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
                 'JJA', mean_val['JJA', var][hemi_count], 'SON', mean_val['SON', var][hemi_count]
 
         hemi_count = hemi_count + 1 
-    pdb.set_trace()
+
 
     hemi_count = hemi_count + 1
 
