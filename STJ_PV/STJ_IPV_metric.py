@@ -33,7 +33,7 @@ __author__ = "Penelope Maher"
 base = os.environ['BASE']
 data_dir = '{}/Data'.format(base)
 #data_out_dir = '{}/Data'.format(base)
-data_out_dir = '/scratch/pm366/OutputGFDL/mima_2013/convection_sweep_fixed_SST/np32/'
+data_out_dir = '/scratch/pm366/Data/ERA_INT/'
 
 if not os.path.exists(data_dir):
     print('CREATING DATA DIRECTORY: {}'.format(data_dir))
@@ -459,7 +459,6 @@ class Method_2PV_STJ(object):
                 print 'Level', slope/time, ' K seasonal change per decade with p val:',  p_val
                 slope, p_val = Get_slope(self.H_th_seasons[season][:,hemi_count])
                 print 'Height',slope/time, ' K seasonal change per decade with p val:',  p_val
-        pdb.set_trace()
 
     def AnnualCorrelations(self, best_guess_cby, jet_H_lev, jet_max_wind_cby, jet_max_theta_cby,
                            crossing, group):
@@ -838,7 +837,6 @@ class Method_2PV_STJ(object):
             PlottingObject = Plotting(Method)
             best_guess_jet = PlottingObject.poly_2PV_line(hemi, time_loop, pause=False)
 
-            pdb.set_trace()
 
         # keep_peak = np.zeros(len(Method.phi_2PV_peak)-1)
         # for i in xrange(len(Method.phi_2PV_peak)-1):
