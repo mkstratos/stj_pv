@@ -1486,11 +1486,11 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
                    if hemi == 'NH':
                      temp_time = False
                 #if time_loop  == 401 or time_loop == 479 or time_loop == 966 or time_loop ==1262 : #daily interesting
-                if time_loop  == 186 or time_loop == 247: 
+                if time_loop  == 432 or time_loop == 437: 
 
                 #if temp_time:
                 #if time_loop  >= 5000 :
-
+                  print 'Preparing plot for: time ', time_loop, ' of interest ', Method.best_guess_cby
                   plot_subplot = True
                   test_with_plots = True
                   if hemi == 'NH':
