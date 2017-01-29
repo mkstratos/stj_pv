@@ -6,7 +6,7 @@ from general_plotting import log_axis
 __author__ = "Penelope Maher"
 
 
-def LoopTestTropoLevel(dTdz, dz, guess_trop_level, lat, P_spline):
+def LoopTestTropoLevel(dTdz, dz, guess_trop_level,  P_spline):
     'In the 2km layer above does the lapse rate exceed 2K/km?'
     # loop over the data above the estimated tropopause height
     # don't include last elem as its zero
@@ -36,7 +36,7 @@ def LoopTestTropoLevel(dTdz, dz, guess_trop_level, lat, P_spline):
     return tropopause_level
 
 
-def IterateCheckTropoHeight(dTdz, dz, T_spline, P_spline, lat, H_threshold):
+def IterateCheckTropoHeight(dTdz, dz, T_spline, P_spline, H_threshold):
     'In the 2km layer above does the lapse rate exceed 2K/km?'
 
     rate_lt_2km = np.where(dTdz <= H_threshold)[0]
@@ -51,16 +51,16 @@ def IterateCheckTropoHeight(dTdz, dz, T_spline, P_spline, lat, H_threshold):
                 guess_trop_level = rate_lt_2km[i]  # maximum pressure
                 tropopause_level = LoopTestTropoLevel(dTdz=dTdz, dz=dz,
                                                       guess_trop_level=guess_trop_level,
-                                                      lat=lat, P_spline=P_spline)
+                                                      P_spline=P_spline)
 
     if tropopause_level is None:
-        'Tropopause height not found'
-        pdb.st_trace()
-
+        print 'Tropopause height not found'
+        pdb.set_trace()
+   
     return tropopause_level
 
 
-def TropopauseHeightLevel(T_spline, P_spline, tck, T_orig, p_orig, lat):
+def TropopauseHeightLevel(T_spline, P_spline, tck):
     """
     WMO definition of tropopause is the 2K/km threshold.
     Assumes data is spline fit with monotonically incresing pressure.
@@ -92,7 +92,7 @@ def TropopauseHeightLevel(T_spline, P_spline, tck, T_orig, p_orig, lat):
 
     # test if the lapse rate exceeds 2.0 in a 2KM layer above
     TropHeightIndex = IterateCheckTropoHeight(dTdz=dTdz, dz=dz, T_spline=T_spline,
-                                              P_spline=P_spline, lat=lat,
+                                              P_spline=P_spline,
                                               H_threshold=H_threshold)
 
     # assign the p and t at tropopause
@@ -103,7 +103,8 @@ def TropopauseHeightLevel(T_spline, P_spline, tck, T_orig, p_orig, lat):
     if test_plot:
         TestTropoHeightPlot(T_spline, P_spline, dTdz, pressure_tropopause)
 
-    return TropHeightIndex, pressure_tropopause, temperature_tropopause
+
+    return TropHeightIndex, pressure_tropopause, temperature_tropopause,dTdz
 
 
 def TestTropoHeightPlot(T_spline, P_spline, dTdz, pressure_tropopause):

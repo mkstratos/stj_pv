@@ -103,15 +103,15 @@ class Generate_IPV_Data(object):
                 T_spline = interpolate.splev(P_spline, tck, der=0)
 
                 # data from surface to aloft so flip it
-                TropH[time, lat], TropH_pressure[time, lat], TropH_temp[time, lat] = \
+                TropH[time, lat], TropH_pressure[time, lat], TropH_temp[time, lat], dTdz = \
                     TropopauseHeightLevel(T_spline=T_spline[::-1],
                                           P_spline=P_spline[::-1],
-                                          tck=tck, T_orig=None, p_orig=None, lat=self.lat)
+                                          tck=tck, lat=self.lat)
 
         self.TropH = TropH
         self.TropH_pressure = TropH_pressure
         self.TropH_temp = TropH_temp
-        self.TropH_spline_p =  np.arange(10, 1001, 10) 
+        self.TropH_spline_p =  np.arange(10, 1001, 10) #this should be flipped???
 
         print('Finished calculating tropopause height')
 

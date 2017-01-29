@@ -420,7 +420,7 @@ class Method_2PV_STJ(object):
             slope, p_val = Get_slope(height[:,hemi_count])
             print 'Height',slope/time, ' K per decade with p val:',  p_val
 
-        save_data = False
+        save_data = True
         if save_data:
             #data for testing trends
             filename = '/home/links/pm366/Documents/Data/STJ_ts_{0}.nc'.format(file_out_syntax)
@@ -440,7 +440,7 @@ class Method_2PV_STJ(object):
             STJ_lat = f.createVariable('STJ_lat', 'f', ('time','hemi',))
             STJ_lat[:,:] = pos[:,:]
             f.close()
-
+            print 'Saved file: ', filename
 
 
     def trends_season(self):
@@ -1274,7 +1274,7 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
     # Get theta level of thermal tropopause height
     Method.TropopauseTheta()
  
-    plot_trop = False
+    plot_trop = True
     if plot_trop:
         theta_zonal, pres  = T_to_theta_for_plotting(data_loc)
         plot_thermap_trop_vs_pressure(IPV_data,Method.TropH_theta, theta_zonal,pres)
@@ -1486,10 +1486,10 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
                    if hemi == 'NH':
                      temp_time = False
                 #if time_loop  == 401 or time_loop == 479 or time_loop == 966 or time_loop ==1262 : #daily interesting
-                if time_loop  == 432 or time_loop == 437: 
+               # if time_loop  == 432 or time_loop == 437: 
 
                 #if temp_time:
-                #if time_loop  >= 5000 :
+                if time_loop  >= 5000:
                   print 'Preparing plot for: time ', time_loop, ' of interest ', Method.best_guess_cby
                   plot_subplot = True
                   test_with_plots = True
@@ -1536,6 +1536,8 @@ def calc_metric(IPV_data, diri, u_fname,data_loc,test_daily,label_p):
 
     Method.trends_annual(jet_best_guess[:, 0, :, 0], jet_intensity[:, 0, :, 0],
            jet_th_lev[:, 0, :, 0],jet_H_lev[:,0,:],file_out_syntax)
+
+    pdb.set_trace()
 
     if testing_make_output:
         filename = '{0}/STJ_PV_metric_derived_{1}.npz'.format(data_dir,file_out_syntax)
@@ -1882,7 +1884,7 @@ def plot_seasonal_stj_ts(output, cross, STJ_year,file_out_syntax):
     plt.savefig('{}/index_ts_year.eps'.format(diri.plot_loc))
     #plt.show()
     plt.close()
-    pdb.set_trace()
+    #pdb.set_trace()
 
     #plot a cut down section
     start,end = 216, 288
@@ -1971,7 +1973,7 @@ def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
     ax.plot(time_elem[june_elem], pos[june_elem,0], 'red', label='NH June' +  ('  {0:.2f}').format(pos[june_elem,0].mean()), ls=' ', marker='x')
     #ax.plot(time_elem[may_elem],  pos[may_elem,1], 'green', label='SH May' +  ('  {0:.2f}').format(pos[may_elem,1].mean()), ls=' ', marker='x')
     #ax.plot(time_elem[june_elem], pos[june_elem,1], 'red', label='SH June' +  ('  {0:.2f}').format(pos[june_elem,1].mean()), ls=' ', marker='x')
-    plt.legend(loc=1, ncol=2, bbox_to_anchor=(1.0, -0.1))
+    plt.legend(loc=1, ncol=2, numpoints=1)
     ax.set_xlim(0, len(pos)+1)
     plt.xticks(np.arange(0, len(pos), 122),np.arange(1979, 2016, 2))
     ax.set_ylim(10,60)
@@ -1992,7 +1994,7 @@ def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
 
     #absolute elements of may-june days 1979-2003
     may_start = 1098 #May 79
-    june_end = 1524  #June 03
+    june_end = 1524#-61  #June 03 - June 2002 was the goal
     may_slice = np.where(np.logical_and(np.array(may_elem)>=may_start,np.array(may_elem)<=june_end))[0] #years * mday days = 217 element
     june_slice = np.where(np.logical_and(np.array(june_elem)>=may_start,np.array(june_elem)<=june_end ))[0] #years * mday days = 210 element
 
@@ -2008,9 +2010,10 @@ def plot_daily_stj_ts(pos, cross, intense, theta, H_above):
     elem_for_yr_tks = np.arange(may_start,june_end+1, 61)
     plt.xticks(elem_for_yr_tks,np.arange(1997, 2004, 1))
     ax.set_xlim(may_start,  june_end)
-    ax.set_ylim(15,55)
+    ax.set_ylim(15,45)
     for i in xrange(len(elem_for_yr_tks)):
       ax.plot([elem_for_yr_tks[i],elem_for_yr_tks[i]],[15,55], 'gray',ls=':')
+    ax.set_xlim(may_start,june_end-60)
     plt.savefig('{0}/index_ts_may_june_97_03.eps'.format(diri.plot_loc))
     plt.show()
     pdb.set_trace()

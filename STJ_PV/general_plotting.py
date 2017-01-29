@@ -15,6 +15,7 @@ import matplotlib.cbook as cbook
 import matplotlib.gridspec as gridspec
 import matplotlib as mpl
 from mpl_toolkits.basemap import Basemap
+from matplotlib.patches import Rectangle
 
 # personalised
 from general_functions import apply_mask_num, addToList, save_file, openfile_get_data
@@ -240,3 +241,28 @@ def log_axis(ax, y, labelFontSize):
         t.set_fontsize(labelFontSize)
 
     return()
+
+def draw_square(ax):
+    startx, starty = 0.1, 0.5
+    width, height = 0.7,0.3
+    #currentAxis = plt.gca()
+    ax.add_patch(Rectangle((startx, starty), width, height, alpha=1,fill=None))
+
+def add_subplot_ref(ax,title,xloc,yloc,size):
+
+    ax.annotate(title, (xloc,yloc),size=size)
+
+def main():
+
+    fig = plt.figure(figsize=(14, 8))
+    ax = fig.add_axes([0.1, 0.2, 0.8, 0.75])
+    draw_square(ax)
+    add_subplot_ref(ax=ax,title='a)',xloc=0.05,yloc=0.95,size=18)
+    plt.show()
+    pdb.set_trace()
+    
+if __name__ == "__main__" : 
+
+  main() 
+
+

@@ -795,10 +795,10 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
     ax2.text(0.6,40,'b)',fontsize=16,fontweight='bold')
     ax3.text(0.6,365,'c)',fontsize=16,fontweight='bold')
     ax4.text(0.6,365,'d)',fontsize=16,fontweight='bold')
-    ax3.text(1,363,'Winter',fontsize=16,color='b')
-    ax3.text(1,342,'Summer',fontsize=16,color='r')
-    ax3.text(6.7,363,'Summer',fontsize=16,color='b')
-    ax3.text(6.7,342,'Winter',fontsize=16,color='r')
+    ax3.text(1,363,'Summer',fontsize=16,color='b')
+    ax3.text(1,342,'Winter',fontsize=16,color='r')
+    ax3.text(6.7,363,'Winter',fontsize=16,color='b')
+    ax3.text(6.7,342,'Summer',fontsize=16,color='r')
 
     #add space between subplots
     # [Left,Bottom,Width,Height] 
@@ -840,6 +840,7 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
     hemi_count = hemi_count + 1
 
 
+    hemi =  ['NH','SH']
     fig = plt.figure(figsize=(15, 6))
     # position vs intensity
     ax1 = plt.subplot2grid((1, 3), (0, 0))
@@ -885,11 +886,18 @@ def PlotCalendarTimeseries(STJ_cal_mean, STJ_cal_int_mean, STJ_cal_th_mean,
 
             mm_count = mm_count + 1
 
+    ax2.set_ylim(347,355)
+    ax3.set_ylim(347,355)
+
+    ax1.text(24.5,16,'a)',fontsize=14,fontweight='bold')
+    ax2.text(16,347.25,'b)',fontsize=14,fontweight='bold')
+    ax3.text(24.5,347.25,'c)',fontsize=14,fontweight='bold')
+
     plt.legend(loc=2)
     plt.savefig('{}/calendar_lifecycle.eps'.format(plot_dir))
-    # plt.show()
+    plt.show()
     plt.close()
-    # pdb.set_trace()
+    pdb.set_trace()
 
 
 def get_centred_bounds(min_bound, max_bound, increment, critical=None):
@@ -1002,19 +1010,23 @@ def plot_thermap_trop_vs_pressure(IPV_data,H_theta,theta_zonal,pres):
     #first do an unfilled contour plot of isentropes
     levels = np.arange(300,520,20)
     CS = plt.contour(IPV_data['lat'],pres,theta_zn, levels=levels, colors='k')
-    plt.clabel(CS,levels[1::2], fontsize=9, inline=1,)
+    plt.clabel(CS,levels[1::2], fontsize=9, fmt="%d")
 
     ax.plot(IPV_data['lat'],H_p,  linestyle='-', c='blue')  
     ax.tick_params(axis='y', colors='blue')
-    ax.set_ylim(400,10)
+    ax.set_ylim(400,50)
+    lat_array = np.arange(-90, 91, 30)
+    lat_plot = draw_deg(lat_array)
+    ax.xaxis.set_ticks(lat_array)
+    ax.xaxis.set_ticklabels(lat_plot)
     ax.set_xlim(-90,90)
-    ax.set_ylabel('p (hPa)')
+    ax.set_ylabel('p (hPa)', color='b')
 
     ax2 = ax.twinx()
     ax2.plot(IPV_data['lat'],H_th, linestyle='-', c='r')  
     ax2.set_ylim(300,400)
     ax2.tick_params(axis='y', colors='red')
-    ax2.set_ylabel(r'$\theta$ (K)')
+    ax2.set_ylabel(r'$\theta$ (K)',color='red')
     plt.savefig('{}/Trop_height_theta_v_p.eps'.format(plot_dir))
     plt.show()
     pdb.set_trace()
