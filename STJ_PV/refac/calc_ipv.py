@@ -28,6 +28,7 @@ def vinterp(data, vcoord, vlevels):
         Vertical coordinate to interpolate to
     vlevels : array_like (1D)
         Levels, in same units as vcoord, to interpolate to
+
     Returns
     -------
     out_data : array_like, (data.shape[0], vlevels.shape[0], *data.shape[2:])
@@ -125,7 +126,7 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
     Returns
     -------
     rel_vort : array_like
-        Relative vorticity :math:`\zeta_h = \\nabla \\times \\overrightarrow{V_h}`
+        Relative vorticity :math:`\zeta_h = \nabla \times \overrightarrow{V_h}`
         (cross product of gradient operator and  horizontal vector wind)
         If cyclic, returns same dimensions as uwnd & vwnd, if not it is::
 
