@@ -1,0 +1,291 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>refac.run_stj &#8212; STJ Metric 0.5 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="top" title="STJ Metric 0.5 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">STJ Metric 0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for refac.run_stj</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Run STJ: Main module &quot;glue&quot; that connects Subtropical Jet Metric calc, plot and diags.</span>
+
+<span class="sd">Authors: Penelope Maher, Michael Kelleher</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="c1">#import stj_metric as metric</span>
+<span class="c1">#import input_data as makeipv</span>
+
+<span class="c1"># Metric named tuple, use later?</span>
+<span class="c1"># metric = collections.namedtuple(&#39;metric&#39;, &#39;name hemisphere intensity position&#39;)</span>
+
+
+<div class="viewcode-block" id="STJProperties"><a class="viewcode-back" href="../../refac.html#refac.run_stj.STJProperties">[docs]</a><span class="k">class</span> <span class="nc">STJProperties</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Object containing properties about Subtropical Jet Metric calculation.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    base : Directory containing output data and plotting directories are</span>
+<span class="sd">    data_source : What has generated data to be used (e.g. ERA-Interim, NCEP/NCAR</span>
+<span class="sd">        reanalysis, GFDL idealised model...</span>
+<span class="sd">    directories : Dictionary of locations, keys are &#39;work_loc&#39; and &#39;data_loc&#39;</span>
+<span class="sd">        work_loc is what machine you&#39;re running from, data_loc contains input data</span>
+<span class="sd">    in_files : Dictionary of sub-directory containing specific files,</span>
+<span class="sd">        and file names for isobaric u-wind, v-wind, and air temperature</span>
+<span class="sd">    var_names : Names of netCDF variables within each file (u, v, t)</span>
+<span class="sd">    run_opts : Dictionary of run-time options (See below)</span>
+<span class="sd">    plot_opts : Dictionary of plotting options</span>
+
+<span class="sd">    Methods</span>
+<span class="sd">    -------</span>
+<span class="sd">    find_location</span>
+<span class="sd">    set_file_and_var_names</span>
+<span class="sd">    create_output_dirs</span>
+<span class="sd">    run</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    **Run options** `run_opts`</span>
+
+<span class="sd">    - `run_flag`: What mode should the metric be run on? Either:</span>
+<span class="sd">        - &#39;Open&#39; (Load stored IPV, calculate metric),</span>
+<span class="sd">        - &#39;Save&#39; (Calculate IPV, run metric, then save)</span>
+<span class="sd">        - &#39;RunNotSave&#39; (Calculate IPV, run metric, don&#39;t save IPV output)</span>
+
+<span class="sd">    - `slicing`: &#39;zonal_mean&#39; or &#39;indv&#39; for zonal mean position, or position at</span>
+<span class="sd">        each longitude</span>
+
+<span class="sd">    - `debug`: Print debug statements, include set_trace() for True</span>
+
+<span class="sd">    - `pv_value`: Get metric using this value of isentropic pv (Default = 2.0 PVU, float)</span>
+
+<span class="sd">    - `start_time`: Time index of first metric calculation (integer)</span>
+
+<span class="sd">    - `end_time`: Time index of last metric calculation (integer)</span>
+
+<span class="sd">    **Plotting options** `plot_opts`</span>
+<span class="sd">        - `debug`: Boolean if True, make debugging plots</span>
+<span class="sd">        - `metric`: Make plots locating the jet, and identifying its intensity</span>
+<span class="sd">        - `extn`: File extension (e.g.: eps, pdf, png)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise default properties for subtropical jet metric.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">base</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;BASE&#39;</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Env var BASE not set, using defaults&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">base</span> <span class="o">=</span> <span class="s1">&#39;./&#39;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_source</span> <span class="o">=</span> <span class="s1">&#39;ERA-INT&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">directories</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_files</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">find_location</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_file_and_var_names</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">th_levels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span> <span class="mi">501</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_opts</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;run_flag&#39;</span><span class="p">:</span> <span class="s1">&#39;save&#39;</span><span class="p">,</span> <span class="s1">&#39;slicing&#39;</span><span class="p">:</span> <span class="s1">&#39;zonal_mean&#39;</span><span class="p">,</span> <span class="s1">&#39;debug&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                         <span class="s1">&#39;pv_value&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s1">&#39;start_time&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;end_time&#39;</span><span class="p">:</span> <span class="mi">360</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">plot_opts</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;debug&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;metric&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;extn&#39;</span><span class="p">:</span> <span class="s1">&#39;png&#39;</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to pretty-print information about a particular STJ Metric calculation.</span>
+<span class="sd">        Called on `print(STJProperties)`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out_str</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{0}</span><span class="s2"> STJ Metric Properties </span><span class="si">{0}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;-&#39;</span> <span class="o">*</span> <span class="mi">5</span><span class="p">)</span>
+        <span class="n">n_header</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">out_str</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="n">out_str</span> <span class="o">+=</span> <span class="s1">&#39;Data Source: </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_source</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_opts</span><span class="p">:</span>
+            <span class="n">out_str</span> <span class="o">+=</span> <span class="s1">&#39;   </span><span class="si">{:12s}</span><span class="s1"> : </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_opts</span><span class="p">[</span><span class="n">opt</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">opt</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot_opts</span><span class="p">:</span>
+            <span class="n">out_str</span> <span class="o">+=</span> <span class="s1">&#39;   </span><span class="si">{:12s}</span><span class="s1"> : </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">opt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot_opts</span><span class="p">[</span><span class="n">opt</span><span class="p">])</span>
+        <span class="n">out_str</span> <span class="o">+=</span> <span class="s1">&#39;-&#39;</span> <span class="o">*</span> <span class="n">n_header</span>
+        <span class="k">return</span> <span class="n">out_str</span>
+
+<div class="viewcode-block" id="STJProperties.find_location"><a class="viewcode-back" href="../../refac.html#refac.run_stj.STJProperties.find_location">[docs]</a>    <span class="k">def</span> <span class="nf">find_location</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find and assign locations for input/output data and plots based on `self.base`.</span>
+
+<span class="sd">        Uses dictionary that defines locations.</span>
+<span class="sd">        All that needs to be added is a new key for each new base, with a dictionary</span>
+<span class="sd">        for it containing the &#39;work_loc&#39; and &#39;data_loc&#39;</span>
+
+<span class="sd">        Use current directory (./) and (./Data) as the defaults (from __init__ if env</span>
+<span class="sd">        variable $BASE isn&#39;t set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">dir_locs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;/home/maher/Documents/Penny&#39;</span><span class="p">:</span>
+                    <span class="p">{</span><span class="s1">&#39;work_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;PeronalLaptop&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;data_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;/media/Seagate Expansion Drive/Data/&#39;</span><span class="p">},</span>
+
+                    <span class="s1">&#39;/home/pm366/Documents&#39;</span><span class="p">:</span>
+                    <span class="p">{</span><span class="s1">&#39;work_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;ExeterLaptop&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;data_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;/media/pm366/Seagate Expansion Drive/Data/&#39;</span><span class="p">},</span>
+
+                    <span class="s1">&#39;/home/links/pm366/Documents/&#39;</span><span class="p">:</span>
+                    <span class="p">{</span><span class="s1">&#39;work_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;gv&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;data_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;/scratch/pm366/&#39;</span><span class="p">},</span>
+
+                    <span class="s1">&#39;/home/links/mk450/stj_pv&#39;</span><span class="p">:</span>
+                    <span class="p">{</span><span class="s1">&#39;work_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;gv&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;data_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;/scratch/mk450/&#39;</span><span class="p">},</span>
+
+                    <span class="s1">&#39;/Users/mk450/stj_pv&#39;</span><span class="p">:</span>
+                    <span class="p">{</span><span class="s1">&#39;work_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;MKiMac&#39;</span><span class="p">,</span>
+                     <span class="s1">&#39;data_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;/Volumes/FN_2187/erai/&#39;</span><span class="p">},</span>
+
+                    <span class="s1">&#39;./&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;work_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;LocalHost&#39;</span><span class="p">,</span> <span class="s1">&#39;data_loc&#39;</span><span class="p">:</span> <span class="s1">&#39;./Data&#39;</span><span class="p">}}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">directories</span> <span class="o">=</span> <span class="n">dir_locs</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">directories</span><span class="p">[</span><span class="s1">&#39;plot_loc&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/Plots&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="STJProperties.set_file_and_var_names"><a class="viewcode-back" href="../../refac.html#refac.run_stj.STJProperties.set_file_and_var_names">[docs]</a>    <span class="k">def</span> <span class="nf">set_file_and_var_names</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set filenames and variables within those files depending on `self.data_source`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Initalize a Named Tuple to store how variables are called within the input files</span>
+        <span class="n">data_name</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;data_name&#39;</span><span class="p">,</span> <span class="s1">&#39;letter label&#39;</span><span class="p">)</span>
+
+        <span class="c1"># Currently, only ERA-INT is setup to work, but this file_dict can be expanded</span>
+        <span class="c1"># To include a data type, it&#39;s input directory, and locations of u/v/t files</span>
+        <span class="c1"># Also, include the input/output file for IPV</span>
+        <span class="n">file_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;ERA-INT&#39;</span><span class="p">:</span>
+                     <span class="p">{</span><span class="s1">&#39;in_dir&#39;</span><span class="p">:</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directories</span><span class="p">[</span><span class="s1">&#39;data_loc&#39;</span><span class="p">],</span>
+                                               <span class="s1">&#39;Data/ERA_INT/1979_2015/&#39;</span><span class="p">),</span>
+                      <span class="s1">&#39;u&#39;</span><span class="p">:</span> <span class="s1">&#39;u79_15.nc&#39;</span><span class="p">,</span> <span class="s1">&#39;v&#39;</span><span class="p">:</span> <span class="s1">&#39;v79_15.nc&#39;</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="s1">&#39;t79_15.nc&#39;</span><span class="p">,</span>
+                      <span class="s1">&#39;ipv&#39;</span><span class="p">:</span> <span class="s1">&#39;ipv79_15.nc&#39;</span><span class="p">}}</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_source</span> <span class="o">==</span> <span class="s1">&#39;ERA-INT&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">var_names</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">data_name</span><span class="p">(</span><span class="n">letter</span><span class="o">=</span><span class="s1">&#39;t&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;t&#39;</span><span class="p">),</span>
+                              <span class="s1">&#39;u&#39;</span><span class="p">:</span> <span class="n">data_name</span><span class="p">(</span><span class="n">letter</span><span class="o">=</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;var131&#39;</span><span class="p">),</span>
+                              <span class="s1">&#39;v&#39;</span><span class="p">:</span> <span class="n">data_name</span><span class="p">(</span><span class="n">letter</span><span class="o">=</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;var132&#39;</span><span class="p">),</span>
+                              <span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="n">data_name</span><span class="p">(</span><span class="n">letter</span><span class="o">=</span><span class="s1">&#39;p&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;lev&#39;</span><span class="p">)}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_files</span> <span class="o">=</span> <span class="n">file_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data_source</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="STJProperties.create_output_dirs"><a class="viewcode-back" href="../../refac.html#refac.run_stj.STJProperties.create_output_dirs">[docs]</a>    <span class="k">def</span> <span class="nf">create_output_dirs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create output directories.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">dir_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">directories</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directories</span><span class="p">[</span><span class="n">dir_type</span><span class="p">]):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;CREATING </span><span class="si">{}</span><span class="s1"> DIRECTORY: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dir_type</span><span class="p">,</span>
+                                                         <span class="bp">self</span><span class="o">.</span><span class="n">directories</span><span class="p">[</span><span class="n">dir_type</span><span class="p">]))</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="s1">&#39;mkdir -p </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directories</span><span class="p">[</span><span class="n">dir_type</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="STJProperties.run"><a class="viewcode-back" href="../../refac.html#refac.run_stj.STJProperties.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Run STJ Metric with properties defined within &lt;self&gt;.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div></div>
+
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../refac.html#refac.run_stj.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main method, run STJ Metric</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Generate an STJProperties, allows easy access to these properties across methods.</span>
+    <span class="n">stj_props</span> <span class="o">=</span> <span class="n">STJProperties</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">stj_props</span><span class="p">)</span>
+    <span class="n">stj_metric</span> <span class="o">=</span> <span class="n">metric</span><span class="o">.</span><span class="n">STJMetric</span><span class="p">(</span><span class="n">stj_props</span><span class="p">)</span></div>
+
+    <span class="c1"># if stj_props.run_opts[&#39;run_flag&#39;] in [&#39;Save&#39; or &#39;RunNotSave&#39;]:</span>
+        <span class="c1"># Calculate IPV first, using input data</span>
+    <span class="c1"># else:</span>
+        <span class="c1"># Open IPV File</span>
+
+    <span class="c1"># if stj_props.run_opts[&#39;run_flag&#39;] == &#39;Save&#39;:</span>
+        <span class="c1"># Save IPV data</span>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">STJ Metric 0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, PM, MK.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.8.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>refac.thermal_tropopause &#8212; STJ Metric 0.5 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">STJ Metric 0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for refac.thermal_tropopause</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Functions for finding thermal tropopause level.&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy</span> <span class="k">import</span> <span class="n">interpolate</span> <span class="k">as</span> <span class="n">interp</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">&#39;ggplot&#39;</span><span class="p">)</span>
+
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s2">&quot;Penelope Maher, Michael Kelleher&quot;</span>
+
+
+<div class="viewcode-block" id="lapse_rate"><a class="viewcode-back" href="../../refac.html#refac.thermal_tropopause.lapse_rate">[docs]</a><span class="k">def</span> <span class="nf">lapse_rate</span><span class="p">(</span><span class="n">t_air</span><span class="p">,</span> <span class="n">pres</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate the lapse rate of temperature in K/km from isobaric temperature data.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_air : array_like</span>
+<span class="sd">        N-D array of temperature on isobaric surfaces in K</span>
+<span class="sd">    pres : array_like</span>
+<span class="sd">        1-D array of pressure levels, matching one dimension of t_air, in hPa</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dtdz : array_like</span>
+<span class="sd">        N-D array of lapse rate in K/km matching dimensionality of t_air</span>
+<span class="sd">    d_z : array_like</span>
+<span class="sd">        N-D array of height differences in km between levels, same shape as t_air</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">r_d</span> <span class="o">=</span> <span class="mf">287.0</span>         <span class="c1"># J K^-1 kg^-1  gas constant of dry air</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="mf">9.81</span>            <span class="c1"># m/s^2</span>
+
+    <span class="c1"># Common axis is vertical axis</span>
+    <span class="n">ax_com</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">t_air</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="n">pres</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="c1"># Create slices to use that are correct shape</span>
+    <span class="n">slc_p1</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)]</span> <span class="o">*</span> <span class="n">t_air</span><span class="o">.</span><span class="n">ndim</span>
+    <span class="n">slc_m1</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)]</span> <span class="o">*</span> <span class="n">t_air</span><span class="o">.</span><span class="n">ndim</span>
+
+    <span class="c1"># Make slice plus one the same as [:, 1:, ...] if ax_com==1</span>
+    <span class="n">slc_p1</span><span class="p">[</span><span class="n">ax_com</span><span class="p">]</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="c1"># Make slice minus one the same as [:, :-1, ...] if ax_com==1</span>
+    <span class="n">slc_m1</span><span class="p">[</span><span class="n">ax_com</span><span class="p">]</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># This generates a list of length ndim of t_air, (if 4-D then [None, None, None, None]</span>
+    <span class="n">slc_nd</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="n">t_air</span><span class="o">.</span><span class="n">ndim</span>
+
+    <span class="c1"># This makes the common axis (vertical) a slice, if ax_com = 1 then it is the</span>
+    <span class="c1"># same as saying pres[None, :, None, None], but allowing ax_com to be automagic</span>
+    <span class="n">slc_nd</span><span class="p">[</span><span class="n">ax_com</span><span class="p">]</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># Calculate lapse rate in K/km</span>
+    <span class="n">d_t</span> <span class="o">=</span> <span class="n">t_air</span><span class="p">[</span><span class="n">slc_p1</span><span class="p">]</span> <span class="o">-</span> <span class="n">t_air</span><span class="p">[</span><span class="n">slc_m1</span><span class="p">]</span>      <span class="c1"># Units = K</span>
+    <span class="n">d_p</span> <span class="o">=</span> <span class="p">(</span><span class="n">pres</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">-</span> <span class="n">pres</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">*</span> <span class="mf">100.0</span>     <span class="c1"># Units = Pa</span>
+
+    <span class="n">rho</span> <span class="o">=</span> <span class="p">(</span><span class="n">pres</span><span class="p">[</span><span class="n">slc_nd</span><span class="p">]</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">r_d</span> <span class="o">*</span> <span class="n">t_air</span><span class="p">)</span>  <span class="c1"># rho = p / (Rd * T)</span>
+    <span class="n">d_z</span> <span class="o">=</span> <span class="o">-</span><span class="n">d_p</span><span class="p">[</span><span class="n">slc_nd</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">rho</span><span class="p">[</span><span class="n">slc_p1</span><span class="p">]</span> <span class="o">*</span> <span class="n">g</span><span class="p">)</span> <span class="o">/</span> <span class="mf">1000.0</span>   <span class="c1"># Hydrostatic approx.</span>
+    <span class="n">dtdz</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="n">d_t</span> <span class="o">/</span> <span class="n">d_z</span><span class="p">)</span>                   <span class="c1"># Lapse rate [K/km]</span>
+    <span class="k">return</span> <span class="n">dtdz</span><span class="p">,</span> <span class="n">d_z</span></div>
+
+
+<div class="viewcode-block" id="trop_lev_1d"><a class="viewcode-back" href="../../refac.html#refac.thermal_tropopause.trop_lev_1d">[docs]</a><span class="k">def</span> <span class="nf">trop_lev_1d</span><span class="p">(</span><span class="n">dtdz</span><span class="p">,</span> <span class="n">d_z</span><span class="p">,</span> <span class="n">thr</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">return_idx</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given 1D arrays for lapse rate and change in height, and a threshold, find tropopause.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dtdz : array_like</span>
+<span class="sd">        1D array of lapse rate (in same units as `thr`, usually K km^-1</span>
+<span class="sd">    d_z : array_like</span>
+<span class="sd">        1D array of change of height from previous level, same shape as `dtdz`, in same</span>
+<span class="sd">        units as `dtdz` denominator units</span>
+<span class="sd">    thr : float</span>
+<span class="sd">        Lapse rate threshold for definition of tropopause, WMO/default is 2.0 K km^-1</span>
+<span class="sd">    return_idx : bool</span>
+<span class="sd">        Flag to return index of tropopause level. Default is False, if True output is</span>
+<span class="sd">        `out_mask`, `idx` if False, output is `out_mask`</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    out_mask : array_like</span>
+<span class="sd">        1D array, same shape as `dtdz` and `d_z`, of booleans, `True` everywhere except</span>
+<span class="sd">        the tropopause level</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lt_thr</span> <span class="o">=</span> <span class="n">dtdz</span> <span class="o">&lt;</span> <span class="n">thr</span>
+    <span class="n">lt_transition</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">lt_thr</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
+                                                    <span class="n">lt_thr</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+    <span class="n">start_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">lt_thr</span><span class="p">,</span> <span class="n">lt_transition</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">out_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span><span class="p">]</span> <span class="o">*</span> <span class="n">d_z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">start_idx</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">max_in_2km</span> <span class="o">=</span> <span class="n">dtdz</span><span class="p">[</span><span class="n">idx</span><span class="p">:</span><span class="n">idx</span> <span class="o">+</span> <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">d_z</span><span class="p">[</span><span class="n">idx</span><span class="p">:])</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">)</span><span class="o">.</span><span class="n">argmin</span><span class="p">()]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">max_in_2km</span> <span class="o">&lt;=</span> <span class="n">thr</span><span class="p">:</span>
+            <span class="n">out_mask</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="n">return_idx</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out_mask</span><span class="p">,</span> <span class="n">idx</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">out_mask</span></div>
+
+
+<div class="viewcode-block" id="find_tropopause_mask"><a class="viewcode-back" href="../../refac.html#refac.thermal_tropopause.find_tropopause_mask">[docs]</a><span class="k">def</span> <span class="nf">find_tropopause_mask</span><span class="p">(</span><span class="n">dtdz</span><span class="p">,</span> <span class="n">d_z</span><span class="p">,</span> <span class="n">thr</span><span class="o">=</span><span class="mf">2.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Use Reichler et al. 2003 method to calculate tropopause level.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dtdz : array_like</span>
+<span class="sd">        1-D array of lapse rate in K/km</span>
+<span class="sd">    d_z : array_like</span>
+<span class="sd">        1-D array (same shape as `dtdz`) of difference in height between levels</span>
+<span class="sd">    thr : float</span>
+<span class="sd">        Lapse rate threshold in K/km (WMO definition is 2.0 K/km)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    trop_level : integer</span>
+<span class="sd">        Index of tropopause level on the vertical axis</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># For now, we&#39;ll assume if 1-D data: vertical is dim 0, &gt;= 2-D vertical is dim 1</span>
+    <span class="c1"># Loops are slow, but still can&#39;t figure out a way beyond them :-(</span>
+    <span class="n">trop_level</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">dtdz</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dtdz</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">trop_lev_1d</span><span class="p">(</span><span class="n">dtdz</span><span class="p">,</span> <span class="n">d_z</span><span class="p">,</span> <span class="n">thr</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">dtdz</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ixt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dtdz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">trop_level</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">trop_lev_1d</span><span class="p">(</span><span class="n">dtdz</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:],</span> <span class="n">d_z</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:],</span> <span class="n">thr</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">dtdz</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ixt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dtdz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">ixy</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dtdz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                <span class="n">trop_level</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:,</span> <span class="n">ixy</span><span class="p">]</span> <span class="o">=</span> <span class="n">trop_lev_1d</span><span class="p">(</span><span class="n">dtdz</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:,</span> <span class="n">ixy</span><span class="p">],</span> <span class="n">d_z</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:,</span> <span class="n">ixy</span><span class="p">],</span>
+                                                      <span class="n">thr</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">dtdz</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">ixt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dtdz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">ixy</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dtdz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                <span class="k">for</span> <span class="n">ixx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dtdz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">]):</span>
+                    <span class="n">trop_level</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:,</span> <span class="n">ixy</span><span class="p">,</span> <span class="n">ixx</span><span class="p">]</span> <span class="o">=</span> <span class="n">trop_lev_1d</span><span class="p">(</span><span class="n">dtdz</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:,</span> <span class="n">ixy</span><span class="p">,</span> <span class="n">ixx</span><span class="p">],</span>
+                                                               <span class="n">d_z</span><span class="p">[</span><span class="n">ixt</span><span class="p">,</span> <span class="p">:,</span> <span class="n">ixy</span><span class="p">,</span> <span class="n">ixx</span><span class="p">],</span> <span class="n">thr</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">trop_level</span></div>
+
+
+<div class="viewcode-block" id="get_tropopause"><a class="viewcode-back" href="../../refac.html#refac.thermal_tropopause.get_tropopause">[docs]</a><span class="k">def</span> <span class="nf">get_tropopause</span><span class="p">(</span><span class="n">t_air</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">thr</span><span class="o">=</span><span class="mf">2.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the tropopause temperature and pressure for WMO tropopause.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    t_air : array_like</span>
+<span class="sd">        ND array of temperature, where axis 1 is vertical axis</span>
+<span class="sd">    pres : array_like</span>
+<span class="sd">        1D array of pressure levels, shape is same as `t_air`.shape[0]</span>
+<span class="sd">    thr : float</span>
+<span class="sd">        Lapse rate threshold, default/WMO definition is 2.0 K km^-1</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    trop_temp, trop_pres : array_like</span>
+<span class="sd">        Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension</span>
+<span class="sd">        dropped is vertical axis, same units as input t_air and pres respectively</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Find half pressure levels</span>
+    <span class="n">pres_hf</span> <span class="o">=</span> <span class="p">(</span><span class="n">pres</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">pres</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span> <span class="o">/</span> <span class="mf">2.0</span> <span class="o">+</span> <span class="n">pres</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+
+    <span class="c1"># Create full pressure array to interpolate temperature to</span>
+    <span class="n">pres_full</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">pres</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">pres_hf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">pres_full</span><span class="p">[::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">pres</span>
+    <span class="n">pres_full</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">pres_hf</span>
+
+    <span class="c1"># Interpolate temperature to half pressure levels</span>
+    <span class="n">t_interp</span> <span class="o">=</span> <span class="n">interp</span><span class="o">.</span><span class="n">interp1d</span><span class="p">(</span><span class="n">pres</span><span class="p">,</span> <span class="n">t_air</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">)(</span><span class="n">pres_full</span><span class="p">)</span>
+
+    <span class="c1"># Broadcast pres_full to 4D, but pressure axis has to be last axis for broadcast_to</span>
+    <span class="c1"># so, use temp shape, where index 1 and -1 are switched</span>
+    <span class="n">temp_shape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">t_interp</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">temp_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">temp_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp_shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">temp_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">pres_full_4d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">pres_full</span><span class="p">,</span> <span class="n">temp_shape</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="c1"># Calculate the lapse rate, gives back lapse rate and d(height)</span>
+    <span class="n">dtdz</span><span class="p">,</span> <span class="n">d_z</span> <span class="o">=</span> <span class="n">lapse_rate</span><span class="p">(</span><span class="n">t_interp</span><span class="p">,</span> <span class="n">pres_full</span><span class="p">)</span>
+
+    <span class="c1"># Create tropopause level mask, use only the half levels (every other starting at 1)</span>
+    <span class="n">trop_level_mask</span> <span class="o">=</span> <span class="n">find_tropopause_mask</span><span class="p">(</span><span class="n">dtdz</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">d_z</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">thr</span><span class="p">)</span>
+
+    <span class="c1"># To get the tropopause temp/pres, mask the 4D arrays (at every other level)</span>
+    <span class="c1"># then take the mean across level axis (now only one unmasked point) to give 3D data</span>
+    <span class="n">trop_temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">trop_level_mask</span><span class="p">,</span>
+                                           <span class="n">t_interp</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="o">...</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">trop_pres</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_where</span><span class="p">(</span><span class="n">trop_level_mask</span><span class="p">,</span>
+                                           <span class="n">pres_full_4d</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">,</span> <span class="o">...</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">trop_temp</span><span class="p">,</span> <span class="n">trop_pres</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">STJ Metric 0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, PM, MK.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.1.
+    </div>
+  </body>
+</html>

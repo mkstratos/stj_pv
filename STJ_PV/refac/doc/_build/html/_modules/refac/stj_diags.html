@@ -1,0 +1,221 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>refac.stj_diags &#8212; STJ Metric 0.5 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.5',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">STJ Metric 0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for refac.stj_diags</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Module containing classes for diagnoistic variable calculation and diagnoistic plotting.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="DiagMetrics"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics">[docs]</a><span class="k">class</span> <span class="nc">DiagMetrics</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate diagnostic metrics about subtropical jet properties.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stj_props</span><span class="p">,</span> <span class="n">stj_metric</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Setup DiagMetrics, input from a STJMetric and STJProperties classes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">props</span> <span class="o">=</span> <span class="n">stj_props</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metric</span> <span class="o">=</span> <span class="n">stj_metric</span>
+
+<div class="viewcode-block" id="DiagMetrics.jet_intensity"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics.jet_intensity">[docs]</a>    <span class="k">def</span> <span class="nf">jet_intensity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate jet intensity at identified points.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagMetrics.annual_correlations"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics.annual_correlations">[docs]</a>    <span class="k">def</span> <span class="nf">annual_correlations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate annual correlations.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagMetrics.monthly_correlations"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics.monthly_correlations">[docs]</a>    <span class="k">def</span> <span class="nf">monthly_correlations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate monthly correlations.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagMetrics.seasonal_correlations"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics.seasonal_correlations">[docs]</a>    <span class="k">def</span> <span class="nf">seasonal_correlations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate seasonal correlations.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagMetrics.polyfit_near_mean"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics.polyfit_near_mean">[docs]</a>    <span class="k">def</span> <span class="nf">polyfit_near_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform a polynomial fit of pv contour near &quot;expected&quot; jet location mean.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagMetrics.validate_near_mean"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics.validate_near_mean">[docs]</a>    <span class="k">def</span> <span class="nf">validate_near_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check that identified STJ position is near &quot;expected&quot; jet location mean.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagMetrics.get_uwind_strength"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagMetrics.get_uwind_strength">[docs]</a>    <span class="k">def</span> <span class="nf">get_uwind_strength</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate zonal wind profile.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># created named tuples to manage storage of index</span>
+        <span class="n">metric</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span><span class="s1">&#39;metric&#39;</span><span class="p">,</span> <span class="s1">&#39;name hemisphere intensity position&#39;</span><span class="p">)</span>
+        <span class="n">time_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ipv_data</span><span class="p">[</span><span class="s1">&#39;ipv&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">STJ_int</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">time_len</span><span class="p">)</span>
+        <span class="n">STJ_pos</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">time_len</span><span class="p">)</span>
+        <span class="n">pdb</span><span class="o">.</span><span class="n">set_trace</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">hemi</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;NH&#39;</span><span class="p">,</span> <span class="s1">&#39;SH&#39;</span><span class="p">]:</span>
+            <span class="k">for</span> <span class="n">time_loop</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">time_len</span><span class="p">):</span>
+                <span class="c1"># for time_loop in xrange(1):</span>
+
+                <span class="k">if</span> <span class="n">hemi</span> <span class="o">==</span> <span class="s1">&#39;NH&#39;</span><span class="p">:</span>
+                    <span class="n">lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lat_NH</span>
+                    <span class="n">STJ_phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">NH_STJ_phi</span><span class="p">[</span><span class="n">time_loop</span><span class="p">]</span>
+                    <span class="n">STJ_th</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">NH_STJ_theta</span><span class="p">[</span><span class="n">time_loop</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">lat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lat_SH</span>
+                    <span class="n">STJ_phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">SH_STJ_phi</span><span class="p">[</span><span class="n">time_loop</span><span class="p">]</span>
+                    <span class="n">STJ_th</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">SH_STJ_theta</span><span class="p">[</span><span class="n">time_loop</span><span class="p">]</span>
+
+                <span class="c1"># step 8. interpolate u wind</span>
+                <span class="n">u_zonal</span> <span class="o">=</span> <span class="n">MeanOverDim</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">u_th</span><span class="p">[</span><span class="n">time_loop</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">u_zonal_function</span> <span class="o">=</span> <span class="n">interpolate</span><span class="o">.</span><span class="n">interp2d</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">lat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">theta_lev</span><span class="p">,</span> <span class="n">u_zonal</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;cubic&#39;</span><span class="p">)</span>
+                <span class="n">u_zonal_interp</span> <span class="o">=</span> <span class="n">u_zonal_function</span><span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">theta_interp</span><span class="p">)</span>
+
+                <span class="c1"># step 9: for the 2.0 max derivative latitude find the uwind strength</span>
+                <span class="c1"># get element closest to phi and theta points</span>
+
+                <span class="n">elem_phi</span> <span class="o">=</span> <span class="n">FindClosestElem</span><span class="p">(</span><span class="n">STJ_phi</span><span class="p">,</span> <span class="n">lat</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">elem_theta</span> <span class="o">=</span> <span class="n">FindClosestElem</span><span class="p">(</span><span class="n">STJ_th</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">theta_interp</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+                <span class="n">STJ_int</span><span class="p">[</span><span class="n">time_loop</span><span class="p">]</span> <span class="o">=</span> <span class="n">u_zonal_interp</span><span class="p">[</span><span class="n">elem_theta</span><span class="p">,</span> <span class="n">elem_phi</span><span class="p">]</span>
+                <span class="n">STJ_pos</span><span class="p">[</span><span class="n">time_loop</span><span class="p">]</span> <span class="o">=</span> <span class="n">STJ_phi</span>
+
+            <span class="k">if</span> <span class="n">hemi</span> <span class="o">==</span> <span class="s1">&#39;NH&#39;</span><span class="p">:</span>
+                <span class="n">Metric_NH</span> <span class="o">=</span> <span class="n">metric</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;STJ&#39;</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="n">hemi</span><span class="p">,</span>
+                                   <span class="n">intensity</span><span class="o">=</span><span class="n">STJ_int</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="n">STJ_pos</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">Metric_SH</span> <span class="o">=</span> <span class="n">metric</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;STJ&#39;</span><span class="p">,</span> <span class="n">hemisphere</span><span class="o">=</span><span class="n">hemi</span><span class="p">,</span>
+                                   <span class="n">intensity</span><span class="o">=</span><span class="n">STJ_int</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="n">STJ_pos</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">Metric_NH</span><span class="p">,</span> <span class="n">Metric_SH</span></div></div>
+
+<div class="viewcode-block" id="DiagPlots"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagPlots">[docs]</a><span class="k">class</span> <span class="nc">DiagPlots</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Plot diagnostic metrics about subtropical jet properties.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stj_props</span><span class="p">,</span> <span class="n">stj_metric</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Setup DiagMetrics, input from STJIPVMetric and STJProperties classes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">props</span> <span class="o">=</span> <span class="n">stj_props</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metric</span> <span class="o">=</span> <span class="n">stj_metric</span>
+
+<div class="viewcode-block" id="DiagPlots.test_method_plot"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagPlots.test_method_plot">[docs]</a>    <span class="k">def</span> <span class="nf">test_method_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot individual components of the metric to ensure it is working properly.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagPlots.compare_fd_cby"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagPlots.compare_fd_cby">[docs]</a>    <span class="k">def</span> <span class="nf">compare_fd_cby</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot comparison of finite difference and Chebyshev polynomial derivative jet pos.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagPlots.test_second_derr"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagPlots.test_second_derr">[docs]</a>    <span class="k">def</span> <span class="nf">test_second_derr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot test of second derivative of PV contour.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagPlots.jet_lat_timeseries"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagPlots.jet_lat_timeseries">[docs]</a>    <span class="k">def</span> <span class="nf">jet_lat_timeseries</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot jet location over time for both NH and SH.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="DiagPlots.partial_correlation_matrix"><a class="viewcode-back" href="../../refac.html#refac.stj_diags.DiagPlots.partial_correlation_matrix">[docs]</a>    <span class="k">def</span> <span class="nf">partial_correlation_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plot matrix of partial correlations.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">STJ Metric 0.5 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2016, PM, MK.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.1.
+    </div>
+  </body>
+</html>
