@@ -154,7 +154,7 @@ def get_tropopause(t_air, pres, thr=2.0):
     t_air : array_like
         ND array of temperature, where axis 1 is vertical axis
     pres : array_like
-        1D array of pressure levels, shape is same as `t_air`.shape[0]
+        1D array of pressure levels, shape is same as `t_air`.shape[1]
     thr : float
         Lapse rate threshold, default/WMO definition is 2.0 K km^-1
 
