@@ -103,7 +103,7 @@ def vinterp(data, vcoord, vlevels):
             # Handle case where data has fewer dimensions than vcoord
             out_data[out_idx] = (wgt0 * data[idx_belw[1]] + wgt1 * data[idx_abve[1]])
 
-    return out_data
+    return np.squeeze(out_data)
 
 
 def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
