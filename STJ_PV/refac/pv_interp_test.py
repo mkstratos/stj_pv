@@ -88,7 +88,7 @@ if __name__ == "__main__":
     year_s = 1979
     year_e = 2016
 
-    jet_loc_ts = np.zeros((year_e - year_s + 1) * 12)
+    jet_loc_ts = []
     mon_idx = 0
 
     #pfit = cby.chebfit
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         fit_deg = 10
 
         #for idx in range(5, pv_mean.shape[0]):
-        for idx in range(0, 12):
+        for idx in range(pv_mean.shape[0]):
         #idx = 0
 
             theta_cby_fit = pfit(lat[:None], theta_xpv[idx, :None], fit_deg)
@@ -145,16 +145,17 @@ if __name__ == "__main__":
 
             if len(jet_loc) == 0:
                 print("{0} NO LOC {1}-{2} {0}".format('-' * 20, year, idx + 1))
+                jet_loc_ts.append(0)
 
             elif len(jet_loc) == 1:
-                jet_loc_ts[mon_idx] = jet_loc[0]
+                jet_loc_ts.append(jet_loc[0])
 
             elif len(jet_loc) > 1:
-                jet_loc_ts[mon_idx] = jet_loc[lat[jet_loc].argmin()]
+                jet_loc_ts.append(jet_loc[lat[jet_loc].argmin()])
 
             if lat[int(jet_loc_ts[mon_idx])] > 45.0:
                 print('JET POLEWARD OF 45: {} {}'.format(year, idx + 1))
-                monthly_plots_temp = True
+                monthly_plots_temp = False#True
             else:
                 monthly_plots_temp = monthly_plots
 
@@ -195,7 +196,7 @@ if __name__ == "__main__":
             mon_idx += 1
 
     fig, ax = plt.subplots(1, 1, figsize=(15, 5))
-    ax.plot(lat[jet_loc_ts.astype(int)], 'x-')
+    ax.plot(lat[np.array(jet_loc_ts).astype(int)], 'x-')
     plt.tight_layout()
     plt.savefig('plt_jet_loc_ts_{}-{}.pdf'.format(year_s, year_e))
     plt.show()
