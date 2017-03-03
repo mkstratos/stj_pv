@@ -31,6 +31,10 @@ class InputData(object):
         self.th_levels = stj_props.th_levels
 
         # Initialize attributes defined in open_files or open_ipv_data
+        self.time = None
+        self.time_units = None
+        self.calendar = None
+
         self.lon = None
         self.lat = None
         self.lev = None
@@ -49,9 +53,6 @@ class PresLevelData(InputData):
         self.uwnd = None
         self.vwnd = None
         self.tair = None
-        self.time = None
-        self.time_units = None
-        self.calendar = None
 
         # Initialize attributes defined on calc_ipv or open_ipv_data
         self.ipv = None
@@ -262,6 +263,24 @@ class PresLevelData(InputData):
 
             for in_var in ipv_data_2:
                 setattr(self, in_var, ipv_data_2[in_var])
+
+class ERAIntTheta(InputData):
+
+    def __init__(self, stj_props):
+        InputData.__init__(self, stj_props)
+
+        # Initialize attributes defined on calc_ipv or open_ipv_data
+        self.ipv = None
+        self.p_th = None
+        self.u_th = None
+
+        # Initialize attributes defined on get_thermal_tropopause or open_ipv_data
+        self.trop_h_temp = None
+        self.trop_h_pres = None
+
+
+    def __get_data(self):
+        return None
 
 
 def load_netcdf_file(in_file, var_names):
