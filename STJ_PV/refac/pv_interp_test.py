@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import logging
 import numpy as np
 import netCDF4 as nc
 import matplotlib.pyplot as plt
@@ -10,10 +13,23 @@ from numpy.polynomial import chebyshev as cby
 from numpy.polynomial import legendre
 
 import cmip5.common.staticParams as sp
-import cmip5.common.atmos as atm
-
-
 plt.style.use('ggplot')
+
+
+def log_setup(name, out_file):
+    """
+    Create a logger object with name and file location.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    lfh = logging.FileHandler(out_file)
+    lfh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    lfh.setFormatter(formatter)
+
+    logger.addHandler(lfh)
+    return logger
 
 
 def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
@@ -22,7 +38,7 @@ def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
         time_skip = None
         lat_skip = 3
     else:
-        time_skip = 2
+        time_skip = None
         lat_skip = None
 
     in_file = '{}/erai_theta_{:04d}.nc'.format(root_dir, year)
@@ -77,30 +93,33 @@ def get_data_merra(year, tidx_s, tidx_e):
             'tunits': time_units}
 
 
-if __name__ == "__main__":
+def main():
     p_0 = 100000.0
     kppa = 287.0 / 1004.0
     year = 2000
     therm_trop = False
     high_res = False
     monthly_plots = False
+    cheb_poly = True
 
     year_s = 1979
     year_e = 2016
 
     jet_loc_ts = []
     mon_idx = 0
+    debug_log = log_setup('jet_find', './find_jet.log')
 
-    #pfit = cby.chebfit
-    #pder = cby.chebder
-    #peval = cby.chebval
-
-    pfit = legendre.legfit
-    pder = legendre.legder
-    peval = legendre.legval
+    if cheb_poly:
+        pfit = cby.chebfit
+        pder = cby.chebder
+        peval = cby.chebval
+    else:
+        pfit = legendre.legfit
+        pder = legendre.legder
+        peval = legendre.legval
 
     for year in range(year_s, year_e + 1):
-
+        print('CALCULATE: {}'.format(year))
         data = get_data(year, root_dir='/Volumes/FN_2187/erai')
         lat, lon, lev = data['lat'], data['lon'], data['lev']
         dates = nc.num2date(data['time'], data['tunits'])
@@ -124,9 +143,7 @@ if __name__ == "__main__":
         max_lev = 400  # np.max(theta_xpv)
         fit_deg = 10
 
-        #for idx in range(5, pv_mean.shape[0]):
         for idx in range(pv_mean.shape[0]):
-        #idx = 0
 
             theta_cby_fit = pfit(lat[:None], theta_xpv[idx, :None], fit_deg)
             dtdphi_cby = pder(theta_cby_fit)
@@ -144,7 +161,8 @@ if __name__ == "__main__":
             jet_loc = sig.argrelmin(dtheta_cby)[0].astype(int)
 
             if len(jet_loc) == 0:
-                print("{0} NO LOC {1}-{2} {0}".format('-' * 20, year, idx + 1))
+                debug_log.info("{0} NO LOC {1}-{2:02d} {0}".format('-' * 20, year,
+                                                                   idx + 1))
                 jet_loc_ts.append(0)
 
             elif len(jet_loc) == 1:
@@ -153,9 +171,9 @@ if __name__ == "__main__":
             elif len(jet_loc) > 1:
                 jet_loc_ts.append(jet_loc[lat[jet_loc].argmin()])
 
-            if lat[int(jet_loc_ts[mon_idx])] > 45.0:
-                print('JET POLEWARD OF 45: {} {}'.format(year, idx + 1))
-                monthly_plots_temp = False#True
+            if lat[int(jet_loc_ts[mon_idx])] > 50.0:
+                debug_log.info('JET POLEWARD OF 50: {} {:02d}'.format(year, idx + 1))
+                monthly_plots_temp = False  # True
             else:
                 monthly_plots_temp = monthly_plots
 
@@ -195,8 +213,12 @@ if __name__ == "__main__":
 
             mon_idx += 1
 
-    fig, ax = plt.subplots(1, 1, figsize=(15, 5))
+    fig, ax = plt.subplots(1, 1, figsize=(19, 5))
     ax.plot(lat[np.array(jet_loc_ts).astype(int)], 'x-')
     plt.tight_layout()
     plt.savefig('plt_jet_loc_ts_{}-{}.pdf'.format(year_s, year_e))
     plt.show()
+
+
+if __name__ == "__main__":
+    main()
