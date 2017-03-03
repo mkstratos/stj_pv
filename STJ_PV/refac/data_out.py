@@ -126,6 +126,7 @@ class NCOutVar(object):
         for prop in prop_dict:
             self.set_prop(prop, prop_dict[prop])
 
+
 def write_to_netcdf(data_in, out_file):
     """
     Write (a list of) NCOutVar variable(s) to a netCDF file.
