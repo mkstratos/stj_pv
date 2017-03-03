@@ -88,8 +88,8 @@ class STJProperties(object):
         if conf_file is None:
             self.th_levels = np.arange(300, 501, 5)
             self.run_opts = {'run_flag': 'save', 'slicing': 'zonal_mean', 'debug': True,
-                             'pv_value': 2.0, 'start_time': 0, 'end_time': 360,
-                             'dlat': 0.2, 'dtheta': 1.0, 'nslice': 8,
+                             'pv_value': 2.0, 'start_time': 0, 'end_time': None,
+                             'dlat': 0.2, 'dtheta': 1.0, 'nslice': 8, 'freq': 'monthly',
                              'log_file': './{}_stj_find.log'.format(dt.datetime.now())}
 
             self.plot_opts = {'debug': False, 'metric': True, 'extn': 'png'}
