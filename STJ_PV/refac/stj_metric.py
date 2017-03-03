@@ -5,6 +5,7 @@ from numpy.polynomial import chebyshev as cby
 from scipy import interpolate
 
 import input_data
+import calc_ipv as cpv
 
 
 class MetricData(object):
@@ -27,42 +28,25 @@ class MetricResult(object):
         nlon = shape['lon']
 
         self.hemis = ['nh', 'sh']
+
         # Hemispherically separate to produce jet metrics for each hemisphere
         # [time, hemisphere, theta in restriced domain]
-        self.phi_xpv = {hem: np.zeros([ntimes, ntheta]) for hem in self.hemis}
-        self.phi_idx_xpv = {hem: np.zeros([ntimes, ntheta]) for hem in self.hemis}
-        self.theta_xpv = {hem: np.zeros([ntimes, ntheta]) for hem in self.hemis}
-        self.dtdphi_val = {hem: np.zeros([ntimes, ntheta]) for hem in self.hemis}
-        self.d2tdphi2_val = {hem: np.zeros([ntimes, ntheta]) for hem in self.hemis}
-        self.dth_lat_out = {hem: np.zeros([ntimes, ntheta]) for hem in self.hemis}
+        self.theta_xpv = {hem: np.full([ntimes, ntheta], np.nan) for hem in self.hemis}
+        self.dtdphi = {hem: np.full([ntimes, ntheta], np.nan) for hem in self.hemis}
 
         # STJ metric [time_loop, lon_loop, hemi_count, cby or fd]
-        self.jet_best_guess = {hem: np.zeros([ntimes, nlon, 2]) for hem in self.hemis}
-
-        # how many peaks were found
-        self.mask_jet_number = {hem: np.zeros(ntimes) for hem in self.hemis}
+        self.jet_best_guess = {hem: np.full([ntimes, nlon, 2], np.nan)
+                               for hem in self.hemis}
 
         # point where two tropopause definitions cross paths
         self.crossing_lat = {hem: np.zeros(ntimes) for hem in self.hemis}
 
         # [time_loop, lon_loop, hemi_count, cby or fd]
-        self.jet_intensity = {hem: np.zeros([ntimes, nlon, 2]) for hem in self.hemis}
+        self.jet_intensity = {hem: np.full([ntimes, nlon, 2], np.nan)
+                              for hem in self.hemis}
 
         # [time_loop, lon_loop, hemi_count, cby or fd]
-        self.jet_th_lev = {hem: np.zeros([ntimes, nlon, 2]) for hem in self.hemis}
-
-        # Set all to NaN
-        for hem in self.hemis:
-            self.phi_xpv[hem][:] = np.nan
-            self.theta_xpv[hem][:] = np.nan
-            self.dtdphi_val[hem][:] = np.nan
-            self.d2tdphi2_val[hem][:] = np.nan
-            self.dth_lat_out[hem][:] = np.nan
-            self.jet_best_guess[hem][:] = np.nan
-            self.mask_jet_number[hem][:] = np.nan
-            self.crossing_lat[hem][:] = np.nan
-            self.jet_intensity[hem][:] = np.nan
-            self.jet_th_lev[hem][:] = np.nan
+        self.jet_th_lev = {hem: np.full([ntimes, nlon, 2], np.nan) for hem in self.hemis}
 
 
 class STJIPVMetric(object):
@@ -92,8 +76,8 @@ class STJIPVMetric(object):
     def calc_metric(self):
         """Calculate the position of the subtropical jet."""
         # Set a boolean flag for zonal mean / longitude slices
-        zonal_mean_flag = self.props.run_opts['slicing'] == 'zonal_mean'
-        self.setup_data()
+        zonal_mean_flag = (self.props.run_opts['slicing'] == 'zonal_mean')
+        self._setup_data()
         # Create MetricResult object using correct shapes, from input data (times, lon)
         # and interpolation arrays (theta)
         self.data = MetricResult({'time': self.in_data.ipv.shape[0],
@@ -103,7 +87,7 @@ class STJIPVMetric(object):
             self._interp_pv(hemi, zonal_mean_flag)
         self._pv_deriv(hemi)
 
-    def setup_data(self):
+    def _setup_data(self):
         """Setup data depending on `self.props` for use within calc_metric."""
         # Prep step 1: Define lat interpolate IPV to
         lat_increment = self.props.run_opts['dlat']
@@ -128,8 +112,8 @@ class STJIPVMetric(object):
 
         else:
             # Data isn't global...use local min/max
-            lon_slice = np.linspace(-self.in_data.lon.min(),
-                                    self.in_data.lon.max(), self.props.run_opts['nslice'])
+            lon_slice = np.linspace(-self.in_data.lon.min(), self.in_data.lon.max(),
+                                    self.props.run_opts['nslice'])
 
         # Generate a meshgrid so we can do a subtraction between data's lon and lon slices
         lon_2d, lon_slice_2d = np.meshgrid(self.in_data.lon, lon_slice)
@@ -139,6 +123,7 @@ class STJIPVMetric(object):
 
     def _interp_pv(self, hemi, zonal_mean=True):
         """Fit polynomial to specific PV contour on theta surfaces as fcn of latitude."""
+
         # Step 1: Take the zonal mean, if desired
         if zonal_mean:
             # Gives [time, theta, lat], have to use nanmean, in case some data == nan
@@ -158,23 +143,8 @@ class STJIPVMetric(object):
         # - code for monotonic increase theta and phi.
         # - actual_ipv_values is used to locic test the 2pv line
         # - phi_idx_xpv is the element locations where the near-2.0 pv element occurs.
-        phi_idx_xpv, actual_ipv_values = get_pv_lev(self.ipv_dom[hemi],
-                                                    pv_lev=self.pv_lev)
-
-        # remove zero from array and convert to a list
-        phi_idx_xpv = phi_idx_xpv[phi_idx_xpv != 0].tolist()
-
-        # Assign variables
-        # lat on self.pv_lev pvu line
-        self.data.phi_xpv[hemi] = self.lat_dom[hemi][phi_idx_xpv]
-        # theta on self.pv_lev pvu line
-        self.data.theta_xpv[hemi] = self.theta_dom[hemi]
-
-        # list of elements on the 2pv line
-        self.data.phi_idx_xpv[hemi] = phi_idx_xpv
-
-        # the values that are closest to the 2PV lines
-        self.data.actual_ipv_values[hemi] = actual_ipv_values
+        self.theta_xpv = cpv.vinterp(self.in_data.th_levels, self.ipv_dom[hemi],
+                                     np.array([self.pv_lev]))
 
     def _pv_deriv(self, degree=12):
         """
@@ -203,8 +173,8 @@ class STJIPVMetric(object):
                                                         theta_cby)
 
             # Values of the derivative d theta / d phi
-            self.data.dtdphi_val[hemi] = cby.chebval(self.data.phi_xpv[hemi],
-                                                     dtdphi_cby)
+            self.data.dtdphi[hemi] = cby.chebval(self.data.phi_xpv[hemi],
+                                                 dtdphi_cby)
 
             # Values of the second derivative d^2 (theta) / d phi^2
             self.data.d2tdphi2_val[hemi] = cby.chebval(self.data.phi_xpv[hemi],
@@ -218,7 +188,7 @@ class STJIPVMetric(object):
         # test the poly fit
         # if testing:
         #    Poly_testing(self.phi_2PV, self.theta_2PV, self.theta_cby_val,
-        #                 self.dtdphi_val, self.d2tdphi2_val)
+        #                 self.dtdphi, self.d2tdphi2_val)
         #    pdb.set_trace()
 
     def thermal_trop_theta(self):
