@@ -175,7 +175,7 @@ class STJProperties(object):
             if not os.path.exists(self.directories[dir_type]):
                 print('CREATING {} DIRECTORY: {}'.format(dir_type,
                                                          self.directories[dir_type]))
-                os.system('mkdir -p {}'.format(self.directories[dir_type]))
+                os.makedirs(self.directories[dir_type])
 
     def run(self):
         """
