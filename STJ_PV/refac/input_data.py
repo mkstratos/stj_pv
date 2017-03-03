@@ -13,7 +13,7 @@ __author__ = "Penelope Maher, Michael Kelleher"
 
 class InputData(object):
     """
-    Contains the relavent input data and routines for STJ Metric.
+    Contains the relevant input data and routines for STJ Metric.
 
     Parameters
     ----------
@@ -30,14 +30,21 @@ class InputData(object):
         self.file_names = {}
         self.th_levels = stj_props.th_levels
 
-        for in_var in ['u', 'v', 't']:
-            self.file_names[in_var] = '{}/{}'.format(self.props.in_files['in_dir'],
-                                                     self.props.in_files[in_var])
-
         # Initialize attributes defined in open_files or open_ipv_data
         self.lon = None
         self.lat = None
         self.lev = None
+
+
+class PresLevelData(InputData):
+
+    def __init__(self, stj_props):
+        # Call super-class' __init__ to set generic properties of InputData
+        InputData.__init__(self, stj_props)
+
+        for in_var in ['u', 'v', 't']:
+            self.file_names[in_var] = '{}/{}'.format(self.props.in_files['in_dir'],
+                                                     self.props.in_files[in_var])
         self.pres = None
         self.uwnd = None
         self.vwnd = None
@@ -55,16 +62,10 @@ class InputData(object):
         self.trop_h_temp = None
         self.trop_h_pres = None
 
-        # Initalize single level variables
-        self.p_310 = None
-        self.p_310_bar = None
-        self.ipv_310 = None
-        self.ipv_310_bar = None
-
-        self._get_data()
+        self.__get_data()
         self.ipv = np.ma.masked_invalid(self.ipv)
 
-    def _get_data(self):
+    def __get_data(self):
         """Get input data according to `run_flag` in stj_props."""
         if self.props.run_opts['run_flag'] == 'save':
             self.__open_input_files()
@@ -116,43 +117,32 @@ class InputData(object):
         self.time_units = var['time_units']
         self.calendar = var['calendar']
 
-        print('Finished opening data')
+        self.props.log('Finished opening data')
 
     def calc_ipv(self):
         """Calculate isentropic potential vorticity from isobaric u, v, t."""
-        gen_theta_310 = False
-        print('Starting IPV calculation')
+        self.props.log('Starting IPV calculation')
         # calculate IPV
         self.ipv, self.p_th, self.u_th = calc_ipv.ipv(self.uwnd, self.vwnd, self.tair,
                                                       self.pres, self.lat, self.lon,
                                                       self.th_levels)
         self.ipv *= 1e6  # Put PV in units of PVU
-
-        # 310K isopleth often of interest - not currently used
-        if gen_theta_310:
-            theta_level_310 = np.where(self.th_levels == 310)[0][0]
-            self.p_310 = self.p_th[:, theta_level_310, :, :]
-            self.p_310_bar = np.nanmean(self.p_310[0, :, :], axis=1)
-
-            self.ipv_310 = self.ipv[:, theta_level_310, :, :]
-            self.ipv_310_bar = np.nanmean(self.ipv_310, axis=0)
-
-        print('Finished calculating IPV')
+        self.props.log('Finished calculating IPV')
 
     def get_thermal_tropopause(self):
         """Calculate the tropopause height using the WMO thermal definition."""
-        print('Start calculating tropopause height')
+        self.props.log('Start calculating tropopause height')
 
         # Get zonal mean temperature, levels should be in correct order on import
         t_zonal = np.nanmean(self.tair, axis=3)
 
         if self.lev[0] < self.lev[-1]:
-            print('CHECK ON INPUT DATA, NOT IN sfc -> upper levels ORDER')
+            self.props.log('CHECK ON INPUT DATA, NOT IN sfc -> upper levels ORDER')
             self.lev = self.lev[::-1]
             t_zonal = t_zonal[:, ::-1, :]
 
         self.trop_h_temp, self.trop_h_pres = get_tropopause(t_zonal, self.lev)
-        print('Finished calculating tropopause height')
+        self.props.log('Finished calculating tropopause height')
 
     def save_ipv(self, out_file1=None, out_file2=None, output_type='.nc'):
         """
@@ -175,7 +165,7 @@ class InputData(object):
         if out_file2 is None:
             out_file2 = '{in_dir}{ipv2}'.format(**self.props.in_files)
 
-        print('Output IPV Data to:\n{}\n{}'.format(out_file1, out_file2))
+        self.props.log('Output IPV Data to:\n{}\n{}'.format(out_file1, out_file2))
 
         if output_type == '.p':
             output = {}
@@ -186,9 +176,8 @@ class InputData(object):
             output['lon'] = self.lon
 
             output['ipv'] = self.ipv
-            output['ipv_310'] = self.ipv_310
-
             output['u_th'] = self.u_th
+
             output['trop_h_pres'] = self.trop_h_pres
             output['trop_h_temp'] = self.trop_h_temp
 
@@ -204,6 +193,7 @@ class InputData(object):
                                'units': 'PVU', 'short_name': 'ipv',
                                'levvar': 'theta_lev',
                                'time_units': self.time_units, 'calendar': self.calendar})
+
             dout.write_to_netcdf([ipv_out], '{}{}'.format(out_file1, output_type))
 
             u_th_out = dout.NCOutVar(self.u_th)
@@ -213,32 +203,24 @@ class InputData(object):
                                 'units': 'm s-1', 'short_name': 'u_th',
                                 'levvar': 'theta_lev'})
 
-            ipv_310_out = dout.NCOutVar(self.ipv_310, coords={'time': self.time,
-                                                              'lat': self.lat,
-                                                              'lon': self.lon})
-
-            ipv_310_out.set_props({'name': 'ipv_on_310K', 'descr': 'IPV on 310K Theta',
-                                   'units': 'PVU', 'short_name': 'ipv_310',
-                                   'time_units': self.time_units,
-                                   'calendar': self.calendar})
-
             coords_2d = {'time': self.time, 'lat': self.lat}
 
             trop_h_pres_out = dout.NCOutVar(self.trop_h_pres, coords=coords_2d)
-            trop_h_pres_out.get_props_from(ipv_310_out)
             trop_h_pres_out.set_props({'name': 'tropopause_level',
                                        'descr': 'Tropopause pressure level',
-                                       'units': 'Pa', 'short_name': 'trop_h_pres'})
+                                       'units': 'Pa', 'short_name': 'trop_h_pres',
+                                       'time_units': self.time_units,
+                                       'calendar': self.calendar})
 
             trop_h_temp_out = dout.NCOutVar(self.trop_h_temp, coords=coords_2d)
             trop_h_temp_out.get_props_from(trop_h_pres_out)
             trop_h_temp_out.set_props({'descr': 'Tropopause temperature',
                                        'short_name': 'trop_h_temp'})
 
-            dout.write_to_netcdf([u_th_out, ipv_310_out, trop_h_pres_out,
-                                  trop_h_temp_out], '{}{}'.format(out_file2, output_type))
+            dout.write_to_netcdf([u_th_out, trop_h_pres_out, trop_h_temp_out],
+                                 '{}{}'.format(out_file2, output_type))
 
-        print('Finished writing\n{}\n{}'.format(out_file1, out_file2))
+        self.props.log('Finished writing\n{}\n{}'.format(out_file1, out_file2))
 
     def __open_ipv_data(self, filename_1=None, filename_2=None, file_type='.nc'):
         """
