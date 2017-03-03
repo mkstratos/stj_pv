@@ -4,6 +4,8 @@ Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and 
 Authors: Penelope Maher, Michael Kelleher
 """
 import os
+import logging
+import datetime as dt
 import collections
 import numpy as np
 import stj_metric as metric
@@ -87,8 +89,11 @@ class STJProperties(object):
             self.th_levels = np.arange(300, 501, 5)
             self.run_opts = {'run_flag': 'save', 'slicing': 'zonal_mean', 'debug': True,
                              'pv_value': 2.0, 'start_time': 0, 'end_time': 360,
-                             'dlat': 0.2, 'dtheta': 1.0, 'nslice': 8}
+                             'dlat': 0.2, 'dtheta': 1.0, 'nslice': 8,
+                             'log_file': './{}_stj_find.log'.format(dt.datetime.now())}
+
             self.plot_opts = {'debug': False, 'metric': True, 'extn': 'png'}
+        self.log = self.log_setup
 
     def __str__(self):
         """
@@ -181,6 +186,20 @@ class STJProperties(object):
         """
         Run STJ Metric with properties defined within `self`
         """
+
+    def log_setup(self):
+        """Create a logger object with file location from `self.run_opts`."""
+
+        logger = logging.getLogger('stjfind')
+        logger.setLevel(logging.DEBUG)
+
+        log_file_handle = logging.FileHandler(self.run_opts['log_file'])
+        log_file_handle.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        log_file_handle.setFormatter(formatter)
+
+        logger.addHandler(log_file_handle)
+        return logger
 
 
 def main():
