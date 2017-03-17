@@ -2,6 +2,7 @@
 ---
 
 ## Requirements
+Requirements for STJ Finder using PV Gradient method
 
 ### Input Data
 - Daily / monthly / sesasonal?
@@ -20,7 +21,7 @@
 
 
 ## Classes
-### Data set class
+### Data set class generic [DSet]
 - **Attributes**
     - Name
     - Level type
@@ -30,7 +31,8 @@
     - Get PV data on isentropic levels
     - Interpolate other field to PV level
 
-### STJ Metric Class Generic
+--
+### STJ Metric Class Generic [STJMetric]
 - **Attributes**
     - Name
     - Properties
@@ -39,16 +41,15 @@
     - Find jet
     - Output to file
 
-### STJ IPV Gradient Metric (STJMetric)
+--
+### STJ IPV Gradient Metric (STJMetric) [STJPV]
 - **Attributes**
-    - Name = PVGrad
+    - Name = 'PVGrad'
     - Input data
     - Properties
         - PV Contour
         - Poynomial fit degree
         - Min latitude for fit
-
-
 - **Public methods**
     - Find jet
     - Output to file
