@@ -21,6 +21,19 @@ Requirements for STJ Finder using PV Gradient method
 
 
 ## Classes
+### Jet find run [JetFindRun]
+- **Attributes**
+    - Input data type [DSet]
+    - Output data frequency [time, spatial]
+    - Jet finder type
+    - Jet finder input properties
+    - Log
+- **Public Methods**
+    - Run finder
+    - Output data
+    - Setup Logger
+
+--
 ### Data set class generic [DSet]
 - **Attributes**
     - Name
@@ -29,7 +42,8 @@ Requirements for STJ Finder using PV Gradient method
     - Variable names
 - **Public methods**
     - Get PV data on isentropic levels
-    - Interpolate other field to PV level
+    - Interpolate other field(s) to PV level
+    - Get zonal mean data
 
 --
 ### STJ Metric Class Generic [STJMetric]
