@@ -8,6 +8,7 @@ import logging
 import datetime as dt
 import collections
 import numpy as np
+import yaml
 import stj_metric as metric
 #import input_data as makeipv
 
@@ -200,6 +201,44 @@ class STJProperties(object):
 
         logger.addHandler(log_file_handle)
         return logger
+
+
+class JetFindRun(object):
+    """
+    Class containing properties about an individual attempt to find the subtropical jet.
+
+    Attributes
+    ----------
+    data_source : DSet
+        Input data type
+    freq : Tuple
+        Output data frequency (time, spatial)
+    method : STJMetric
+        Jet finder type
+    props : Dict
+        Jet finder input properties
+    log : logger
+        Debug log
+
+    Methods
+    -------
+    - setup_logger
+    - find_jet
+    - write_data
+    """
+
+    def __init__(self, config=None):
+        """
+        Initialise jet finding attempt.
+
+        Parameters
+        ----------
+        config : string, optional
+            Location of YAML-formatted configuration file, default None
+        """
+        req_params = ['data_source', 'freq', 'method', 'props', 'log_file']
+        if config is not None:
+            params = yaml.load(config)
 
 
 def main():
