@@ -209,8 +209,8 @@ class JetFindRun(object):
 
     Attributes
     ----------
-    data_source : DSet
-        Input data type
+    data_source : string
+        Path to input data configuration file
     freq : Tuple
         Output data frequency (time, spatial)
     method : STJMetric
@@ -227,7 +227,7 @@ class JetFindRun(object):
     - write_data
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config_file=None):
         """
         Initialise jet finding attempt.
 
@@ -237,9 +237,28 @@ class JetFindRun(object):
             Location of YAML-formatted configuration file, default None
         """
         req_params = ['data_source', 'freq', 'method', 'props', 'log_file']
-        if config is not None:
-            params = yaml.load(config)
 
+        if config_file is None:
+            # Use default parameters if none are specified
+            now = dt.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            self.config = {'data_cfg': './data_config_default.yml', 'freq': 'mon',
+                           'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now)
+                           'props': {'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0}}
+        else:
+            # Open the configuration file, put its contents into a variable to be read by
+            # YAML reader
+            with open(config_file) as cfg:
+                self.config = yaml.load(cfg.read())
+
+        with open(self.config['data_cfg']) as data_cfg:
+            self.data_cfg = yaml.load(data_cfg.read())
+
+        if self.config['method'] == 'STJPV':
+            self.output_file = ('{short_name}_{method}_pv{pv_value}_fit{fit_deg}_'
+                                'y0{min_lat}'.format(**self.data_cfg, **self.config))
+        else:
+            self.output_file = ('{short_name}_{method}'
+                                .format(**self.data_cfg, **self.config))
 
 def main():
     """
