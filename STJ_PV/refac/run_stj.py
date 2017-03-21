@@ -211,20 +211,20 @@ class JetFindRun(object):
     ----------
     data_source : string
         Path to input data configuration file
+    config : dict
+        Dictionary of properties of the run
     freq : Tuple
         Output data frequency (time, spatial)
     method : STJMetric
         Jet finder type
-    props : Dict
-        Jet finder input properties
     log : logger
         Debug log
 
     Methods
     -------
-    - setup_logger
-    - find_jet
-    - write_data
+    setup_logger
+    find_jet
+    write_data
     """
 
     def __init__(self, config_file=None):
@@ -236,14 +236,13 @@ class JetFindRun(object):
         config : string, optional
             Location of YAML-formatted configuration file, default None
         """
-        req_params = ['data_source', 'freq', 'method', 'props', 'log_file']
 
         if config_file is None:
             # Use default parameters if none are specified
             now = dt.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             self.config = {'data_cfg': './data_config_default.yml', 'freq': 'mon',
-                           'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now)
-                           'props': {'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0}}
+                           'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
+                           'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0}
         else:
             # Open the configuration file, put its contents into a variable to be read by
             # YAML reader
@@ -259,6 +258,7 @@ class JetFindRun(object):
         else:
             self.output_file = ('{short_name}_{method}'
                                 .format(**self.data_cfg, **self.config))
+
 
 def main():
     """
