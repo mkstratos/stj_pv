@@ -7,34 +7,53 @@ short_name: 'ERAI_MONTHLY_PRES'
 # all_vars x n_years
 # all_vars x all_years
 
+# IPV and Tropopause can be separate files since they _could_ be created outside the input
+# file, so they have their own keys in `file_paths`, but can point to same as 'all'
+
 # multiple vars/file, multiple years/file - 1 file
 # single_var_file: False
 # single_year_file: False
-# file_paths: 'erai_all.nc'
+# file_paths:
+#   'all': 'erai_all.nc'
+#   'ipv': 'erai_all.nc'
+#   'tpause': 'erai_tpause_all.nc'
 
 # single var/file, multiple years/file - n_vars files (4: u/v/t/pv)
 single_var_file: True       # Variables are in multiple files (if True)
 single_year_file: False     # Years are in multiple files (if True)
-file_paths: {'uwnd': 'uwind.nc', 'vwnd': 'vwind.nc', 'air': 'tair.nc', 'ipv': 'ipv.nc'}
+file_paths:
+    'uwnd': 'uwind.nc'
+    'vwnd': 'vwind.nc'
+    'tair': 'tair.nc'
+    'ipv': 'ipv.nc'
+    'tpause': 'tpause.nc'
 
 # multiple vars/file, single year/file - n_years files
 # single_var_file: False    # Variables are in multiple files (if True)
 # single_year_file: True    # Years are in multiple files (if True)
-# file_paths: 'erai_theta_{year:04d}.nc'
+# file_paths:
+#   'all': 'erai_theta_{year:04d}.nc'
+#   'ipv': 'erai_theta_{year:04d}.nc'
+#   'tpause': 'erai_tpause_{year:04d}.nc'
 
 # single var/file, single year/file - n_vars * n_years files
 # single_var_file: False    # Variables are in multiple files (if True)
 # single_year_file: True    # Years are in multiple files (if True)
-# file_paths: {'uwnd': 'uwnd.{year:04d}.nc', 'vwnd': 'vwnd.{year:04d}.nc',
-#              'air': 'air.{year:04d}.nc', 'ipv': 'ipv.{year:04d}.nc'}
+# file_paths:
+#   'uwnd': 'uwnd.{year:04d}.nc'
+#   'vwnd': 'vwnd.{year:04d}.nc'
+#   'air': 'air.{year:04d}.nc'
+#   'ipv': 'ipv.{year:04d}.nc'
+#   'tpause': 'tpause.{year:04d}.nc'
 
-ydim: 'lat'     # Name within netCDF file of 'latitude' variable
 xdim: 'lon'     # Name within netCDF file of 'longitude' variable
+ydim: 'lat'     # Name within netCDF file of 'latitude' variable
 zdim: 'lev'     # Name within netCDF file of 'level' variable
+tdim: 'time'    # Name within netCDF file of 'time' variable
 ztype: 'pres'   # Type of levels (pressure, potential temperature, etc.)
 
 # Variable names for u/v wind, air temperature and pv
-uvar: 'uwnd'
-vvar: 'vwnd'
-tvar: 'tair'
-pvvar: 'ipv'
+uwnd: 'uwnd'
+vwnd: 'vwnd'
+tair: 'tair'
+ipv: 'ipv'
