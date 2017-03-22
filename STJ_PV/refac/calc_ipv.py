@@ -150,7 +150,7 @@ def diffz(data, vcoord, axis=None):
     """
     if axis is None:
         # Find matching axis between data and vcoord
-        axis = np.where(np.array(data.shape) == vcoord.shape[0])[0][0]
+        axis = data.shape.index(vcoord.shape[0])
 
     # Create array to hold vertical derivative
     dxdz = np.ones(data.shape)
@@ -587,3 +587,44 @@ def theta(tair, pres):
         p_axis = pres[slice_idx]
 
     return tair * (p_0 / p_axis) ** kppa
+
+
+def inv_theta(theta, pres):
+    """
+    Calculate potential temperature from temperature and pressure coordinate.
+
+    Parameters
+    ----------
+    theta : array_like
+        Either ND array of potential temperature same shape as `pres`, or 1D array of
+        potential temperature where its shape is same as one dimension of `pres` [in K]
+    pres : array_like
+        ND array of pressure [in Pa]
+
+    Returns
+    -------
+    theta : array_like
+        ND array of air temperature in K, same shape as `tair` input
+    """
+    r_d = 287.0
+    c_p = 1004.0
+    kppa = r_d / c_p
+    p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in the same units!
+
+    if theta.ndim == pres.ndim:
+        th_axis = theta
+    else:
+        # Find which coordinate of tair is same shape as pres
+        zaxis = pres.shape.index(theta.shape[0])
+
+        # Generates a list of [None, None, ..., None] whose length is the number of
+        # dimensions of tair, then set the z-axis element in this list to be a slice
+        # of None:None This accomplishes same thing as [None, :, None, None] for
+        # ndim=4, zaxis=1
+        slice_idx = [None] * pres.ndim
+        slice_idx[zaxis] = slice(None)
+
+        # Create an array of pres so that its shape is (1, NPRES, 1, 1) if zaxis=1, ndim=4
+        th_axis = theta[slice_idx]
+
+    return th_axis * (p_0 / pres) ** -kppa
