@@ -16,6 +16,74 @@ EARTH_R = 6.371e6
 __author__ = "Michael Kelleher"
 
 
+class NDSlicer(object):
+    """N-Dimensional slice class for numpy arrays."""
+    def __init__(self, axis, ndim, start=None, end=None, skip=None):
+        """
+        Create an n-dimensional slice list.
+
+        Parameters
+        ----------
+        axis : integer
+            Axis on which to apply the slice
+        ndim : integer
+            Total number of dimensions of array to be sliced
+        start, end, skip : integer, optional
+            Index of beginning, end and skip width of the slice [start:end:skip]
+            default for each is None.
+        """
+        self.axis = axis
+        self.ndim = ndim
+        self.start = start
+        self.end = end
+        self.skip = skip
+        self.slicer = None
+        self.slice(start, end, skip)
+
+    def slice(self, start=None, end=None, skip=None):
+        """
+        Create an n-dimensional slice list.
+
+        Parameters
+        ----------
+        axis : integer
+            Axis on which to apply the slice
+        ndim : integer
+            Total number of dimensions of array to be sliced
+        start, end, skip : integer, optional
+            Index of beginning, end and skip width of the slice [start:end:skip]
+            default for each is None.
+
+        Returns
+        -------
+        slicer : list
+            list of slices such that all data at other axes are kept, one axis is sliced
+
+        Examples
+        --------
+        x = np.random.randn(5, 3)
+
+        # Create slicer equivalent to [1:-1, :]
+        slc = NDSlicer(0, x.ndim)
+        print(x)
+        [[ 0.68470539  0.87880216 -0.45086367]
+         [ 1.06804045  0.63094676 -0.76633033]
+         [-1.69841915  0.35207064 -0.4582049 ]
+         [-0.56431067  0.62833728 -0.04101542]
+         [-0.02760744  2.02814338  0.13195714]]
+        print(x[slc.slice(1, -1)])
+        [[ 1.06804045  0.63094676 -0.76633033]
+         [-1.69841915  0.35207064 -0.4582049 ]
+         [-0.56431067  0.62833728 -0.04101542]]
+        """
+        self.start = start
+        self.end = end
+        self.skip = skip
+        self.slicer = [slice(None)] * self.ndim
+        self.slicer[self.axis] = slice(self.start, self.end, self.skip)
+        return self.slicer
+
+
 def vinterp(data, vcoord, vlevels):
     """
     Perform linear vertical interpolation.
