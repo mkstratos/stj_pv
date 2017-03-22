@@ -289,14 +289,52 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
     v_th = vinterp(vwnd, thta, th_levels)
     p_th = vinterp(pres, thta, th_levels)
 
+    # Calculate IPV on theta levels
+    ipv_out = ipv_theta(u_th, v_th, p_th, lat, lon, th_levels)
+
+    return ipv_out, p_th, u_th
+
+
+def ipv_theta(uwnd, vwnd, pres, lat, lon, th_levels):
+    """
+    This method calculates isentropic PV on theta surfaces from data on theta levels
+    Note: interpolation assumes pressure is monotonically increasing.
+
+    Parameters
+    ----------
+    uwnd : array_like
+        3 or 4-D zonal wind component (t, p, y, x) or (p, y, x)
+    vwnd : array_like
+        3 or 4-D meridional wind component (t, p, y, x) or (p, y, x)
+    pres : array_like
+        3 or 4-D pressure in Pa (t, p, y, x) or (p, y, x)
+    lat : array_like
+        1D latitude in degrees
+    lon : array_like
+        1D longitude in degrees
+    th_levels : array_like
+        1D Theta levels on which to calculate PV
+
+
+    Returns
+    -------
+    ipv : array_like
+        3 or 4-D isentropic potential vorticity in units
+        of m-2 s-1 K kg-1 (e.g. 10^6 PVU)
+    """
     # Calculate relative vorticity on isentropic levels
-    rel_v = rel_vort(u_th, v_th, lat, lon)
+    rel_v = rel_vort(uwnd, vwnd, lat, lon)
 
     # Calculate d{Theta} / d{pressure} on isentropic levels
-    dthdp = dth_dp(th_levels, p_th)
+    dthdp = dth_dp(th_levels, pres)
 
     # Calculate Coriolis force
-    f_cor = 2.0 * OM * np.sin(lat[np.newaxis, np.newaxis, :, np.newaxis] * RAD)
+    lat_nd_slice = [np.newaxis] * rel_v.ndim
+
+    # Get axis matching latitude to input data
+    lat_axis = np.where(np.array(rel_v.shape) == lat.shape[0])[0][0]
+    lat_nd_slice[lat_axis] = slice(None)
+    f_cor = 2.0 * OM * np.sin(lat[lat_nd_slice] * RAD)
 
     # Calculate IPV, then correct for y-derivative problems at poles
     ipv_out = -GRV * (rel_v + f_cor) * dthdp
@@ -304,8 +342,8 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
         # This sets all points in longitude direction to mean of all points at the pole
         ipv_out[..., pole_idx, :] = np.mean(ipv_out[..., pole_idx, :], axis=-1)[..., None]
 
-    # Return isentropic potential vorticity, pressure on theta, u-wind on theta
-    return ipv_out, p_th, u_th
+    # Return isentropic potential vorticity
+    return ipv_out
 
 
 def theta(tair, pres):
@@ -329,7 +367,6 @@ def theta(tair, pres):
     c_p = 1004.0
     kppa = r_d / c_p
     p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in the same units!
-
 
     if tair.ndim == pres.ndim:
         p_axis = pres
