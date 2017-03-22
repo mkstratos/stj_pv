@@ -129,6 +129,61 @@ def diff_cfd(data, axis=-1, cyclic=False):
     return diff
 
 
+def diffz(data, vcoord, axis=None):
+    """
+    Calculate vertical derivative for data on uneven vertical levels.
+
+    Parameters
+    ----------
+    data : array_like
+        N-D array of input data to be differentiated, where
+        data.shape[axis] == vcoord.shape[0]
+    vcoord : array_like
+        Vertical coordinate, 1D
+    axis : integer, optional
+        Axis where data.shape[axis] == vcoord.shape[0]
+
+    Returns
+    -------
+    dxdz : array_like
+        N-D array of d(data)/d(vcoord), same shape as input `data`
+    """
+    if axis is None:
+        # Find matching axis between data and vcoord
+        axis = np.where(np.array(data.shape) == vcoord.shape[0])[0][0]
+
+    # Create array to hold vertical derivative
+    dxdz = np.ones(data.shape)
+
+    # Create n-dimensional slicer along matching axis
+    slc = NDSlicer(axis, data.ndim)
+
+    # Create an n-dimensional broadcast along matching axis, same as [None, :, None, None]
+    # for axis=1, ndim=4
+    bcast = [np.newaxis] * data.ndim
+    bcast[axis] = slice(None)
+
+    d_z = (vcoord[1:] - vcoord[:-1])
+    d_z2 = d_z[:-1][bcast]
+    d_z1 = d_z[1:][bcast]
+
+    dxdz[slc.slice(1, -1)] = ((d_z2 * data[slc.slice(2, None)] +
+                               (d_z1 - d_z2) * data[slc.slice(1, -1)] -
+                               d_z1 * data[slc.slice(None, -2)]) /
+                              (2.0 * d_z1 * d_z2))
+
+    # Do forward difference at 0th level [:, 1, :, :] - [:, 0, :, :]
+    dz1 = vcoord[1] - vcoord[0]
+    dxdz[slc.slice(0, 1)] = (data[slc.slice(0, 1)] - data[slc.slice(1, 2)]) / dz1
+
+    # Do backward difference at Nth level
+    dz1 = vcoord[-1] - vcoord[-2]
+    dxdz[slc.slice(-1, None)] = (data[slc.slice(-1, None)] -
+                                 data[slc.slice(-2, -1)]) / dz1
+
+    return dxdz
+
+
 def vinterp(data, vcoord, vlevels):
     """
     Perform linear vertical interpolation.
@@ -217,61 +272,6 @@ def vinterp(data, vcoord, vlevels):
             out_data[out_idx] = (wgt0 * data[idx_belw[1]] + wgt1 * data[idx_abve[1]])
 
     return np.squeeze(out_data)
-
-
-def diffz(data, vcoord, axis=None):
-    """
-    Calculate vertical derivative for data on uneven vertical levels.
-
-    Parameters
-    ----------
-    data : array_like
-        N-D array of input data to be differentiated, where
-        data.shape[axis] == vcoord.shape[0]
-    vcoord : array_like
-        Vertical coordinate, 1D
-    axis : integer, optional
-        Axis where data.shape[axis] == vcoord.shape[0]
-
-    Returns
-    -------
-    dxdz : array_like
-        N-D array of d(data)/d(vcoord), same shape as input `data`
-    """
-    if axis is None:
-        # Find matching axis between data and vcoord
-        axis = np.where(np.array(data.shape) == vcoord.shape[0])[0][0]
-
-    # Create array to hold vertical derivative
-    dxdz = np.ones(data.shape)
-
-    # Create n-dimensional slicer along matching axis
-    slc = NDSlicer(axis, data.ndim)
-
-    # Create an n-dimensional broadcast along matching axis, same as [None, :, None, None]
-    # for axis=1, ndim=4
-    bcast = [np.newaxis] * data.ndim
-    bcast[axis] = slice(None)
-
-    d_z = (vcoord[1:] - vcoord[:-1])
-    d_z2 = d_z[:-1][bcast]
-    d_z1 = d_z[1:][bcast]
-
-    dxdz[slc.slice(1, -1)] = ((d_z2 * data[slc.slice(2, None)] +
-                               (d_z1 - d_z2) * data[slc.slice(1, -1)] -
-                               d_z1 * data[slc.slice(None, -2)]) /
-                              (2.0 * d_z1 * d_z2))
-
-    # Do forward difference at 0th level [:, 1, :, :] - [:, 0, :, :]
-    dz1 = vcoord[1] - vcoord[0]
-    dxdz[slc.slice(0, 1)] = (data[slc.slice(0, 1)] - data[slc.slice(1, 2)]) / dz1
-
-    # Do backward difference at Nth level
-    dz1 = vcoord[-1] - vcoord[-2]
-    dxdz[slc.slice(-1, None)] = (data[slc.slice(-1, None)] -
-                                 data[slc.slice(-2, -1)]) / dz1
-
-    return dxdz
 
 
 def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
