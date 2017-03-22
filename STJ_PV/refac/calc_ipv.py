@@ -274,8 +274,86 @@ def vinterp(data, vcoord, vlevels):
     return np.squeeze(out_data)
 
 
+def convert_radians_latlon(lat, lon):
+    """
+    Convert input lat/lon array to radians if input is degrees, do nothing if radians.
+
+    Parameters
+    ----------
+    lat : array_like
+        ND array of latitude
+    lon : array_like
+        ND array of longitude
+
+    Returns
+    ----------
+    lat : array_like
+        ND array of latitude in radians
+    lon : array_like
+        ND array of longitude in radians
+    """
+    if (np.max(np.abs(lat)) - np.pi / 2.0) > 1.0:
+        lat_out = lat * RAD
+    else:
+        lat_out = lat
+
+    if(np.min(lon) < 0 and np.max(lon) > 0 and
+       np.abs(np.max(np.abs(lon)) - np.pi) > np.pi):
+        lon_out = lon * RAD
+    elif np.abs(np.max(np.abs(lon)) - np.pi * 2) > np.pi:
+        lon_out = lon * RAD
+    else:
+        lon_out = lon
+
+    return lat_out, lon_out
+
+
+def dlon_dlat(lon, lat, cyclic=True):
+    """
+    Calculate distance along lat/lon axes on spherical grid.
+
+    Parameters
+    ----------
+    lat : array_like
+        ND array of latitude
+    lon : array_like
+        ND array of longitude
+
+    Returns
+    ----------
+    dlong : array_like
+        NLat x Nlon array of horizontal distnaces along longitude axis
+    dlatg : array_like
+        NLat x Nlon array of horizontal distnaces along latitude axis
+    """
+    # Check that lat/lon are in radians
+    lat, lon = convert_radians_latlon(lat, lon)
+
+    # Calculate centre finite difference of lon / lat
+    dlon = lon[2:] - lon[:-2]
+    dlat = lat[2:] - lat[:-2]
+
+    # If we want cyclic data, repeat dlon[0] and dlon[-1] at edges
+    if cyclic:
+        dlon = np.append(dlon[0], dlon)      # cyclic boundary in East
+        dlon = np.append(dlon, dlon[-1])     # cyclic boundary in West
+        lon2d, lat2d = np.meshgrid(lon, lat)
+    else:
+        lon2d, lat2d = np.meshgrid(lon[1:-1], lat)
+
+    dlat = np.append(lat[1] - lat[0], dlat)    # boundary in South
+    dlat = np.append(dlat, lat[-1] - lat[-2])  # boundary in North
+    dlong, dlatg = np.meshgrid(dlon, dlat)
+
+    # Lon/Lat differences in spherical coords
+    dlong = dlong * EARTH_R * np.cos(lat2d)
+    dlatg = dlatg * EARTH_R
+
+    return dlong, dlatg
+
+
 def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
-    r"""
+    """
     Calculate the relative vorticity given zonal (uwnd) and meridional (vwnd) winds.
 
     Parameters
@@ -294,87 +372,44 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
     Returns
     -------
     rel_vort : array_like
-        Relative vorticity :math:`\zeta_h = \nabla \times \overrightarrow{V_h}`
-        (cross product of gradient operator and  horizontal vector wind)
-        If cyclic, returns same dimensions as uwnd & vwnd, if not it is::
-
-            (*vwnd.shape[0:-1], vwnd.shape[-1] - 2)
+        Relative vorticity V = U x V (cross product of U and V wind)
+        If cyclic, returns same dimensions as uwnd & vwnd, if not it is
+        (*vwnd.shape[0:-1], vwnd.shape[-1] - 2)
     """
+    # Check that lat/lon are in radians
+    lat, lon = convert_radians_latlon(lat, lon)
 
-    # Check data for correct dimensionality
-    if uwnd.shape != vwnd.shape or uwnd.ndim < 2 or vwnd.ndim < 2:
-        raise ValueError('Incorrect dimensionality of u/v wind: U: {}, V: {}'
-                         .format(uwnd.shape, vwnd.shape))
-    elif uwnd.ndim > 4 or vwnd.ndim > 4:
-        raise NotImplementedError('Too many dimensions for this method: U: {}, V: {}'
-                                  .format(uwnd.shape, vwnd.shape))
+    # Get dlon and dlat in spherical coords
+    dlong, dlatg = dlon_dlat(lon, lat, cyclic)
 
-    # Make sure lat and lon are in radians not degrees
-    if np.max(np.abs(lat)) > np.pi / 2.0:
-        lat = lat * RAD
-    if np.max(np.abs(lon)) > np.pi * 2.0:
-        lon = lon * RAD
-
-    # Generate 2d lat/lon for weighting
-    lon2d, lat2d = np.meshgrid(lon, lat)
-
-    # Calculate centred finite differences for lat/lon
-    dlon = lon[2:] - lon[:-2]
-    dlat = lat[2:] - lat[:-2]
-
-    if cyclic:
-        # If data are cyclic in longitude, add points to beginning/end of d{lon}
-        dlon = np.append(dlon[0], dlon)
-        dlon = np.append(dlon, dlon[-1])
-    else:
-        # Otherwise, calculate backward/forward difference at edges
-        dlon = np.append(lon[1] - lon[0], dlon)
-        dlon = np.append(dlon, lat[-1] - lat[-2])
-
-    # Calculate backward/forward differences at top/bottom of domain
-    dlat = np.append(lat[1] - lat[0], dlat)
-    dlat = np.append(dlat, lat[-1] - lat[-2])
-
-    # Make 2D (for now) mesh of d{lat} and d{lon}
-    dlon_nd, dlat_nd = np.meshgrid(dlon, dlat)
-
-    # Multiply each by appropriate factors for spherical geometry
-    dlon_nd = dlon_nd * EARTH_R * np.cos(lat2d)
-    dlat_nd = dlat_nd * EARTH_R
-
-    # Make d{lon} and d{lat} have appropriate dimensionality to divide d{wind} by
+    # Generate quasi-broadcasts of lat/lon differences for divisions
     if uwnd.ndim == 4:
-        dlon_nd = dlon_nd[np.newaxis, np.newaxis, ...]
-        dlat_nd = dlat_nd[np.newaxis, np.newaxis, ...]
+        dlong = dlong[np.newaxis, np.newaxis, ...]
+        dlatg = dlatg[np.newaxis, np.newaxis, ...]
     elif uwnd.ndim == 3:
-        dlon_nd = dlon_nd[np.newaxis, ...]
-        dlat_nd = dlat_nd[np.newaxis, ...]
-    # If uwnd.ndim == 2, d{lon} and d{lat} are already 2D
+        dlong = dlong[np.newaxis, ...]
+        dlatg = dlatg[np.newaxis, ...]
+    elif uwnd.ndim < 2:
+        raise ValueError('Not enough dimensions '
+                         'for relative vorticity: {}'.format(uwnd.shape))
+    elif uwnd.ndim > 4:
+        raise NotImplementedError('Too many dimensions for this method: {} not yet'
+                                  'implemented'.format(uwnd.shape))
 
-    # Calculate centred finite diff on vwind longitude axis
-    dvwnd = vwnd[..., 2:] - vwnd[..., :-2]
+    dvwnd = diff_cfd(vwnd, axis=-1, cyclic=True)
+    duwnd = diff_cfd(uwnd, axis=-2, cyclic=False)
+
+    # Divide vwnd differences by longitude differences
+    dvdlon = dvwnd / dlong
+    # Divide uwnd differences by latitude differences
     if cyclic:
-        # If data is cyclic append centred difference across cyclic point
-        dvwnd = np.append((vwnd[..., 1] - vwnd[..., -1])[..., np.newaxis], dvwnd, axis=-1)
-        dvwnd = np.append(dvwnd, (vwnd[..., 0] - vwnd[..., -2])[..., np.newaxis], axis=-1)
+        dudlat = duwnd / dlatg
     else:
-        # Otherwise do backward/forward difference at edges
-        dvwnd = np.append((vwnd[..., 1] - vwnd[..., 0])[..., np.newaxis], dvwnd,
-                          axis=-1)
-        dvwnd = np.append(dvwnd, (vwnd[..., -1] - vwnd[..., -2])[..., np.newaxis],
-                          axis=-1)
+        # If data isn't cyclic, then d(vwnd) and d(lon) will be one dim shorter on last
+        # dimension, so we need to make up for that in the d(uwnd)/d(lat) field to match
+        dudlat = duwnd[..., 1:-1] / dlatg
 
-    # Calculate centred finite difference on uwnd latitude axis
-    duwnd = uwnd[..., 2:, :] - uwnd[..., :-2, :]
-
-    # Append backward/forward difference at top/bottom of domain
-    duwnd = np.append((uwnd[..., 1, :] - uwnd[..., 0, :])[..., np.newaxis, :], duwnd,
-                      axis=-2)
-    duwnd = np.append(duwnd, (uwnd[..., -1, :] - uwnd[..., -2, :])[..., np.newaxis, :],
-                      axis=-2)
-
-    # Return d{v}/d{lon} - d{u}/d{lat}
-    return dvwnd / dlon_nd - duwnd / dlat_nd
+    return dvdlon - dudlat
 
 
 def dth_dp(theta_in, data_in):
