@@ -242,7 +242,8 @@ class JetFindRun(object):
             now = dt.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             self.config = {'data_cfg': './data_config_default.yml', 'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
-                           'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0}
+                           'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
+                           'update_pv': False, 'year_s': 1979, 'year_e': 2015}
         else:
             # Open the configuration file, put its contents into a variable to be read by
             # YAML reader
@@ -252,12 +253,27 @@ class JetFindRun(object):
         with open(self.config['data_cfg']) as data_cfg:
             self.data_cfg = yaml.load(data_cfg.read())
 
+        if self.data_cfg['single_var_file']:
+            for var in ['uwnd', 'vwnd', 'tair']:
+                if var not in self.data_cfg['file_paths']:
+                    # This replicates the path in 'all' so each variable points to it
+                    # this allows for the same loop no matter if data is in multiple files
+                    self.data_cfg['file_paths'][var] = self.data_cfg['file_paths']['all']
+
+
         if self.config['method'] == 'STJPV':
             self.output_file = ('{short_name}_{method}_pv{pv_value}_fit{fit_deg}_'
                                 'y0{min_lat}'.format(**self.data_cfg, **self.config))
+
+            self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
+                                       350.0, 370.0, 395.0, 430.0])
         else:
             self.output_file = ('{short_name}_{method}'
                                 .format(**self.data_cfg, **self.config))
+
+
+    def _get_data(self, curr_year=None):
+        """Retrieve data stored according to `self.data_cfg`."""
 
 
 def main():
