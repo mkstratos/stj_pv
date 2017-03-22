@@ -84,6 +84,51 @@ class NDSlicer(object):
         return self.slicer
 
 
+def diff_cfd(data, axis=-1, cyclic=False):
+    """
+    Calculate centered finite difference on a field along an axis with even spacing.
+
+    Parameters
+    ----------
+    data : array_like
+        ND array of data of which to calculate the differences
+    axis : integer
+        Axis of `data` on which differences are calculated
+    cyclic : bool
+        Flag to indicate whether `data` is cyclic on `axis`
+
+    Returns
+    -------
+    diff : array_like
+        ND array of central finite differences of `data` along `axis`
+    """
+    # Calculate centred differences along longitude direction
+    # Eqivalent to: diff = data[..., 2:] - data[..., :-2] for axis == -1
+    slc = NDSlicer(axis, data.ndim)
+    diff = data[slc.slice(2, None)] - data[slc.slice(None, -2)]
+
+    if cyclic:
+        # Cyclic boundary in "East"
+        # Equiv to diff[..., 0] = data[..., 1:2] - data[..., -1:]
+        d_1 = (data[slc.slice(1, 2)] - data[slc.slice(-1, None)])
+        diff = np.append(d_1, diff, axis=axis)
+
+        # Cyclic boundary in "West"
+        # Equiv to diff[..., -1] = data[..., 0:1] - data[..., -2:-1]
+        diff = np.append(diff, (data[slc.slice(0, 1)] - data[slc.slice(-2, -1)]),
+                         axis=axis)
+    else:
+        # Otherwise edges are forward/backward differences
+        # Boundary in "South", (data[..., 1:2] - data[..., 0:1])
+        diff = np.append((data[slc.slice(1, 2)] - data[slc.slice(0, 1)]), diff, axis=axis)
+
+        # Boundary in "North" (data[..., -1:] - data[..., -2:-1])
+        diff = np.append(diff, (data[slc.slice(-1, None)] - data[slc.slice(-2, -1)]),
+                         axis=axis)
+
+    return diff
+
+
 def vinterp(data, vcoord, vlevels):
     """
     Perform linear vertical interpolation.
@@ -172,6 +217,61 @@ def vinterp(data, vcoord, vlevels):
             out_data[out_idx] = (wgt0 * data[idx_belw[1]] + wgt1 * data[idx_abve[1]])
 
     return np.squeeze(out_data)
+
+
+def diffz(data, vcoord, axis=None):
+    """
+    Calculate vertical derivative for data on uneven vertical levels.
+
+    Parameters
+    ----------
+    data : array_like
+        N-D array of input data to be differentiated, where
+        data.shape[axis] == vcoord.shape[0]
+    vcoord : array_like
+        Vertical coordinate, 1D
+    axis : integer, optional
+        Axis where data.shape[axis] == vcoord.shape[0]
+
+    Returns
+    -------
+    dxdz : array_like
+        N-D array of d(data)/d(vcoord), same shape as input `data`
+    """
+    if axis is None:
+        # Find matching axis between data and vcoord
+        axis = np.where(np.array(data.shape) == vcoord.shape[0])[0][0]
+
+    # Create array to hold vertical derivative
+    dxdz = np.ones(data.shape)
+
+    # Create n-dimensional slicer along matching axis
+    slc = NDSlicer(axis, data.ndim)
+
+    # Create an n-dimensional broadcast along matching axis, same as [None, :, None, None]
+    # for axis=1, ndim=4
+    bcast = [np.newaxis] * data.ndim
+    bcast[axis] = slice(None)
+
+    d_z = (vcoord[1:] - vcoord[:-1])
+    d_z2 = d_z[:-1][bcast]
+    d_z1 = d_z[1:][bcast]
+
+    dxdz[slc.slice(1, -1)] = ((d_z2 * data[slc.slice(2, None)] +
+                               (d_z1 - d_z2) * data[slc.slice(1, -1)] -
+                               d_z1 * data[slc.slice(None, -2)]) /
+                              (2.0 * d_z1 * d_z2))
+
+    # Do forward difference at 0th level [:, 1, :, :] - [:, 0, :, :]
+    dz1 = vcoord[1] - vcoord[0]
+    dxdz[slc.slice(0, 1)] = (data[slc.slice(0, 1)] - data[slc.slice(1, 2)]) / dz1
+
+    # Do backward difference at Nth level
+    dz1 = vcoord[-1] - vcoord[-2]
+    dxdz[slc.slice(-1, None)] = (data[slc.slice(-1, None)] -
+                                 data[slc.slice(-2, -1)]) / dz1
+
+    return dxdz
 
 
 def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
@@ -394,15 +494,14 @@ def ipv_theta(uwnd, vwnd, pres, lat, lon, th_levels):
     rel_v = rel_vort(uwnd, vwnd, lat, lon)
 
     # Calculate d{Theta} / d{pressure} on isentropic levels
-    dthdp = dth_dp(th_levels, pres)
+    dthdp = 1.0 / diffz(pres, th_levels)
 
     # Calculate Coriolis force
-    lat_nd_slice = [np.newaxis] * rel_v.ndim
-
-    # Get axis matching latitude to input data
+    # First, get axis matching latitude to input data
+    lat_bcast = [np.newaxis] * rel_v.ndim
     lat_axis = np.where(np.array(rel_v.shape) == lat.shape[0])[0][0]
-    lat_nd_slice[lat_axis] = slice(None)
-    f_cor = 2.0 * OM * np.sin(lat[lat_nd_slice] * RAD)
+    lat_bcast[lat_axis] = slice(None)
+    f_cor = 2.0 * OM * np.sin(lat[lat_bcast] * RAD)
 
     # Calculate IPV, then correct for y-derivative problems at poles
     ipv_out = -GRV * (rel_v + f_cor) * dthdp
