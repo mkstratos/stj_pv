@@ -41,12 +41,13 @@ def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
         time_skip = None
         lat_skip = None
 
-    in_file = '{}/erai_theta_{:04d}.nc'.format(root_dir, year)
+    in_file = '{}/daily/erai_theta_{:04d}.nc'.format(root_dir, year)
     data = nc.Dataset(in_file, 'r')
     lat = data.variables['latitude'][:]
     lat_0 = 10.0
     pv = data.variables['pv'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
     uwnd = data.variables['u'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
+    vwnd = data.variables['v'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
     pres = data.variables['pres'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
     time = data.variables['time'][tidx_s:tidx_e:time_skip]
 
@@ -61,7 +62,7 @@ def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
     lon = data.variables['longitude'][:]
     theta = data.variables['level'][:]
 
-    return {'pv': pv * 1e6, 'pres': pres, 'uwnd': uwnd,
+    return {'pv': pv * 1e6, 'pres': pres, 'uwnd': uwnd, 'vwnd': vwnd,
             'lat': lat, 'lon': lon, 'lev': theta, 'time': time, 'tunits': time_units}
 
 
