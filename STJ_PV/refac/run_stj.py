@@ -270,7 +270,21 @@ class JetFindRun(object):
         else:
             self.output_file = ('{short_name}_{method}'
                                 .format(**self.data_cfg, **self.config))
+        self.log_setup()
 
+    def log_setup(self):
+        """Create a logger object with file location from `self.config`."""
+
+        logger = logging.getLogger(self.config['method'])
+        logger.setLevel(logging.DEBUG)
+
+        log_file_handle = logging.FileHandler(self.config['log_file'])
+        log_file_handle.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        log_file_handle.setFormatter(formatter)
+
+        logger.addHandler(log_file_handle)
+        self.log = logger
 
     def _get_data(self, curr_year=None):
         """Retrieve data stored according to `self.data_cfg`."""
