@@ -49,8 +49,8 @@ def lapse_rate(t_air, pres, vaxis=None):
         # This generates a list of length ndim of t_air, (if 4-D then
         # [None, None, None, None]
         bcast_nd = [None] * t_air.ndim
-    # This makes the common axis (vertical) a slice, if ax_com = 1 then it is the
-    # same as saying pres[None, :, None, None], but allowing ax_com to be automagic
+        # This makes the common axis (vertical) a slice, if ax_com = 1 then it is the
+        # same as saying pres[None, :, None, None], but allowing ax_com to be automagic
         bcast_nd[ax_com] = slice(None)
 
     # Calculate lapse rate in K/km
@@ -59,13 +59,16 @@ def lapse_rate(t_air, pres, vaxis=None):
 
     if pres.max() < 90000.0:
         d_p *= 100.0    # Now units should be in Pa
+        pres_fac = 100.0
+    else:
+        pres_fac = 1.0
 
     # rho = p / (Rd * T)
-    rho = (pres[bcast_nd] * 100) / (r_d * t_air)
+    rho = (pres[bcast_nd] * pres_fac) / (r_d * t_air)
     # Hydrostatic approximation
     d_z = -d_p[bcast_nd] / (rho[slc_t.slice(1, None)] * g) / 1000.0
 
-    dtdz = (-d_t / d_z)                   # Lapse rate [K/km]
+    dtdz = (-d_t / d_z)  # Lapse rate [K/km]
     return dtdz, d_z
 
 
@@ -154,6 +157,57 @@ def find_tropopause_mask(dtdz, d_z, thr=2.0):
                     trop_level[ixt, :, ixy, ixx] = trop_lev_1d(dtdz[ixt, :, ixy, ixx],
                                                                d_z[ixt, :, ixy, ixx], thr)
     return trop_level
+
+
+def get_tropopause_theta(theta, pres, thr=2.0):
+    """
+    Return the tropopause temperature and pressure for WMO tropopause.
+
+    Parameters
+    ----------
+    theta : array_like
+        1D array of potential temperature
+    pres : array_like
+        ND array of pressure levels, with one axis matching shape of theta
+    thr : float
+        Lapse rate threshold, default/WMO definition is 2.0 K km^-1
+
+    Returns
+    -------
+    trop_temp, trop_pres : array_like
+        Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension
+        dropped is vertical axis, same units as input t_air and pres respectively
+    """
+    vaxis = pres.shape.index(theta.shape[0])
+
+    # Find half theta levels
+    theta_hf = (theta[:-1] - theta[1:]) / 2.0 + theta[1:]
+
+    # Create full theta array for interpolation of pressure
+    theta_full = np.zeros(theta.shape[0] + theta_hf.shape[0])
+    theta_full[::2] = theta
+    theta_full[1::2] = theta_hf
+
+    # Interpolate pressure to half theta levels
+    #pres_interp = interp.interp1d(theta, pres, axis=vaxis, kind='cubic')(theta_full)
+    pres_interp = interp.interp1d(theta, pres, axis=vaxis, kind='cubic')(theta_full)
+
+    # Compute air temperature from potential temperature and pressure
+    t_air = cpv.inv_theta(theta_full, pres_interp)
+
+    # Calculate the lapse rate, gives back lapse rate and d(height)
+    dtdz, d_z = lapse_rate(t_air, pres_interp, vaxis=vaxis)
+
+    # Create tropopause level mask, use only the half levels (every other starting at 1)
+    trop_level_mask = find_tropopause_mask(dtdz[:, 1::2, ...], d_z[:, 1::2, ...], thr=thr)
+
+    # To get the tropopause temp/pres, mask the 4D arrays (at every other level)
+    # then take the mean across level axis (now only one unmasked point) to give 3D data
+    trop_temp = np.mean(np.ma.masked_where(trop_level_mask,
+                                           t_air[:, 1::2, ...]), axis=1)
+    trop_pres = np.mean(np.ma.masked_where(trop_level_mask,
+                                           pres_interp[:, 1::2, ...]), axis=1)
+    return trop_temp, trop_pres, dtdz, d_z
 
 
 def get_tropopause(t_air, pres, thr=2.0):
