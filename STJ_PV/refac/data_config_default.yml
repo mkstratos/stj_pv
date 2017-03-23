@@ -46,14 +46,14 @@ file_paths:
 #   'ipv': 'ipv.{year:04d}.nc'
 #   'tpause': 'tpause.{year:04d}.nc'
 
-xdim: 'lon'     # Name within netCDF file of 'longitude' variable
-ydim: 'lat'     # Name within netCDF file of 'latitude' variable
-zdim: 'lev'     # Name within netCDF file of 'level' variable
-tdim: 'time'    # Name within netCDF file of 'time' variable
+lon: 'lon'     # Name within netCDF file of 'longitude' variable
+lat: 'lat'     # Name within netCDF file of 'latitude' variable
+lev: 'lev'     # Name within netCDF file of 'level' variable
+time: 'time'    # Name within netCDF file of 'time' variable
 ztype: 'pres'   # Type of levels (pressure, potential temperature, etc.)
 
 # Variable names for u/v wind, air temperature and pv
 uwnd: 'uwnd'
 vwnd: 'vwnd'
-tair: 'tair'
+tair: 't'
 ipv: 'ipv'
