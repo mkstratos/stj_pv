@@ -6,6 +6,7 @@ import os
 # Dependent code
 import calc_ipv
 import data_out as dout
+import psutil
 
 from thermal_tropopause import get_tropopause
 
@@ -90,12 +91,12 @@ class InputData(object):
                 file_name = cfg['file_paths'][var].format(year=self.year)
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
             print("LOAD: {}".format(var))
-            self.in_data[var] = nc_file.variables[vname][0:250, ...]
+            self.in_data[var] = nc_file.variables[vname][:, ...]
             if first_file:
                 for var in dim_vars:
                     v_in_name = cfg[var]
                     if var == 'time':
-                        setattr(self, var, nc_file.variables[var][0:250])
+                        setattr(self, var, nc_file.variables[var][:])
                     else:
                         setattr(self, var, nc_file.variables[var][:])
 
@@ -115,11 +116,33 @@ class InputData(object):
         cfg = self.data_cfg
         if self.in_data is None:
             self._load_data()
-        #self.props.log.info('Starting IPV calculation')
-        print('Starting IPV calculation')
+        self.props.log.info('Starting IPV calculation')
 
         # calculate IPV
         if cfg['ztype'] == 'pres':
+            total_mem = psutil.virtual_memory().total
+            # Data is in numpy float32, so total size is npoints * 32 / 8 in bytes
+            dset_size = np.prod(self.in_data['uwnd'].shape) * 32 / 8
+            if (dset_size / total_mem) > 0.02:
+                # Split data into chunks, calculate IPV then re-assemble chunks
+                th_shape = list(self.in_data['uwnd'].shape)
+                th_shape[1] = self.props.th_levels.shape[0]
+                n_times = th_shape[0]
+                chunks = [[ix, ix + n_timest//3]
+                          for ix in range(0, n_times, n_times // 3)]
+                chunks[-1][-1] = None
+
+                self.ipv = np.zeros(th_shape)
+                self.uwnd = np.zeros(th_shape)
+                for ix_s, ix_e in chunks:
+                    self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
+                            calc_ipv.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
+                                         self.in_data['vwnd'][ix_s:ix_e, ...],
+                                         self.in_data['tair'][ix_s:ix_e, ...],
+                                         self.lev, self.lat, self.lon,
+                                         self.props.th_levels)
+
+            else:
             self.ipv, p_th, self.uwnd = calc_ipv.ipv(self.in_data['uwnd'],
                                                      self.in_data['vwnd'],
                                                      self.in_data['tair'], self.lev,
