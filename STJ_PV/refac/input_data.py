@@ -62,7 +62,7 @@ class InputData(object):
                      or not os.path.exists(tp_file))
 
         if data_load:
-        self._load_data()
+            self._load_data()
         if self.config['update_pv'] or not os.path.exists(pv_file):
             self._calc_ipv()
             self._write_ipv()
@@ -128,13 +128,15 @@ class InputData(object):
                 th_shape = list(self.in_data['uwnd'].shape)
                 th_shape[1] = self.props.th_levels.shape[0]
                 n_times = th_shape[0]
-                chunks = [[ix, ix + n_timest//3]
-                          for ix in range(0, n_times, n_times // 3)]
+                n_chunks = 3
+                chunks = [[ix, ix + n_times // n_chunks]
+                          for ix in range(0, n_times, n_times // n_chunks)]
                 chunks[-1][-1] = None
 
                 self.ipv = np.zeros(th_shape)
                 self.uwnd = np.zeros(th_shape)
                 for ix_s, ix_e in chunks:
+                    self.props.log.info('IPV FOR {} - {}'.format(ix_s, ix_e))
                     self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
                             calc_ipv.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
                                          self.in_data['vwnd'][ix_s:ix_e, ...],
@@ -143,11 +145,11 @@ class InputData(object):
                                          self.props.th_levels)
 
             else:
-            self.ipv, p_th, self.uwnd = calc_ipv.ipv(self.in_data['uwnd'],
-                                                     self.in_data['vwnd'],
-                                                     self.in_data['tair'], self.lev,
-                                                     self.lat, self.lon,
-                                                     self.props.th_levels)
+                self.ipv, p_th, self.uwnd = calc_ipv.ipv(self.in_data['uwnd'],
+                                                         self.in_data['vwnd'],
+                                                         self.in_data['tair'], self.lev,
+                                                         self.lat, self.lon,
+                                                         self.props.th_levels)
 
             self.ipv *= 1e6  # Put PV in units of PVU
         elif cfg['ztype'] == 'theta':
@@ -183,6 +185,65 @@ class InputData(object):
         trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')
 
+    def _write_ipv(self, out_file=None, output_type='.nc'):
+        """
+        Save IPV data generated to a file, either netCDF4 or pickle.
+
+        Parameters
+        ----------
+        out_file : string, optional
+            Output file path for pickle or netCDF4 file, will contain ipv data and coords
+        output_type : string
+            Either '.nc' if netCDF4 output is desired, or '.p' if pickle output desired.
+        """
+        if out_file is None:
+            file_name = cfg['file_paths']['ipv'].format(year=self.year)
+            out_file = os.path.join(self.data_cfg['path'], file_name)
+
+        self.props.log.info('WRITE IPV: {}'.format(out_file))
+
+        if output_type == '.p':
+            self.in_data['ipv'] = self.ipv
+            pickle.dump(self.in_data, open('{}{}'.format(out_file, output_type), 'wb'))
+
+        else:
+            coord_names = ['time', 'lev', 'lat', 'lon']
+            coords = {cname: getattr(self, cname) for cname in coord_names}
+            ipv_out = dout.NCOutVar(self.ipv, coords=coords)
+
+            ipv_out.set_props({'name': 'isentropic_potential_vorticity',
+                               'descr': 'Potential vorticity on theta levels',
+                               'units': 'PVU', 'short_name': 'ipv',
+                               'levvar': 'theta_lev',
+                               'time_units': self.time_units, 'calendar': self.calendar})
+
+            dout.write_to_netcdf([ipv_out], '{}{}'.format(out_file1, output_type))
+
+            u_th_out = dout.NCOutVar(self.u_th)
+            u_th_out.get_props_from(ipv_out)
+            u_th_out.set_props({'name': 'zonal_wind_component',
+                                'descr': 'Zonal wind on isentropic levels',
+                                'units': 'm s-1', 'short_name': 'u_th',
+                                'levvar': 'theta_lev'})
+
+            coords_2d = {'time': self.time, 'lat': self.lat}
+
+            trop_h_pres_out = dout.NCOutVar(self.trop_h_pres, coords=coords_2d)
+            trop_h_pres_out.set_props({'name': 'tropopause_level',
+                                       'descr': 'Tropopause pressure level',
+                                       'units': 'Pa', 'short_name': 'trop_h_pres',
+                                       'time_units': self.time_units,
+                                       'calendar': self.calendar})
+
+            trop_h_temp_out = dout.NCOutVar(self.trop_h_temp, coords=coords_2d)
+            trop_h_temp_out.get_props_from(trop_h_pres_out)
+            trop_h_temp_out.set_props({'descr': 'Tropopause temperature',
+                                       'short_name': 'trop_h_temp'})
+
+            dout.write_to_netcdf([u_th_out, trop_h_pres_out, trop_h_temp_out],
+                                 '{}{}'.format(out_file2, output_type))
+
+        self.props.log.info('Finished writing\n{}\n{}'.format(out_file1, out_file2))
 class PresLevelData(InputData):
 
     def __init__(self, stj_props):
@@ -261,32 +322,32 @@ class PresLevelData(InputData):
         self.time_units = var['time_units']
         self.calendar = var['calendar']
 
-        self.props.log('Finished opening data')
+        self.props.log.info('Finished opening data')
 
     def calc_ipv(self):
         """Calculate isentropic potential vorticity from isobaric u, v, t."""
-        self.props.log('Starting IPV calculation')
+        self.props.log.info('Starting IPV calculation')
         # calculate IPV
         self.ipv, self.p_th, self.u_th = calc_ipv.ipv(self.uwnd, self.vwnd, self.tair,
                                                       self.pres, self.lat, self.lon,
                                                       self.th_levels)
         self.ipv *= 1e6  # Put PV in units of PVU
-        self.props.log('Finished calculating IPV')
+        self.props.log.info('Finished calculating IPV')
 
     def get_thermal_tropopause(self):
         """Calculate the tropopause height using the WMO thermal definition."""
-        self.props.log('Start calculating tropopause height')
+        self.props.log.info('Start calculating tropopause height')
 
         # Get zonal mean temperature, levels should be in correct order on import
         t_zonal = np.nanmean(self.tair, axis=3)
 
         if self.lev[0] < self.lev[-1]:
-            self.props.log('CHECK ON INPUT DATA, NOT IN sfc -> upper levels ORDER')
+            self.props.log.info('CHECK ON INPUT DATA, NOT IN sfc -> upper levels ORDER')
             self.lev = self.lev[::-1]
             t_zonal = t_zonal[:, ::-1, :]
 
         self.trop_h_temp, self.trop_h_pres = get_tropopause(t_zonal, self.lev)
-        self.props.log('Finished calculating tropopause height')
+        self.props.log.info('Finished calculating tropopause height')
 
     def save_ipv(self, out_file1=None, out_file2=None, output_type='.nc'):
         """
@@ -309,7 +370,7 @@ class PresLevelData(InputData):
         if out_file2 is None:
             out_file2 = '{in_dir}{ipv2}'.format(**self.props.in_files)
 
-        self.props.log('Output IPV Data to:\n{}\n{}'.format(out_file1, out_file2))
+        self.props.log.info('Output IPV Data to:\n{}\n{}'.format(out_file1, out_file2))
 
         if output_type == '.p':
             output = {}
@@ -364,7 +425,7 @@ class PresLevelData(InputData):
             dout.write_to_netcdf([u_th_out, trop_h_pres_out, trop_h_temp_out],
                                  '{}{}'.format(out_file2, output_type))
 
-        self.props.log('Finished writing\n{}\n{}'.format(out_file1, out_file2))
+        self.props.log.info('Finished writing\n{}\n{}'.format(out_file1, out_file2))
 
     def __open_ipv_data(self, filename_1=None, filename_2=None, file_type='.nc'):
         """
