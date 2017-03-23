@@ -2,13 +2,14 @@
 import numpy as np
 from scipy import interpolate as interp
 import matplotlib.pyplot as plt
+import calc_ipv as cpv
 plt.style.use('ggplot')
 
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
 
-def lapse_rate(t_air, pres):
+def lapse_rate(t_air, pres, vaxis=None):
     """
     Calculate the lapse rate of temperature in K/km from isobaric temperature data.
 
@@ -30,30 +31,40 @@ def lapse_rate(t_air, pres):
     g = 9.81            # m/s^2
 
     # Common axis is vertical axis
-    ax_com = np.squeeze(np.where(np.array(t_air.shape) == pres.shape[0])[0])
+    if pres.ndim == 1 or vaxis is None:
+        ax_com = t_air.shape.index(pres.shape[0])
+    elif pres.ndim == t_air.ndim:
+        ax_com = vaxis
+    else:
+        raise ValueError('Dimensions do not match: T: {} P: {}'
+                         .format(t_air.ndim, pres.ndim))
 
     # Create slices to use that are correct shape
-    slc_p1 = [slice(None)] * t_air.ndim
-    slc_m1 = [slice(None)] * t_air.ndim
-
-    # Make slice plus one the same as [:, 1:, ...] if ax_com==1
-    slc_p1[ax_com] = slice(1, None)
-    # Make slice minus one the same as [:, :-1, ...] if ax_com==1
-    slc_m1[ax_com] = slice(None, -1)
-
-    # This generates a list of length ndim of t_air, (if 4-D then [None, None, None, None]
-    slc_nd = [None] * t_air.ndim
-
+    slc_t = cpv.NDSlicer(ax_com, t_air.ndim)
+    if pres.ndim == t_air.ndim:
+        slc_p = cpv.NDSlicer(ax_com, pres.ndim)
+        bcast_nd = [slice(None)] * pres.ndim
+    else:
+        slc_p = cpv.NDSlicer(0, pres.ndim)
+        # This generates a list of length ndim of t_air, (if 4-D then
+        # [None, None, None, None]
+        bcast_nd = [None] * t_air.ndim
     # This makes the common axis (vertical) a slice, if ax_com = 1 then it is the
     # same as saying pres[None, :, None, None], but allowing ax_com to be automagic
-    slc_nd[ax_com] = slice(None)
+        bcast_nd[ax_com] = slice(None)
 
     # Calculate lapse rate in K/km
-    d_t = t_air[slc_p1] - t_air[slc_m1]      # Units = K
-    d_p = (pres[1:] - pres[:-1]) * 100.0     # Units = Pa
+    d_t = t_air[slc_t.slice(1, None)] - t_air[slc_t.slice(None, -1)]  # Units = K
+    d_p = (pres[slc_p.slice(1, None)] - pres[slc_p.slice(None, -1)])  # Units = Pa or hPa
 
-    rho = (pres[slc_nd] * 100) / (r_d * t_air)  # rho = p / (Rd * T)
-    d_z = -d_p[slc_nd] / (rho[slc_p1] * g) / 1000.0   # Hydrostatic approx.
+    if pres.max() < 90000.0:
+        d_p *= 100.0    # Now units should be in Pa
+
+    # rho = p / (Rd * T)
+    rho = (pres[bcast_nd] * 100) / (r_d * t_air)
+    # Hydrostatic approximation
+    d_z = -d_p[bcast_nd] / (rho[slc_t.slice(1, None)] * g) / 1000.0
+
     dtdz = (-d_t / d_z)                   # Lapse rate [K/km]
     return dtdz, d_z
 
