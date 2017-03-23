@@ -57,89 +57,108 @@ class InputData(object):
                                cfg['file_paths']['ipv'].format(year=self.year))
         tp_file = os.path.join(cfg['path'],
                                cfg['file_paths']['tpause'].format(year=self.year))
+        data_load = (self.config['update_pv'] or not os.path.exists(pv_file)
+                     or not os.path.exists(tp_file))
 
+        if data_load:
         self._load_data()
         if self.config['update_pv'] or not os.path.exists(pv_file):
             self._calc_ipv()
-        if self.config['update_pv'] or not os.path.exists(tp_file)):
+            self._write_ipv()
+        if self.config['update_pv'] or not os.path.exists(tp_file):
             self._calc_trop()
+            self._write_trop()
 
     def _load_data(self):
         cfg = self.data_cfg
-        in_data = {}
+        self.in_data = {}
         data_vars = ['uwnd', 'vwnd', 'tair']
         if cfg['ztype'] == 'theta':
             # If input data is isentropic already..need pressure on theta, not air temp
             data_vars.remove('tair')
             data_vars.append('pres')
 
-        dim_vars = ['tdim', 'zdim', 'ydim', 'xdim']
+        dim_vars = ['time', 'lev', 'lat', 'lon']
 
         # Load u/v/t; create pv file that has ipv, tpause file with tropopause lev
         first_file = True
+        nc_file = None
         for var in data_vars:
             vname = cfg[var]
             if nc_file is None:
                 # Format the name of the file, join it with the path, open it
                 file_name = cfg['file_paths'][var].format(year=self.year)
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
-            in_data[var] = nc_file.variables[var][:]
+            print("LOAD: {}".format(var))
+            self.in_data[var] = nc_file.variables[vname][0:250, ...]
             if first_file:
                 for var in dim_vars:
-                    in_data[var] = nc_file.variables[cfg[var]][:]
+                    v_in_name = cfg[var]
+                    if var == 'time':
+                        setattr(self, var, nc_file.variables[var][0:250])
+                    else:
+                        setattr(self, var, nc_file.variables[var][:])
+
+                # Set time units and calendar properties
+                self.time_units = nc_file.variables[cfg['time']].units
+                self.calendar = nc_file.variables[cfg['time']].calendar
                 first_file = False
+            if cfg['single_var_file']:
+                nc_file.close()
+                nc_file = None
+
+        if not cfg['single_var_file']:
             nc_file.close()
-        self.in_data = in_data
 
     def _calc_ipv(self):
         # Shorthand for configuration dictionary
         cfg = self.data_cfg
         if self.in_data is None:
             self._load_data()
-        in_data = self.in_data
-        self.props.log('Starting IPV calculation')
+        #self.props.log.info('Starting IPV calculation')
+        print('Starting IPV calculation')
 
         # calculate IPV
         if cfg['ztype'] == 'pres':
-            self.ipv, p_th, self.uwnd = calc_ipv.ipv(in_data['uwnd'], in_data['vwnd'],
-                                                     in_data['tair'], in_data['zdim'],
-                                                     in_data['ydim'], in_data['xdim'],
-                                                     props.th_levels)
+            self.ipv, p_th, self.uwnd = calc_ipv.ipv(self.in_data['uwnd'],
+                                                     self.in_data['vwnd'],
+                                                     self.in_data['tair'], self.lev,
+                                                     self.lat, self.lon,
+                                                     self.props.th_levels)
 
             self.ipv *= 1e6  # Put PV in units of PVU
         elif cfg['ztype'] == 'theta':
-            self.uwnd = in_data['uwnd']
-            self.ipv = calc_ipv.ipv_theta(in_data['uwnd'], in_data['vwnd'],
-                                          in_data['pres'], in_data['ydim'],
-                                          in_data['xdim'], in_data['zdim'])
+            self.uwnd = self.in_data['uwnd']
+            self.ipv = calc_ipv.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
+                                          self.in_data['pres'], self.lat, self.lon,
+                                          self.lev)
 
-        self.props.log('Finished calculating IPV')
+        self.props.log.info('Finished calculating IPV')
 
     def _get_thermal_tropopause(self):
         """Calculate the tropopause height using the WMO thermal definition."""
         if self.in_data is None:
             self._load_data()
-        in_data = self.in_data
 
-        self.props.log('Start calculating tropopause height')
+        self.props.log.info('Start calculating tropopause height')
         if self.data_cfg['ztype'] == 'pres':
 
-            if in_data['zdim'][0] < in_data['zdim'][-1]:
-                self.props.log('CHECK ON INPUT DATA, NOT IN sfc -> upper levels ORDER')
-                lev = in_data['zdim'][::-1]
-                t_air = in_data['tair'][:, ::-1, :]
+            if self.lev[0] < self.lev[-1]:
+                self.props.log.info('INPUT DATA NOT IN sfc -> upper levels ORDER')
+                self.lev = self.lev[::-1]
+                t_air = self.in_data['tair'][:, ::-1, :]
             else:
-                lev = in_data['zdim']
-                t_air = in_data['tair']
+                t_air = self.in_data['tair']
 
-            trop_h_temp, trop_h_pres = get_tropopause(t_air, lev)
+            trop_h_temp, trop_h_pres = get_tropopause(t_air, self.lev)
 
         elif self.data_cfg['ztype'] == 'theta':
-            t_air = calc_ipv.inv_theta(in_data['zdim'], in_data['pres'])
-            trop_h_temp, trop_h_pres = get_tropopause(t_air, in_data['pres'])
+            t_air = calc_ipv.inv_theta(self.in_data['lev'], self.in_data['pres'])
+            trop_h_temp, trop_h_pres = get_tropopause_theta(self.in_data['lev'],
+                                                            self.in_data['pres'])
 
         trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
-        self.props.log('Finished calculating tropopause height')
+        self.props.log.info('Finished calculating tropopause height')
 
 class PresLevelData(InputData):
 
