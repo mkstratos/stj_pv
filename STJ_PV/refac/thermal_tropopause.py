@@ -54,7 +54,6 @@ def lapse_rate(t_air, pres, vaxis=None):
         bcast_nd[ax_com] = slice(None)
 
     # Calculate lapse rate in K/km
-    d_t = t_air[slc_t.slice(1, None)] - t_air[slc_t.slice(None, -1)]  # Units = K
     d_p = (pres[slc_p.slice(1, None)] - pres[slc_p.slice(None, -1)])  # Units = Pa or hPa
 
     if pres.max() < 90000.0:
@@ -64,11 +63,12 @@ def lapse_rate(t_air, pres, vaxis=None):
         pres_fac = 1.0
 
     # rho = p / (Rd * T)
-    rho = (pres[bcast_nd] * pres_fac) / (r_d * t_air)
-    # Hydrostatic approximation
-    d_z = -d_p[bcast_nd] / (rho[slc_t.slice(1, None)] * g) / 1000.0
+    # Hydrostatic approximation dz = -dp/(rho * g)
+    d_z = -d_p[bcast_nd] / (((pres[bcast_nd] * pres_fac) /
+                              (r_d * t_air))[slc_t.slice(1, None)] * g) / 1000.0
 
-    dtdz = (-d_t / d_z)  # Lapse rate [K/km]
+    # Lapse rate [K/km] (-dt / dz)
+    dtdz = (-t_air[slc_t.slice(1, None)] - t_air[slc_t.slice(None, -1)] / d_z)
     return dtdz, d_z
 
 
