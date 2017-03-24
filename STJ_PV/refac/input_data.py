@@ -110,6 +110,25 @@ class InputData(object):
 
         if not cfg['single_var_file']:
             nc_file.close()
+    def _gen_chunks(self, n_chunks=3):
+        """Split data into time-period chunks if needed."""
+        total_mem = psutil.virtual_memory().total
+        # Data is in numpy float32, so total size is npoints * 32 / 8 in bytes
+        dset_size = np.prod(self.in_data['uwnd'].shape) * 32 / 8
+        ideal_chunks = int(np.floor(100 / (np.prod(self.in_data['uwnd'].shape) * 32 / 8 /
+                           psutil.virtual_memory().available * 100)))
+        if ideal_chunks > n_chunks:
+            n_chunks = ideal_chunks
+        if (dset_size / total_mem) > 0.01:
+            # Split data into chunks, calculate IPV then re-assemble chunks
+            n_times = self.in_data['uwnd'].shape[0]
+            chunks = [[ix, ix + n_times // n_chunks]
+                      for ix in range(0, n_times + n_chunks, n_times // n_chunks)]
+            chunks.pop(-1)
+            chunks[-1][-1] = None
+        else:
+            chunks = [(0, None)]
+        return chunks
 
     def _calc_ipv(self):
         # Shorthand for configuration dictionary
@@ -120,36 +139,21 @@ class InputData(object):
 
         # calculate IPV
         if cfg['ztype'] == 'pres':
-            total_mem = psutil.virtual_memory().total
-            # Data is in numpy float32, so total size is npoints * 32 / 8 in bytes
-            dset_size = np.prod(self.in_data['uwnd'].shape) * 32 / 8
-            if (dset_size / total_mem) > 0.02:
-                # Split data into chunks, calculate IPV then re-assemble chunks
-                th_shape = list(self.in_data['uwnd'].shape)
-                th_shape[1] = self.props.th_levels.shape[0]
-                n_times = th_shape[0]
-                n_chunks = 3
-                chunks = [[ix, ix + n_times // n_chunks]
-                          for ix in range(0, n_times, n_times // n_chunks)]
-                chunks[-1][-1] = None
+            th_shape = list(self.in_data['uwnd'].shape)
+            th_shape[1] = self.props.th_levels.shape[0]
 
-                self.ipv = np.zeros(th_shape)
-                self.uwnd = np.zeros(th_shape)
-                for ix_s, ix_e in chunks:
-                    self.props.log.info('IPV FOR {} - {}'.format(ix_s, ix_e))
-                    self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
-                            calc_ipv.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
-                                         self.in_data['vwnd'][ix_s:ix_e, ...],
-                                         self.in_data['tair'][ix_s:ix_e, ...],
-                                         self.lev, self.lat, self.lon,
-                                         self.props.th_levels)
-
-            else:
-                self.ipv, p_th, self.uwnd = calc_ipv.ipv(self.in_data['uwnd'],
-                                                         self.in_data['vwnd'],
-                                                         self.in_data['tair'], self.lev,
-                                                         self.lat, self.lon,
-                                                         self.props.th_levels)
+            # Pre-allocate memory for PV and Wind fields
+            self.ipv = np.zeros(th_shape)
+            self.uwnd = np.zeros(th_shape)
+            chunks = self._gen_chunks()
+            for ix_s, ix_e in chunks:
+                self.props.log.info('IPV FOR {} - {}'.format(ix_s, ix_e))
+                self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
+                        calc_ipv.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
+                                     self.in_data['vwnd'][ix_s:ix_e, ...],
+                                     self.in_data['tair'][ix_s:ix_e, ...],
+                                     self.lev, self.lat, self.lon,
+                                     self.props.th_levels)
 
             self.ipv *= 1e6  # Put PV in units of PVU
         elif cfg['ztype'] == 'theta':
@@ -165,24 +169,32 @@ class InputData(object):
         if self.in_data is None:
             self._load_data()
 
+
         self.props.log.info('Start calculating tropopause height')
         if self.data_cfg['ztype'] == 'pres':
-
             if self.lev[0] < self.lev[-1]:
                 self.props.log.info('INPUT DATA NOT IN sfc -> upper levels ORDER')
-                self.lev = self.lev[::-1]
-                t_air = self.in_data['tair'][:, ::-1, :]
+                v_slice = slice(None, None, -1)
             else:
-                t_air = self.in_data['tair']
+                v_slice = slice(None, None, None)
 
-            trop_h_temp, trop_h_pres = get_tropopause(t_air, self.lev)
+            chunks = self._gen_chunks(5)
+            dims = list(self.in_data['tair'].shape)
+            dims.pop(1)
+            trop_h_temp = np.zeros(dims)
+            trop_h_pres = np.zeros(dims)
+
+            for ix_s, ix_e in chunks:
+                trop_h_temp[ix_s:ix_e, ...], trop_h_pres[ix_s:ix_e, ...] =\
+                        get_tropopause(self.in_data['tair'][ix_s:ix_e, v_slice, ...],
+                                       self.lev)
 
         elif self.data_cfg['ztype'] == 'theta':
             t_air = calc_ipv.inv_theta(self.in_data['lev'], self.in_data['pres'])
             trop_h_temp, trop_h_pres = get_tropopause_theta(self.in_data['lev'],
                                                             self.in_data['pres'])
 
-        trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
+        self.trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')
 
     def _write_ipv(self, out_file=None, output_type='.nc'):
