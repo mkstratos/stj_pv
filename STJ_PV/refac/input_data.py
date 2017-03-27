@@ -8,7 +8,7 @@ import calc_ipv
 import data_out as dout
 import psutil
 
-from thermal_tropopause import get_tropopause
+import thermal_tropopause as trp
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
@@ -190,14 +190,15 @@ class InputData(object):
             trop_h_pres = np.zeros(dims)
 
             for ix_s, ix_e in chunks:
+                self.props.log.info('TROPOPAUSE FOR {} - {}'.format(ix_s, ix_e))
                 trop_h_temp[ix_s:ix_e, ...], trop_h_pres[ix_s:ix_e, ...] =\
-                        get_tropopause(self.in_data['tair'][ix_s:ix_e, v_slice, ...],
-                                       self.lev)
+                    trp.get_tropopause_pres(self.in_data['tair'][ix_s:ix_e, v_slice, ...],
+                                            self.lev[v_slice])
 
         elif self.data_cfg['ztype'] == 'theta':
             t_air = calc_ipv.inv_theta(self.in_data['lev'], self.in_data['pres'])
-            trop_h_temp, trop_h_pres = get_tropopause_theta(self.in_data['lev'],
-                                                            self.in_data['pres'])
+            trop_h_temp, trop_h_pres = trp.get_tropopause_theta(self.in_data['lev'],
+                                                                self.in_data['pres'])
 
         self.trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')

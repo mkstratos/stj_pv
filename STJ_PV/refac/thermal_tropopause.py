@@ -159,6 +159,38 @@ def find_tropopause_mask(dtdz, d_z, thr=2.0):
     return trop_level
 
 
+def get_tropopause(t_air, pres, thr=2.0, vaxis=1):
+    """
+    Return the tropopause temperature and pressure for WMO tropopause.
+
+    Parameters
+    ----------
+    t_air : array_like
+        ND array of temperature, where axis 1 is vertical axis
+    pres : array_like
+        ND array of pressure levels, shape is same as `t_air`
+    thr : float
+        Lapse rate threshold, default/WMO definition is 2.0 K km^-1
+
+    Returns
+    -------
+    trop_temp, trop_pres : array_like
+        Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension
+        dropped is vertical axis, same units as input t_air and pres respectively
+    """
+    # Calculate the lapse rate, gives back lapse rate and d(height)
+    dtdz, d_z = lapse_rate(t_air, pres, vaxis=vaxis)
+
+    # Create tropopause level mask, use only the half levels (every other starting at 1)
+    trop_level_mask = find_tropopause_mask(dtdz[:, 1::2, ...], d_z[:, 1::2, ...], thr=thr)
+
+    # To get the tropopause temp/pres, mask the 4D arrays (at every other level)
+    # then take the mean across level axis (now only one unmasked point) to give 3D data
+    trop_temp = np.mean(np.ma.masked_where(trop_level_mask, t_air[:, 1::2, ...]), axis=1)
+    trop_pres = np.mean(np.ma.masked_where(trop_level_mask, pres[:, 1::2, ...]), axis=1)
+    return trop_temp, trop_pres
+
+
 def get_tropopause_theta(theta, pres, thr=2.0):
     """
     Return the tropopause temperature and pressure for WMO tropopause.
@@ -194,22 +226,10 @@ def get_tropopause_theta(theta, pres, thr=2.0):
     # Compute air temperature from potential temperature and pressure
     t_air = cpv.inv_theta(theta_full, pres_interp)
 
-    # Calculate the lapse rate, gives back lapse rate and d(height)
-    dtdz, d_z = lapse_rate(t_air, pres_interp, vaxis=vaxis)
-
-    # Create tropopause level mask, use only the half levels (every other starting at 1)
-    trop_level_mask = find_tropopause_mask(dtdz[:, 1::2, ...], d_z[:, 1::2, ...], thr=thr)
-
-    # To get the tropopause temp/pres, mask the 4D arrays (at every other level)
-    # then take the mean across level axis (now only one unmasked point) to give 3D data
-    trop_temp = np.mean(np.ma.masked_where(trop_level_mask,
-                                           t_air[:, 1::2, ...]), axis=1)
-    trop_pres = np.mean(np.ma.masked_where(trop_level_mask,
-                                           pres_interp[:, 1::2, ...]), axis=1)
-    return trop_temp, trop_pres, dtdz, d_z
+    return get_tropopause(t_air, pres_interp, thr=thr, vaxis=vaxis)
 
 
-def get_tropopause(t_air, pres, thr=2.0):
+def get_tropopause_pres(t_air, pres, thr=2.0):
     """
     Return the tropopause temperature and pressure for WMO tropopause.
 
@@ -245,16 +265,4 @@ def get_tropopause(t_air, pres, thr=2.0):
     temp_shape[1], temp_shape[-1] = temp_shape[-1], temp_shape[1]
     pres_full_4d = np.swapaxes(np.broadcast_to(pres_full, temp_shape), -1, 1)
 
-    # Calculate the lapse rate, gives back lapse rate and d(height)
-    dtdz, d_z = lapse_rate(t_interp, pres_full)
-
-    # Create tropopause level mask, use only the half levels (every other starting at 1)
-    trop_level_mask = find_tropopause_mask(dtdz[:, 1::2, ...], d_z[:, 1::2, ...], thr)
-
-    # To get the tropopause temp/pres, mask the 4D arrays (at every other level)
-    # then take the mean across level axis (now only one unmasked point) to give 3D data
-    trop_temp = np.mean(np.ma.masked_where(trop_level_mask,
-                                           t_interp[:, 1::2, ...]), axis=1)
-    trop_pres = np.mean(np.ma.masked_where(trop_level_mask,
-                                           pres_full_4d[:, 1::2, ...]), axis=1)
-    return trop_temp, trop_pres
+    return get_tropopause(t_interp, pres_full_4d, thr=thr, vaxis=1)
