@@ -48,7 +48,7 @@ class InputData(object):
         self.trop_temp = None
         self.in_data = None
 
-    def _get_data_input(self):
+    def get_data_input(self):
         """Get input data for metric calculation."""
 
         # First, check if we want to update data, or need to create from scratch
@@ -66,9 +66,15 @@ class InputData(object):
         if self.config['update_pv'] or not os.path.exists(pv_file):
             self._calc_ipv()
             self._write_ipv()
+        else:
+            self._load_ipv()
+
         if self.config['update_pv'] or not os.path.exists(tp_file):
             self._calc_trop()
             self._write_trop()
+        else:
+            self._load_trop()
+
 
     def _load_data(self):
         cfg = self.data_cfg
@@ -274,6 +280,34 @@ class InputData(object):
         trop_theta_out = dout.NCOutVar(self.trop_theta, props=props, coords=coords)
         dout.write_to_netcdf([trop_theta_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing')
+
+    def _load_ipv(self):
+        """Open IPV file, load into self.ipv."""
+        file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
+        in_file = os.path.join(self.data_cfg['path'], file_name)
+        ipv_in = nc.Dataset(in_file, 'r')
+        self.ipv = ipv_in.variables['ipv'][:]
+
+        coord_names = ['time', 'lev', 'lat', 'lon']
+        for cname in coord_names:
+            setattr(self, cname, ipv_in.variables[cname][:])
+        self.th_lev = self.lev
+        ipv_in.close()
+
+    def _load_trop(self):
+        """Open IPV file, load into self.ipv."""
+        file_name = self.data_cfg['file_paths']['tpause'].format(year=self.year)
+        in_file = os.path.join(self.data_cfg['path'], file_name)
+        tpause_in = nc.Dataset(in_file, 'r')
+        self.trop_theta = tpause_in.variables['trop_theta'][:]
+
+        coord_names = ['time', 'lev', 'lat', 'lon']
+        for cname in coord_names:
+            if getattr(self, cname) is None:
+                setattr(self, cname, ipv_in.variables[cname][:])
+        self.th_lev = self.lev
+        tpause_in.close()
+
 
 class PresLevelData(InputData):
 
