@@ -65,10 +65,10 @@ def lapse_rate(t_air, pres, vaxis=None):
     # rho = p / (Rd * T)
     # Hydrostatic approximation dz = -dp/(rho * g)
     d_z = -d_p[bcast_nd] / (((pres[bcast_nd] * pres_fac) /
-                              (r_d * t_air))[slc_t.slice(1, None)] * g) / 1000.0
+                             (r_d * t_air))[slc_t.slice(1, None)] * g) / 1000.0
 
     # Lapse rate [K/km] (-dt / dz)
-    dtdz = (-t_air[slc_t.slice(1, None)] - t_air[slc_t.slice(None, -1)] / d_z)
+    dtdz = -(t_air[slc_t.slice(1, None)] - t_air[slc_t.slice(None, -1)]) / d_z
     return dtdz, d_z
 
 
@@ -189,7 +189,6 @@ def get_tropopause_theta(theta, pres, thr=2.0):
     theta_full[1::2] = theta_hf
 
     # Interpolate pressure to half theta levels
-    #pres_interp = interp.interp1d(theta, pres, axis=vaxis, kind='cubic')(theta_full)
     pres_interp = interp.interp1d(theta, pres, axis=vaxis, kind='cubic')(theta_full)
 
     # Compute air temperature from potential temperature and pressure
