@@ -46,13 +46,13 @@ class NCOutVar(object):
             self.gen_defualt_props()
         else:
             self.props = props
-        self.coords = coords
-        self.data = data_in
 
         # Coordinate variables are ordered (slow -> fast or t, p, y, x ), use OrderedDict
         # to make sure they stay that way
-        self.coords = OrderedDict()
+        self.coords = OrderedDict(coords)
         self._set_coords()
+
+        self.data = data_in
 
     def _set_coords(self):
         """
@@ -192,7 +192,6 @@ def write_to_netcdf(data_in, out_file):
             out_data.add_offset = data.props['offset']
         if 'long_name' in data.props:
             out_data.long_name = data.props['long_name']
-
         out_data[:] = data.data
 
     ncfile.setncattr('Conventions', 'CF-1.6')
