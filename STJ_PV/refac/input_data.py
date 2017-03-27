@@ -91,7 +91,7 @@ class InputData(object):
                 file_name = cfg['file_paths'][var].format(year=self.year)
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
             print("LOAD: {}".format(var))
-            self.in_data[var] = nc_file.variables[vname][:, ...]
+            self.in_data[var] = nc_file.variables[vname][:, ...].astype(np.float16)
             if first_file:
                 for var in dim_vars:
                     v_in_name = cfg[var]
@@ -110,6 +110,7 @@ class InputData(object):
 
         if not cfg['single_var_file']:
             nc_file.close()
+
     def _gen_chunks(self, n_chunks=3):
         """Split data into time-period chunks if needed."""
         total_mem = psutil.virtual_memory().total
@@ -120,7 +121,6 @@ class InputData(object):
         if ideal_chunks > n_chunks:
             n_chunks = ideal_chunks
         if (dset_size / total_mem) > 0.01:
-            # Split data into chunks, calculate IPV then re-assemble chunks
             n_times = self.in_data['uwnd'].shape[0]
             chunks = [[ix, ix + n_times // n_chunks]
                       for ix in range(0, n_times + n_chunks, n_times // n_chunks)]
@@ -156,6 +156,8 @@ class InputData(object):
                                      self.props.th_levels)
 
             self.ipv *= 1e6  # Put PV in units of PVU
+            self.lev = self.props.th_levels
+
         elif cfg['ztype'] == 'theta':
             self.uwnd = self.in_data['uwnd']
             self.ipv = calc_ipv.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
@@ -197,7 +199,7 @@ class InputData(object):
         self.trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')
 
-    def _write_ipv(self, out_file=None, output_type='.nc'):
+    def _write_ipv(self, out_file=None, output_type='nc'):
         """
         Save IPV data generated to a file, either netCDF4 or pickle.
 
@@ -209,53 +211,68 @@ class InputData(object):
             Either '.nc' if netCDF4 output is desired, or '.p' if pickle output desired.
         """
         if out_file is None:
-            file_name = cfg['file_paths']['ipv'].format(year=self.year)
+            file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
             out_file = os.path.join(self.data_cfg['path'], file_name)
 
         self.props.log.info('WRITE IPV: {}'.format(out_file))
 
-        if output_type == '.p':
+        if output_type == 'p':
             self.in_data['ipv'] = self.ipv
-            pickle.dump(self.in_data, open('{}{}'.format(out_file, output_type), 'wb'))
+            pickle.dump(self.in_data, open('{}.{}'.format(out_file, output_type), 'wb'))
 
         else:
             coord_names = ['time', 'lev', 'lat', 'lon']
             coords = {cname: getattr(self, cname) for cname in coord_names}
-            ipv_out = dout.NCOutVar(self.ipv, coords=coords)
 
-            ipv_out.set_props({'name': 'isentropic_potential_vorticity',
-                               'descr': 'Potential vorticity on theta levels',
-                               'units': 'PVU', 'short_name': 'ipv',
-                               'levvar': 'theta_lev',
-                               'time_units': self.time_units, 'calendar': self.calendar})
+            props = {'name': 'isentropic_potential_vorticity',
+                     'descr': 'Potential vorticity on theta levels',
+                     'units': 'PVU', 'short_name': 'ipv', 'levvar': 'lev',
+                     'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
+                     'timevar': self.data_cfg['time'], 'time_units': self.time_units,
+                     'calendar': self.calendar, 'lat_units': 'degrees_north',
+                     'lon_units': 'degrees_east', 'lev_units': 'K'}
 
-            dout.write_to_netcdf([ipv_out], '{}{}'.format(out_file1, output_type))
-
-            u_th_out = dout.NCOutVar(self.u_th)
-            u_th_out.get_props_from(ipv_out)
+            # IPV in the file should be in 1e-6 PVU
+            ipv_out = dout.NCOutVar(self.ipv * 1e-6, props=props, coords=coords)
+            u_th_out = dout.NCOutVar(self.uwnd, props=dict(props), coords=coords)
             u_th_out.set_props({'name': 'zonal_wind_component',
                                 'descr': 'Zonal wind on isentropic levels',
-                                'units': 'm s-1', 'short_name': 'u_th',
-                                'levvar': 'theta_lev'})
+                                'units': 'm s-1', 'short_name': 'uwnd'})
 
-            coords_2d = {'time': self.time, 'lat': self.lat}
+            dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
+        self.props.log.info('Finished Writing')
 
-            trop_h_pres_out = dout.NCOutVar(self.trop_h_pres, coords=coords_2d)
-            trop_h_pres_out.set_props({'name': 'tropopause_level',
-                                       'descr': 'Tropopause pressure level',
-                                       'units': 'Pa', 'short_name': 'trop_h_pres',
-                                       'time_units': self.time_units,
-                                       'calendar': self.calendar})
+    def _write_trop(self, out_file=None, output_type='nc'):
+        """
+        Save tropopause data generated to a file, either netCDF4 or pickle.
 
-            trop_h_temp_out = dout.NCOutVar(self.trop_h_temp, coords=coords_2d)
-            trop_h_temp_out.get_props_from(trop_h_pres_out)
-            trop_h_temp_out.set_props({'descr': 'Tropopause temperature',
-                                       'short_name': 'trop_h_temp'})
+        Parameters
+        ----------
+        out_file : string, optional
+            Output file path for pickle or netCDF4 file, will contain ipv data and coords
+        output_type : string
+            Either '.nc' if netCDF4 output is desired, or '.p' if pickle output desired.
+        """
+        if out_file is None:
+            file_name = self.data_cfg['file_paths']['trop'].format(year=self.year)
+            out_file = os.path.join(self.data_cfg['path'], file_name)
 
-            dout.write_to_netcdf([u_th_out, trop_h_pres_out, trop_h_temp_out],
-                                 '{}{}'.format(out_file2, output_type))
+        self.props.log.info('WRITE TROPOPAUSE: {}'.format(out_file))
+        trop_theta_out = dout.NCOutVar(self.trop_h_pres, coords=coords_2d)
+        trop_theta_out.set_props({'name': 'tropopause_level',
+                                   'descr': 'Tropopause pressure level',
+                                   'units': 'Pa', 'short_name': 'trop_h_pres',
+                                   'time_units': self.time_units,
+                                   'calendar': self.calendar})
 
-        self.props.log.info('Finished writing\n{}\n{}'.format(out_file1, out_file2))
+        trop_h_temp_out = dout.NCOutVar(self.trop_h_temp, coords=coords_2d)
+        trop_h_temp_out.get_props_from(trop_h_pres_out)
+        trop_h_temp_out.set_props({'descr': 'Tropopause temperature',
+                                   'short_name': 'trop_h_temp'})
+
+        dout.write_to_netcdf([trop_h_pres_out], '{}.{}'.format(out_file, output_type))
+        self.props.log.info('Finished Writing')
+
 class PresLevelData(InputData):
 
     def __init__(self, stj_props):
