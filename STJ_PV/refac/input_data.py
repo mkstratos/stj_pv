@@ -124,7 +124,10 @@ class InputData(object):
             n_times = self.in_data['uwnd'].shape[0]
             chunks = [[ix, ix + n_times // n_chunks]
                       for ix in range(0, n_times + n_chunks, n_times // n_chunks)]
+            # Using the above range, the last chunk generated is beyond the shape of axis0
             chunks.pop(-1)
+            # Set the last element of the last chunk to None, just in case, so all data
+            # gets calculated no matter how the chunks are created
             chunks[-1][-1] = None
         else:
             chunks = [(0, None)]
@@ -156,7 +159,7 @@ class InputData(object):
                                      self.props.th_levels)
 
             self.ipv *= 1e6  # Put PV in units of PVU
-            self.lev = self.props.th_levels
+            self.th_lev = self.props.th_levels
 
         elif cfg['ztype'] == 'theta':
             self.uwnd = self.in_data['uwnd']
@@ -208,7 +211,7 @@ class InputData(object):
         out_file : string, optional
             Output file path for pickle or netCDF4 file, will contain ipv data and coords
         output_type : string
-            Either '.nc' if netCDF4 output is desired, or '.p' if pickle output desired.
+            Either 'nc' if netCDF4 output is desired, or 'p' if pickle output desired.
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
@@ -223,6 +226,7 @@ class InputData(object):
         else:
             coord_names = ['time', 'lev', 'lat', 'lon']
             coords = {cname: getattr(self, cname) for cname in coord_names}
+            coords['lev'] = self.th_lev
 
             props = {'name': 'isentropic_potential_vorticity',
                      'descr': 'Potential vorticity on theta levels',
@@ -251,26 +255,23 @@ class InputData(object):
         out_file : string, optional
             Output file path for pickle or netCDF4 file, will contain ipv data and coords
         output_type : string
-            Either '.nc' if netCDF4 output is desired, or '.p' if pickle output desired.
+            Either 'nc' if netCDF4 output is desired, or 'p' if pickle output desired.
         """
         if out_file is None:
-            file_name = self.data_cfg['file_paths']['trop'].format(year=self.year)
+            file_name = self.data_cfg['file_paths']['tpause'].format(year=self.year)
             out_file = os.path.join(self.data_cfg['path'], file_name)
 
+        coord_names = ['time', 'lat', 'lon']
+        coords = {cname: getattr(self, cname) for cname in coord_names}
+
         self.props.log.info('WRITE TROPOPAUSE: {}'.format(out_file))
-        trop_theta_out = dout.NCOutVar(self.trop_h_pres, coords=coords_2d)
-        trop_theta_out.set_props({'name': 'tropopause_level',
-                                   'descr': 'Tropopause pressure level',
-                                   'units': 'Pa', 'short_name': 'trop_h_pres',
-                                   'time_units': self.time_units,
-                                   'calendar': self.calendar})
-
-        trop_h_temp_out = dout.NCOutVar(self.trop_h_temp, coords=coords_2d)
-        trop_h_temp_out.get_props_from(trop_h_pres_out)
-        trop_h_temp_out.set_props({'descr': 'Tropopause temperature',
-                                   'short_name': 'trop_h_temp'})
-
-        dout.write_to_netcdf([trop_h_pres_out], '{}.{}'.format(out_file, output_type))
+        props = {'name': 'tropopause_level', 'descr': 'Tropopause potential temperature',
+                 'units': 'K', 'short_name': 'trop_theta', 'time_units': self.time_units,
+                 'calendar': self.calendar, 'latvar': self.data_cfg['lat'],
+                 'lonvar': self.data_cfg['lon'], 'timevar': self.data_cfg['time'],
+                 'lat_units': 'degrees_north', 'lon_units': 'degrees_east'}
+        trop_theta_out = dout.NCOutVar(self.trop_theta, props=props, coords=coords)
+        dout.write_to_netcdf([trop_theta_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing')
 
 class PresLevelData(InputData):
