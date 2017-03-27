@@ -1,8 +1,7 @@
 """Generate or load input data for STJ Metric."""
-import pickle
+import os
 import numpy as np
 import netCDF4 as nc
-import os
 # Dependent code
 import calc_ipv
 import data_out as dout
@@ -39,13 +38,13 @@ class InputData(object):
         self.lon = None
         self.lat = None
         self.lev = None
+        self.th_lev = None
 
         # Each input data _must_ have u-wind, isentropic pv, and thermal tropopause,
         # but _might_ need the v-wind and air temperature to calculate PV/thermal-trop
         self.uwnd = None
         self.ipv = None
-        self.trop_pres = None
-        self.trop_temp = None
+        self.trop_theta = None
         self.in_data = None
 
     def get_data_input(self):
@@ -102,9 +101,9 @@ class InputData(object):
                 for var in dim_vars:
                     v_in_name = cfg[var]
                     if var == 'time':
-                        setattr(self, var, nc_file.variables[var][:])
+                        setattr(self, var, nc_file.variables[v_in_name][:])
                     else:
-                        setattr(self, var, nc_file.variables[var][:])
+                        setattr(self, var, nc_file.variables[v_in_name][:])
 
                 # Set time units and calendar properties
                 self.time_units = nc_file.variables[cfg['time']].units
@@ -123,7 +122,7 @@ class InputData(object):
         # Data is in numpy float32, so total size is npoints * 32 / 8 in bytes
         dset_size = np.prod(self.in_data['uwnd'].shape) * 32 / 8
         ideal_chunks = int(np.floor(100 / (np.prod(self.in_data['uwnd'].shape) * 32 / 8 /
-                           psutil.virtual_memory().available * 100)))
+                                           psutil.virtual_memory().available * 100)))
         if ideal_chunks > n_chunks:
             n_chunks = ideal_chunks
         if (dset_size / total_mem) > 0.01:
@@ -175,11 +174,10 @@ class InputData(object):
 
         self.props.log.info('Finished calculating IPV')
 
-    def _get_thermal_tropopause(self):
+    def _calc_trop(self):
         """Calculate the tropopause height using the WMO thermal definition."""
         if self.in_data is None:
             self._load_data()
-
 
         self.props.log.info('Start calculating tropopause height')
         if self.data_cfg['ztype'] == 'pres':
@@ -202,14 +200,13 @@ class InputData(object):
                                             self.lev[v_slice])
 
         elif self.data_cfg['ztype'] == 'theta':
-            t_air = calc_ipv.inv_theta(self.in_data['lev'], self.in_data['pres'])
             trop_h_temp, trop_h_pres = trp.get_tropopause_theta(self.in_data['lev'],
                                                                 self.in_data['pres'])
 
         self.trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')
 
-    def _write_ipv(self, out_file=None, output_type='nc'):
+    def _write_ipv(self, out_file=None):
         """
         Save IPV data generated to a file, either netCDF4 or pickle.
 
@@ -217,8 +214,6 @@ class InputData(object):
         ----------
         out_file : string, optional
             Output file path for pickle or netCDF4 file, will contain ipv data and coords
-        output_type : string
-            Either 'nc' if netCDF4 output is desired, or 'p' if pickle output desired.
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
@@ -226,34 +221,29 @@ class InputData(object):
 
         self.props.log.info('WRITE IPV: {}'.format(out_file))
 
-        if output_type == 'p':
-            self.in_data['ipv'] = self.ipv
-            pickle.dump(self.in_data, open('{}.{}'.format(out_file, output_type), 'wb'))
+        coord_names = ['time', 'lev', 'lat', 'lon']
+        coords = {cname: getattr(self, cname) for cname in coord_names}
+        coords['lev'] = self.th_lev
 
-        else:
-            coord_names = ['time', 'lev', 'lat', 'lon']
-            coords = {cname: getattr(self, cname) for cname in coord_names}
-            coords['lev'] = self.th_lev
+        props = {'name': 'isentropic_potential_vorticity',
+                 'descr': 'Potential vorticity on theta levels',
+                 'units': 'PVU', 'short_name': 'ipv', 'levvar': 'lev',
+                 'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
+                 'timevar': self.data_cfg['time'], 'time_units': self.time_units,
+                 'calendar': self.calendar, 'lat_units': 'degrees_north',
+                 'lon_units': 'degrees_east', 'lev_units': 'K'}
 
-            props = {'name': 'isentropic_potential_vorticity',
-                     'descr': 'Potential vorticity on theta levels',
-                     'units': 'PVU', 'short_name': 'ipv', 'levvar': 'lev',
-                     'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
-                     'timevar': self.data_cfg['time'], 'time_units': self.time_units,
-                     'calendar': self.calendar, 'lat_units': 'degrees_north',
-                     'lon_units': 'degrees_east', 'lev_units': 'K'}
+        # IPV in the file should be in 1e-6 PVU
+        ipv_out = dout.NCOutVar(self.ipv * 1e-6, props=props, coords=coords)
+        u_th_out = dout.NCOutVar(self.uwnd, props=dict(props), coords=coords)
+        u_th_out.set_props({'name': 'zonal_wind_component',
+                            'descr': 'Zonal wind on isentropic levels',
+                            'units': 'm s-1', 'short_name': 'uwnd'})
 
-            # IPV in the file should be in 1e-6 PVU
-            ipv_out = dout.NCOutVar(self.ipv * 1e-6, props=props, coords=coords)
-            u_th_out = dout.NCOutVar(self.uwnd, props=dict(props), coords=coords)
-            u_th_out.set_props({'name': 'zonal_wind_component',
-                                'descr': 'Zonal wind on isentropic levels',
-                                'units': 'm s-1', 'short_name': 'uwnd'})
-
-            dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
+        dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing')
 
-    def _write_trop(self, out_file=None, output_type='nc'):
+    def _write_trop(self, out_file=None):
         """
         Save tropopause data generated to a file, either netCDF4 or pickle.
 
@@ -261,8 +251,6 @@ class InputData(object):
         ----------
         out_file : string, optional
             Output file path for pickle or netCDF4 file, will contain ipv data and coords
-        output_type : string
-            Either 'nc' if netCDF4 output is desired, or 'p' if pickle output desired.
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['tpause'].format(year=self.year)
@@ -287,6 +275,7 @@ class InputData(object):
         in_file = os.path.join(self.data_cfg['path'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
         self.ipv = ipv_in.variables['ipv'][:]
+        self.uwnd = ipv_in.variables['uwnd'][:]
 
         coord_names = ['time', 'lev', 'lat', 'lon']
         for cname in coord_names:
@@ -309,10 +298,10 @@ class InputData(object):
         coord_names = ['time', 'lev', 'lat', 'lon']
         for cname in coord_names:
             if getattr(self, cname) is None:
-                setattr(self, cname, ipv_in.variables[cname][:])
+                setattr(self, cname, tpause_in.variables[cname][:])
         self.th_lev = self.lev
         if self.time_units is None:
-            self.time_units = ipv_in.variables['time'].units
+            self.time_units = tpause_in.variables['time'].units
         if self.calendar is None:
-            self.calendar = ipv_in.variables['time'].calendar
+            self.calendar = tpause_in.variables['time'].calendar
         tpause_in.close()
