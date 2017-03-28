@@ -56,7 +56,7 @@ def lapse_rate(t_air, pres, vaxis=None):
     # Calculate lapse rate in K/km
     d_p = (pres[slc_p.slice(1, None)] - pres[slc_p.slice(None, -1)])  # Units = Pa or hPa
 
-    if pres.max() < 90000.0:
+    if np.max(pres) < 90000.0:
         d_p *= 100.0    # Now units should be in Pa
         pres_fac = 100.0
     else:
