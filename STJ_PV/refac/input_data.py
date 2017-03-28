@@ -139,8 +139,13 @@ class InputData(object):
 
                 # Set time units and calendar properties
                 self.time_units = nc_file.variables[cfg['time']].units
+                try:
                 self.calendar = nc_file.variables[cfg['time']].calendar
+                except (KeyError, AttributeError):
+                    self.calendar = 'standard'
+
                 first_file = False
+
             if cfg['single_var_file']:
                 nc_file.close()
                 nc_file = None
