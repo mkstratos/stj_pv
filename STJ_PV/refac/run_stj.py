@@ -241,6 +241,7 @@ class JetFindRun(object):
             # Use default parameters if none are specified
             self.config = {'data_cfg': './data_config_default.yml', 'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
+                           'zonal_opt': 'mean', 'poly': 'cheby',
                            'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
                            'update_pv': False, 'year_s': 1979, 'year_e': 2015}
         else:
