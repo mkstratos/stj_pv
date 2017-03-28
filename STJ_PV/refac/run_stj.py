@@ -236,10 +236,9 @@ class JetFindRun(object):
         config : string, optional
             Location of YAML-formatted configuration file, default None
         """
-
+        now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         if config_file is None:
             # Use default parameters if none are specified
-            now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
             self.config = {'data_cfg': './data_config_default.yml', 'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
                            'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
@@ -249,6 +248,8 @@ class JetFindRun(object):
             # YAML reader
             with open(config_file) as cfg:
                 self.config = yaml.load(cfg.read())
+            if '{}' in self.config['log_file']:
+                self.config['log_file'] = self.config['log_file'].format(now)
 
         with open(self.config['data_cfg']) as data_cfg:
             self.data_cfg = yaml.load(data_cfg.read())
