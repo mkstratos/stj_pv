@@ -3,6 +3,7 @@ import pdb
 import numpy as np
 from numpy.polynomial import chebyshev as cby
 from scipy import interpolate
+from scipy import signal as sig
 
 import input_data
 import calc_ipv as cpv
@@ -347,3 +348,103 @@ def interp_nd(lat, theta, data, lat_hr, theta_hr):
                 slc[cmn_axis[1]] = idx1
                 data_interp[slc] = data_f(lat_hr, theta_hr)
     return data_interp
+
+
+class STJPV(object):
+    """
+    Metric for Subtropical jet position using dynamic tropopause on isentropic levels.
+    """
+    name = 'PVGrad'
+
+    def __init__(self, props, data):
+        self.props = props
+        self.data = data
+        if np.max(np.abs(self.data.ipv)) < 1.0:
+            self.data.ipv *= 1e6    # Put PV into units of PVU from 1e-6 PVU
+
+        # Some config options should be properties for ease of access
+        self.pv_lev = self.props['pv_value']
+        self.fit_deg = self.props['fit_deg']
+        self.min_lat = self.props['min_lat']
+        self.jet_lat = None
+        self.jet_theta = None
+
+        if self.props['poly'].lower() in ['cheby', 'cby', 'cheb', 'chebyshev']
+            self.pfit = cby.chebfit
+            self.pder = cby.chebder
+            self.peval = cby.chebval
+
+        elif self.props['poly'].lower() in ['leg', 'legen', 'legendre']:
+            self.pfit = legendre.legfit
+            self.pder = legendre.legder
+            self.peval = legendre.legval
+
+    def _poly_deriv(self, data, y_s=None, y_e=None, deriv=1):
+        """
+        Calculate the `deriv`^th derivative of a one-dimensional array w.r.t. latitude.
+
+        Parameters
+        ----------
+        data : array_like
+            1D array of data, same shape as `self.data.lat`
+        y_s, y_e : integers, optional
+            Start and end indices of subset, default is None
+        deriv : integer, optional
+            Number of derivatives of `data` to take
+
+        Returns
+        -------
+        poly_der : array_like
+            1D array of 1st derivative of data w.r.t. latitude between indices y_s and y_e
+        """
+        poly_fit = self.pfit(self.data.lat[y_s:y_e], data[y_s:y_e], self.fit_deg)
+        poly_der = self.peval(self.data.lat[y_s:y_e], self.pder(poly_fit, deriv))
+
+        return poly_der
+
+    def find_jet(self):
+        """
+        Using input parameters find the subtropical jet.
+        """
+        # Get theta on PV==pv_level
+        theta_xpv = cpv.vinterp(self.data.th_lev, self.data.ipv, np.array([self.pv_lev]))
+        dims = theta_xpv.shape
+
+        if self.props['zonal_opt'] == 'mean':
+            # Zonal mean stuff
+            theta_xpv = np.nanmean(theta_xpv, axis=-1)
+            uwnd = np.nanmean(self.data.uwnd, axis=-1)
+            ttrop = np.nanmean(self.data.trop_theta, axis=-1)
+
+            self.jet_lat = np.zeros(dims[0])
+            self.jet_theta = np.zeros(dims[0])
+
+        for tix in range(dims[0]):
+            # Get thermal tropopause intersection with dynamical tropopause
+            y_s = np.abs(self.data.trop_theta[tix, :] - theta_xpv[tix, :]).argmin()
+            # Find second derivative of dynamical tropopause
+            d2theta = self._poly_deriv(theta_xpv[tix, :], y_s=y_s, deriv=2)
+            jet_loc = sig.argrelmin(dtheta_cby)[0].astype(int)
+            self.jet_lat[tix] = self.lat[jet_loc + y_s]
+
+        if len(jet_loc) == 0:
+            debug_log.info("{0} NO LOC {1}-{2:02d} {0}".format('-' * 20, year,
+                                                               idx + 1))
+            jet_loc_ts.append(0)
+
+        elif len(jet_loc) == 1:
+            jet_loc_ts.append(jet_loc[0])
+
+        elif len(jet_loc) > 1:
+            jet_loc_ts.append(jet_loc[lat[jet_loc].argmin()])
+
+        if lat[int(jet_loc_ts[mon_idx])] > 50.0:
+            debug_log.info('JET POLEWARD OF 50: {} {:02d}'.format(year, idx + 1))
+            monthly_plots_temp = False  # True
+        else:
+            monthly_plots_temp = monthly_plots
+
+    def save_jet(self):
+        """
+        Save jet position to file.
+        """
