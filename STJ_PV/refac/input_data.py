@@ -74,6 +74,38 @@ class InputData(object):
         else:
             self._load_trop()
 
+    def check_input_range(self, year_s, year_e):
+        """
+        Create/check input data for a range of years.
+
+        Parameters
+        ----------
+        year_s, year_e : int
+            Start and end years of period, respectively
+        """
+        cfg = self.data_cfg
+        pv_file_fmt = os.path.join(cfg['path'], cfg['file_paths']['ipv'])
+        tp_file_fmt = os.path.join(cfg['path'], cfg['file_paths']['tpause'])
+
+        for year in range(year_s, year_e + 1):
+            self.year = year
+            self.props.log.info('CHECKING INPUT FOR {}'.format(year))
+            pv_file = pv_file_fmt.format(year=self.year)
+            tp_file = tp_file_fmt.format(year=self.year)
+
+            data_load = (self.config['update_pv'] or not os.path.exists(pv_file)
+                         or not os.path.exists(tp_file))
+
+            if data_load:
+                self._load_data()
+
+            if self.config['update_pv'] or not os.path.exists(pv_file):
+                self._calc_ipv()
+                self._write_ipv()
+
+            if self.config['update_pv'] or not os.path.exists(tp_file):
+                self._calc_trop()
+                self._write_trop()
 
     def _load_data(self):
         cfg = self.data_cfg
