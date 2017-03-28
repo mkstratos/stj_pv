@@ -142,7 +142,7 @@ class InputData(object):
                 # Set time units and calendar properties
                 self.time_units = nc_file.variables[cfg['time']].units
                 try:
-                self.calendar = nc_file.variables[cfg['time']].calendar
+                    self.calendar = nc_file.variables[cfg['time']].calendar
                 except (KeyError, AttributeError):
                     self.calendar = 'standard'
 
@@ -166,8 +166,8 @@ class InputData(object):
             n_chunks = ideal_chunks
         if (dset_size / total_mem) > 0.01:
             n_times = self.in_data['uwnd'].shape[0]
-            chunks = [[ix, ix + n_times // n_chunks]
-                      for ix in range(0, n_times + n_chunks, n_times // n_chunks)]
+            cwidth = n_times // n_chunks
+            chunks = [[ix, ix + cwidth] for ix in range(0, n_times + cwidth, cwidth)]
             # Using the above range, the last chunk generated is beyond the shape of axis0
             chunks.pop(-1)
             # Set the last element of the last chunk to None, just in case, so all data
