@@ -127,7 +127,9 @@ class InputData(object):
                 # Format the name of the file, join it with the path, open it
                 file_name = cfg['file_paths'][var].format(year=self.year)
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
-            print("LOAD: {}".format(var))
+                self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
+                                                                   file_name)))
+            self.props.log.info("\tLOAD: {}".format(var))
             self.in_data[var] = nc_file.variables[vname][:, ...].astype(np.float16)
             if first_file:
                 for var in dim_vars:
