@@ -249,7 +249,9 @@ class JetFindRun(object):
             # YAML reader
             with open(config_file) as cfg:
                 self.config = yaml.load(cfg.read())
+
             if '{}' in self.config['log_file']:
+                # Log file name contains a format placeholder, use current time
                 self.config['log_file'] = self.config['log_file'].format(now)
 
         with open(self.config['data_cfg']) as data_cfg:
@@ -270,8 +272,8 @@ class JetFindRun(object):
             self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
                                        350.0, 370.0, 395.0, 430.0])
         else:
-            self.output_file = ('{short_name}_{method}'
-                                .format(**self.data_cfg, **self.config))
+            self.config['output_file'] = ('{short_name}_{method}'
+                                          .format(**self.data_cfg, **self.config))
         self.log_setup()
 
     def log_setup(self):
