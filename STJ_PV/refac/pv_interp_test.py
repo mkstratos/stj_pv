@@ -41,14 +41,15 @@ def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
         time_skip = None
         lat_skip = None
 
-    in_file = '{}/daily/erai_theta_{:04d}.nc'.format(root_dir, year)
+    in_file = '{}/erai_theta_{:04d}.nc'.format(root_dir, year)
     data = nc.Dataset(in_file, 'r')
     lat = data.variables['latitude'][:]
-    lat_0 = 10.0
-    pv = data.variables['pv'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
-    uwnd = data.variables['u'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
-    vwnd = data.variables['v'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
-    pres = data.variables['pres'][tidx_s:tidx_e:time_skip, :, lat > lat_0, ...]
+    lat_0 = 0.0
+    pv = data.variables['pv'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
+    uwnd = data.variables['u'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
+    vwnd = data.variables['v'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
+    pres = data.variables['pres'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
+
     time = data.variables['time'][tidx_s:tidx_e:time_skip]
 
     if lat_skip is not None:
@@ -58,7 +59,7 @@ def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
         lat = lat[::lat_skip]
 
     time_units = data.variables['time'].units
-    lat = lat[lat > lat_0]
+    lat = lat[lat < lat_0]
     lon = data.variables['longitude'][:]
     theta = data.variables['level'][:]
 
@@ -71,9 +72,9 @@ def get_data_merra(year, tidx_s, tidx_e):
     data = nc.Dataset(in_file, 'r')
     lat = data.variables['YDim'][:]
     lat_0 = 10.0
-    pv = data.variables['EPV'][tidx_s:tidx_e, :, lat > lat_0, ...]
-    uwnd = data.variables['U'][tidx_s:tidx_e, :, lat > lat_0, ...]
-    t_air = data.variables['T'][tidx_s:tidx_e, :, lat > lat_0, ...]
+    pv = data.variables['EPV'][tidx_s:tidx_e, :, lat < lat_0, ...]
+    uwnd = data.variables['U'][tidx_s:tidx_e, :, lat < lat_0, ...]
+    t_air = data.variables['T'][tidx_s:tidx_e, :, lat < lat_0, ...]
 
     pres = data.variables['Height'][:]
     theta = cpv.theta(t_air, pres)
@@ -85,7 +86,7 @@ def get_data_merra(year, tidx_s, tidx_e):
     time = data.variables['TIME'][tidx_s:tidx_e]
     time_units = data.variables['TIME'].units
 
-    lat = lat[lat > lat_0]
+    lat = lat[lat < lat_0]
     lon = data.variables['XDim'][:]
     # theta = data.variables['level'][:]
 
@@ -98,13 +99,13 @@ def main():
     p_0 = 100000.0
     kppa = 287.0 / 1004.0
     year = 2000
-    therm_trop = False
+    therm_trop = True
     high_res = False
-    monthly_plots = False
+    monthly_plots = True
     cheb_poly = True
 
     year_s = 1979
-    year_e = 2016
+    year_e = 1979
 
     jet_loc_ts = []
     mon_idx = 0
@@ -121,20 +122,22 @@ def main():
 
     for year in range(year_s, year_e + 1):
         print('CALCULATE: {}'.format(year))
-        data = get_data(year, root_dir='/Volumes/FN_2187/erai')
+        data = get_data(year, root_dir='/Volumes/FN_2187/erai/monthly')
         lat, lon, lev = data['lat'], data['lon'], data['lev']
         dates = nc.num2date(data['time'], data['tunits'])
 
         pv_mean = np.mean(data['pv'], axis=-1)
 
         if therm_trop:
+            print('FIND THERMAL TROP')
             t_air = lev[None, :, None, None] / (p_0 / data['pres'])**kppa
             pres_levs = np.logspace(5, 3, 16)
             t_pres = cpv.vinterp(t_air, data['pres'], pres_levs)
-            trop_temp, trop_pres = tpp.get_tropopause(t_pres, pres_levs)
-            trop_theta = cpv.theta(trop_temp, trop_pres)
+            trop_temp, trop_pres = tpp.get_tropopause_pres(t_pres, pres_levs)
+            #trop_temp, trop_pres = tpp.get_tropopause_theta(lev, data['pres'])
+            trop_theta = np.nanmean(cpv.theta(trop_temp, trop_pres), axis=-1)
 
-        theta_xpv = cpv.vinterp(data['lev'], data['pv'], np.array([2.0]))
+        theta_xpv = cpv.vinterp(data['lev'], data['pv'], np.array([-2.0]))
         theta_xpv = np.nanmean(theta_xpv, axis=-1)
 
         if high_res:
@@ -146,20 +149,35 @@ def main():
 
         for idx in range(pv_mean.shape[0]):
 
-            theta_cby_fit = pfit(lat[:None], theta_xpv[idx, :None], fit_deg)
+            y_s = np.abs(trop_theta[idx, :] - theta_xpv[idx, :]).argmin()
+            y_e = np.abs(trop_theta[idx, :] - theta_xpv[idx, :]).argmin()
+            if lat[0] > lat[-1]:
+                y_e = None
+            else:
+                y_s = None
+
+            if y_e == 0:
+                y_e = -1
+
+            #print('INTERSECTION AT: {}'.format(lat[y_e]))
+            theta_cby_fit = pfit(lat[y_s:y_e], theta_xpv[idx, y_s:y_e], fit_deg)
             dtdphi_cby = pder(theta_cby_fit)
 
-            theta_cby = peval(lat[:None], theta_cby_fit)
-            dtheta_cby = peval(lat[:None], dtdphi_cby)
+            theta_cby = peval(lat[y_s:y_e], theta_cby_fit)
+            dtheta_cby = peval(lat[y_s:y_e], dtdphi_cby)
 
             d2theta = pder(theta_cby_fit, 2)
-            d2theta = peval(lat, d2theta)
-
+            d2theta = peval(lat[y_s:y_e], d2theta)
             # rel_min = set(sig.argrelmin(dtheta_cby)[0])
             # d2_zeros = set(sig.argrelmin(np.abs(d2theta))[0])
             # jet_loc = list(rel_min.intersection(d2_zeros))
 
-            jet_loc = sig.argrelmin(dtheta_cby)[0].astype(int)
+            #jet_loc = sig.argrelmin(dtheta_cby)[0].astype(int)
+            jet_loc = sig.argrelmax(dtheta_cby)[0].astype(int)
+            if y_s is None:
+                jet_loc -= y_e
+            else:
+                jet_loc += y_s
 
             if len(jet_loc) == 0:
                 debug_log.info("{0} NO LOC {1}-{2:02d} {0}".format('-' * 20, year,
@@ -170,14 +188,14 @@ def main():
                 jet_loc_ts.append(jet_loc[0])
 
             elif len(jet_loc) > 1:
-                jet_loc_ts.append(jet_loc[lat[jet_loc].argmin()])
+                # jet_loc_ts.append(jet_loc[lat[jet_loc].argmin()])
+                jet_loc_ts.append(jet_loc[lat[jet_loc].argmax()])
 
-            if lat[int(jet_loc_ts[mon_idx])] > 50.0:
+            if lat[int(jet_loc_ts[mon_idx])] < -50.0:
                 debug_log.info('JET POLEWARD OF 50: {} {:02d}'.format(year, idx + 1))
-                monthly_plots_temp = False  # True
+                monthly_plots_temp = True
             else:
                 monthly_plots_temp = monthly_plots
-
 
             if monthly_plots_temp:
                 fig, axis = plt.subplots(1, 1, figsize=(15, 15))
@@ -191,18 +209,23 @@ def main():
                                 vmin=-40, vmax=40, cmap='RdBu_r')
 
                 axis.plot(lat[:None], theta_xpv[idx, :None], 'k-')
+                axis.plot(lat[:None], trop_theta[idx, :None], 'g-')
+                if y_e is None:
+                    axis.plot(lat[y_s], theta_xpv[idx, y_s], 'k.')
+                else:
+                    axis.plot(lat[y_e], theta_xpv[idx, y_e], 'k.')
 
 
-                axis.plot(lat[:None], theta_cby)
-                ax2.plot(lat[:None], dtheta_cby)
+                axis.plot(lat[y_s:y_e], theta_cby)
+                ax2.plot(lat[y_s:y_e], dtheta_cby)
                 ax2.plot(lat[jet_loc], dtheta_cby[jet_loc], 'o')
                 #axis.plot(2 * [lat[dtheta_cby[1:-1].argmin() + 1]], axis.get_ylim(), '--')
 
                 axis.plot(2 * [lat[int(jet_loc_ts[mon_idx])]], axis.get_ylim(), '--')
                 axis.plot(lat[int(jet_loc_ts[mon_idx])],
-                          theta_cby[int(jet_loc_ts[mon_idx])], 'ko', ms=5)
+                          theta_cby[int(jet_loc_ts[mon_idx])], 'kx', ms=7)
 
-                ax2.set_ylim([-4, 4])
+                #ax2.set_ylim([-4, 4])
                 ax2.grid(b=False)
 
                 #plt.colorbar()
@@ -217,7 +240,7 @@ def main():
     fig, ax = plt.subplots(1, 1, figsize=(19, 5))
     ax.plot(lat[np.array(jet_loc_ts).astype(int)], 'x-')
     plt.tight_layout()
-    plt.savefig('plt_jet_loc_ts_{}-{}.pdf'.format(year_s, year_e))
+    plt.savefig('plt_jet_loc_ts_sh_{}-{}.pdf'.format(year_s, year_e))
     plt.show()
 
 
