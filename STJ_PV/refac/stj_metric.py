@@ -5,6 +5,7 @@ from scipy import interpolate
 from scipy import signal as sig
 
 import calc_ipv as cpv
+import data_out as dio
 
 
 def interp_nd(lat, theta, data, lat_hr, theta_hr):
@@ -80,8 +81,9 @@ class STJPV(object):
     """
     name = 'PVGrad'
 
-    def __init__(self, props, data):
-        self.props = props
+    def __init__(self, jet_run, data):
+        self.props = jet_run.config
+        self.log = jet_run.log
         self.data = data
         if np.max(np.abs(self.data.ipv)) < 1.0:
             self.data.ipv *= 1e6    # Put PV into units of PVU from 1e-6 PVU
@@ -103,7 +105,7 @@ class STJPV(object):
 
         # Initialise latitude/theta output arrays with correct shape
         dims = self.data.ipv.shape
-        if self.props['zonal_opt'] == 'mean':
+        if self.props['zonal_opt'].lower() == 'mean':
             self.jet_lat = np.zeros([2, dims[0]])
             self.jet_theta = np.zeros([2, dims[0]])
         else:
@@ -152,9 +154,10 @@ class STJPV(object):
         lat_axis_3d = self.data.trop_theta.shape.index(self.data.lat.shape[0])
 
         if self.data.ipv.shape.count(self.data.lat.shape[0]) > 1:
-            # Print a message about which matching dimension used since this
-            # could be time or lev if ntimes == nlats or nlevs == nlats
-            print('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis, self.data.ipv.shape))
+            # Log a message about which matching dimension used since this
+            # could be time or lev or lon if ntimes, nlevs or nlons == nlats
+            self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
+                                                                self.data.ipv.shape))
 
         hem_slice = [slice(None)] * self.data.ipv.ndim
         hem_slice_3d = [slice(None)] * self.data.trop_theta.ndim
@@ -178,14 +181,14 @@ class STJPV(object):
         uwnd = self.data.uwnd[hem_slice]
         ttrop = self.data.trop_theta[hem_slice_3d]
 
-        if self.props['zonal_opt'] == 'mean':
+        if self.props['zonal_opt'].lower() == 'mean':
             # Zonal mean stuff
             theta_xpv = np.nanmean(theta_xpv, axis=-1)
             uwnd = np.nanmean(uwnd, axis=-1)
             ttrop = np.nanmean(ttrop, axis=-1)
 
         for tix in range(dims[0]):
-
+            self.log.info('COMPUTE JET POSITION FOR {}'.format(tix))
             # Get thermal tropopause intersection with dynamical tropopause
             y_s = np.abs(self.data.trop_theta[tix, :] - theta_xpv[tix, :]).argmin()
             y_e = None
@@ -210,7 +213,7 @@ class STJPV(object):
     def select_jet(self, locs, tix, uwnd):
         """Select correct jet latitude."""
         if len(locs) == 0:
-            self.props.log.info("NO JET LOC {}".format(tix))
+            self.log.info("NO JET LOC {}".format(tix))
             jet_loc = 0
 
         elif len(locs) == 1:
@@ -228,4 +231,32 @@ class STJPV(object):
         Save jet position to file.
         """
         # Create output variables
+        props = {'name': 'jet_latitude', 'descr': 'Latitude of subtropical jet',
+                 'units': 'degrees_north', 'short_name': 'lat_sh', 'timevar': 'time',
+                 'calendar': self.data.calendar, 'time_units': self.data.time_units}
+        coords = {'time': self.data.time}
+
+        if self.props['zonal_opt'].lower() != 'mean':
+            props['lonvar'] = 'lon'
+            props['lon_units'] = 'degrees_east'
+            coords['lon'] = self.data.lon
+
+        props_th = dict(props)
+        props_th['name'] = 'jet_theta'
+        props_th['descr'] = 'Theta level of subtropical jet'
+        props_th['units'] = 'K'
+        props_th['short_name'] = 'theta_sh'
+
+        self.log.info("CREATE VARIABLES")
+        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props)
+        theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords, props=props_th)
+
+        props['short_name'] = 'lat_nh'
+        props_th['short_name'] = 'theta_nh'
+        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props)
+        theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords, props=props_th)
+
+        self.log.info("WRITE TO {out_file}".format(**self.props))
         # Write jet/theta positions to file
+        dio.write_to_netcdf([lat_sh_out, theta_sh_out, lat_nh_out, theta_nh_out],
+                            self.props['out_file'] + '.nc')
