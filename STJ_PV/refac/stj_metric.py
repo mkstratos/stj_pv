@@ -1,12 +1,9 @@
 """STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
-import pdb
 import numpy as np
-# from numpy.polynomial import chebyshev as cby
 import numpy.polynomial as poly
 from scipy import interpolate
 from scipy import signal as sig
 
-import input_data
 import calc_ipv as cpv
 
 
@@ -154,7 +151,7 @@ class STJPV(object):
         lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
         lat_axis_3d = self.data.trop_theta.shape.index(self.data.lat.shape[0])
 
-        if self.data.ipv.shape.count(self.lat.shape[0]) > 1:
+        if self.data.ipv.shape.count(self.data.lat.shape[0]) > 1:
             # Print a message about which matching dimension used since this
             # could be time or lev if ntimes == nlats or nlevs == nlats
             print('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis, self.data.ipv.shape))
