@@ -1,7 +1,8 @@
 """STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
 import pdb
 import numpy as np
-from numpy.polynomial import chebyshev as cby
+# from numpy.polynomial import chebyshev as cby
+import numpy.polynomial as poly
 from scipy import interpolate
 from scipy import signal as sig
 
@@ -366,13 +367,11 @@ class STJPV(object):
         self.pv_lev = self.props['pv_value']
         self.fit_deg = self.props['fit_deg']
         self.min_lat = self.props['min_lat']
-        self.jet_lat = None
-        self.jet_theta = None
 
-        if self.props['poly'].lower() in ['cheby', 'cby', 'cheb', 'chebyshev']
-            self.pfit = cby.chebfit
-            self.pder = cby.chebder
-            self.peval = cby.chebval
+        if self.props['poly'].lower() in ['cheby', 'cby', 'cheb', 'chebyshev']:
+            self.pfit = poly.chebyshev.chebfit
+            self.pder = poly.chebyshev.chebder
+            self.peval = poly.chebyshev.chebval
 
         elif self.props['poly'].lower() in ['leg', 'legen', 'legendre']:
             self.pfit = poly.legendre.legfit
