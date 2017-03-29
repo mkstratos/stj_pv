@@ -375,9 +375,18 @@ class STJPV(object):
             self.peval = cby.chebval
 
         elif self.props['poly'].lower() in ['leg', 'legen', 'legendre']:
-            self.pfit = legendre.legfit
-            self.pder = legendre.legder
-            self.peval = legendre.legval
+            self.pfit = poly.legendre.legfit
+            self.pder = poly.legendre.legder
+            self.peval = poly.legendre.legval
+
+        # Initialise latitude/theta output arrays with correct shape
+        dims = self.data.ipv.shape
+        if self.props['zonal_opt'] == 'mean':
+            self.jet_lat = np.zeros([2, dims[0]])
+            self.jet_theta = np.zeros([2, dims[0]])
+        else:
+            self.jet_lat = np.zeros([2, dims[0], dims[-1]])
+            self.jet_theta = np.zeros([2, dims[0], dims[-1]])
 
     def _poly_deriv(self, data, y_s=None, y_e=None, deriv=1):
         """
