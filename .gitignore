@@ -1,0 +1,7 @@
+*.pyc
+*.so
+*.sw*
+*.eps
+*.pdf
+*.png
+*.log
