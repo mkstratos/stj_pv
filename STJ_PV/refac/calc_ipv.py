@@ -568,10 +568,7 @@ def theta(tair, pres):
     r_d = 287.0
     c_p = 1004.0
     kppa = r_d / c_p
-    if np.max(pres) < 90000.0:
-        p_0 = 1000.0
-    else:
-        p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in the same units!
+    p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
 
     if tair.ndim == pres.ndim:
         p_axis = pres
@@ -612,10 +609,7 @@ def inv_theta(theta, pres):
     r_d = 287.0
     c_p = 1004.0
     kppa = r_d / c_p
-    if np.max(pres) < 90000.0:
-        p_0 = 1000.0
-    else:
-        p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in the same units!
+    p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
 
     if theta.ndim == pres.ndim:
         th_axis = theta
