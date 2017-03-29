@@ -402,49 +402,99 @@ class STJPV(object):
 
         return poly_der
 
-    def find_jet(self):
+    def find_jet(self, shemis=True):
         """
         Using input parameters find the subtropical jet.
+
+        Parameters
+        ----------
+        shemis : logical, optional
+            If True, find jet position in Southern Hemisphere, if False, find N.H. jet
         """
+        if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
+            pv_lev = self.pv_lev
+        else:
+            pv_lev = -self.pv_lev
+
+        # Find axis
+        lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
+        lat_axis_3d = self.data.trop_theta.shape.index(self.data.lat.shape[0])
+
+        if self.data.ipv.shape.count(self.lat.shape[0]) > 1:
+            # Print a message about which matching dimension used since this
+            # could be time or lev if ntimes == nlats or nlevs == nlats
+            print('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis, self.data.ipv.shape))
+
+        hem_slice = [slice(None)] * self.data.ipv.ndim
+        hem_slice_3d = [slice(None)] * self.data.trop_theta.ndim
+
+        if shemis:
+            hem_slice[lat_axis] = self.data.lat < 0
+            hem_slice_3d[lat_axis_3d] = self.data.lat < 0
+            hidx = 0
+            extrema = sig.argrelmax
+        else:
+            hem_slice[lat_axis] = self.data.lat > 0
+            hem_slice_3d[lat_axis_3d] = self.data.lat > 0
+            hidx = 1
+            extrema = sig.argrelmin
+
         # Get theta on PV==pv_level
-        theta_xpv = cpv.vinterp(self.data.th_lev, self.data.ipv, np.array([self.pv_lev]))
+        theta_xpv = cpv.vinterp(self.data.th_lev, self.data.ipv[hem_slice],
+                                np.array([pv_lev]))
         dims = theta_xpv.shape
+
+        uwnd = self.data.uwnd[hem_slice]
+        ttrop = self.data.trop_theta[hem_slice_3d]
 
         if self.props['zonal_opt'] == 'mean':
             # Zonal mean stuff
             theta_xpv = np.nanmean(theta_xpv, axis=-1)
-            uwnd = np.nanmean(self.data.uwnd, axis=-1)
-            ttrop = np.nanmean(self.data.trop_theta, axis=-1)
-
-            self.jet_lat = np.zeros(dims[0])
-            self.jet_theta = np.zeros(dims[0])
+            uwnd = np.nanmean(uwnd, axis=-1)
+            ttrop = np.nanmean(ttrop, axis=-1)
 
         for tix in range(dims[0]):
+
             # Get thermal tropopause intersection with dynamical tropopause
             y_s = np.abs(self.data.trop_theta[tix, :] - theta_xpv[tix, :]).argmin()
-            # Find second derivative of dynamical tropopause
-            d2theta = self._poly_deriv(theta_xpv[tix, :], y_s=y_s, deriv=2)
-            jet_loc = sig.argrelmin(dtheta_cby)[0].astype(int)
-            self.jet_lat[tix] = self.lat[jet_loc + y_s]
+            y_e = None
 
-        if len(jet_loc) == 0:
-            debug_log.info("{0} NO LOC {1}-{2:02d} {0}".format('-' * 20, year,
-                                                               idx + 1))
-            jet_loc_ts.append(0)
+            # If latitude is in decreasing order, switch start/end
+            if self.data.lat[0] > self.data.lat[-1]:
+                y_s, y_e = y_e, y_s
 
-        elif len(jet_loc) == 1:
-            jet_loc_ts.append(jet_loc[0])
+            # Find derivative of dynamical tropopause
+            dtheta = self._poly_deriv(theta_xpv[tix, :], y_s=y_s, y_e=y_e)
+
+            jet_loc_all = extrema(dtheta)[0].astype(int)
+            if y_s is not None:
+                # If beginning of array is cut off rather than end, add cut-off to adjust
+                jet_loc_all += y_s
+
+            jet_loc = self.select_jet(jet_loc_all, tix, uwnd[tix, ...])
+
+            self.jet_lat[hidx, tix] = self.data.lat[tix, jet_loc]
+            self.jet_theta[hidx, tix] = theta_xpv[tix, jet_loc]
+
+    def select_jet(self, locs, tix, uwnd):
+        """Select correct jet latitude."""
+        if len(locs) == 0:
+            self.props.log.info("NO JET LOC {}".format(tix))
+            jet_loc = 0
+
+        elif len(locs) == 1:
+            jet_loc = locs[0]
 
         elif len(jet_loc) > 1:
-            jet_loc_ts.append(jet_loc[lat[jet_loc].argmin()])
+            # TODO: Decide on which (if multiple local mins) to be the location
+            # Should be based on wind shear at that location, for now, lowest latitude
+            jet_loc = locs[np.abs(self.data.lat[locs]).argmin()]
 
-        if lat[int(jet_loc_ts[mon_idx])] > 50.0:
-            debug_log.info('JET POLEWARD OF 50: {} {:02d}'.format(year, idx + 1))
-            monthly_plots_temp = False  # True
-        else:
-            monthly_plots_temp = monthly_plots
+        return jet_loc
 
     def save_jet(self):
         """
         Save jet position to file.
         """
+        # Create output variables
+        # Write jet/theta positions to file
