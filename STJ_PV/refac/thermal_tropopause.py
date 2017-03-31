@@ -191,44 +191,6 @@ def get_tropopause(t_air, pres, thr=2.0, vaxis=1):
     return trop_temp, trop_pres
 
 
-def get_tropopause_theta(theta, pres, thr=2.0):
-    """
-    Return the tropopause temperature and pressure for WMO tropopause.
-
-    Parameters
-    ----------
-    theta : array_like
-        1D array of potential temperature
-    pres : array_like
-        ND array of pressure levels, with one axis matching shape of theta
-    thr : float
-        Lapse rate threshold, default/WMO definition is 2.0 K km^-1
-
-    Returns
-    -------
-    trop_temp, trop_pres : array_like
-        Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension
-        dropped is vertical axis, same units as input t_air and pres respectively
-    """
-    vaxis = pres.shape.index(theta.shape[0])
-
-    # Find half theta levels
-    theta_hf = (theta[:-1] - theta[1:]) / 2.0 + theta[1:]
-
-    # Create full theta array for interpolation of pressure
-    theta_full = np.zeros(theta.shape[0] + theta_hf.shape[0])
-    theta_full[::2] = theta
-    theta_full[1::2] = theta_hf
-
-    # Interpolate pressure to half theta levels
-    pres_interp = interp.interp1d(theta, pres, axis=vaxis, kind='cubic')(theta_full)
-
-    # Compute air temperature from potential temperature and pressure
-    t_air = cpv.inv_theta(theta_full, pres_interp)
-
-    return get_tropopause(t_air, pres_interp, thr=thr, vaxis=vaxis)
-
-
 def get_tropopause_pres(t_air, pres, thr=2.0):
     """
     Return the tropopause temperature and pressure for WMO tropopause.
@@ -266,3 +228,29 @@ def get_tropopause_pres(t_air, pres, thr=2.0):
     pres_full_4d = np.swapaxes(np.broadcast_to(pres_full, temp_shape), -1, 1)
 
     return get_tropopause(t_interp, pres_full_4d, thr=thr, vaxis=1)
+
+
+def get_tropopause_theta(theta, pres, thr=2.0):
+    """
+    Return the tropopause temperature and pressure for WMO tropopause.
+
+    Parameters
+    ----------
+    theta : array_like
+        1D array of potential temperature
+    pres : array_like
+        ND array of pressure levels, with one axis matching shape of theta
+    thr : float
+        Lapse rate threshold, default/WMO definition is 2.0 K km^-1
+
+    Returns
+    -------
+    trop_temp, trop_pres : array_like
+        Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension
+        dropped is vertical axis, same units as input t_air and pres respectively
+    """
+    t_air = cpv.inv_theta(theta, pres)
+    pres_levs = np.logspace(5, 3, theta.shape[0])
+    t_pres = cpv.vinterp(t_air, pres, pres_levs)
+
+    return get_tropopause_pres(t_air, pres_levs, thr=thr)
