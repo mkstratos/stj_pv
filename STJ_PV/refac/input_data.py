@@ -93,6 +93,8 @@ class InputData(object):
             self.props.log.info('CHECKING INPUT FOR {}'.format(year))
             pv_file = pv_file_fmt.format(year=self.year)
             tp_file = tp_file_fmt.format(year=self.year)
+            self.props.log.info('CHECKING: {}'.format(pv_file))
+            self.props.log.info('CHECKING: {}'.format(tp_file))
 
             data_load = (self.config['update_pv'] or not os.path.exists(pv_file)
                          or not os.path.exists(tp_file))
@@ -126,7 +128,11 @@ class InputData(object):
             vname = cfg[var]
             if nc_file is None:
                 # Format the name of the file, join it with the path, open it
-                file_name = cfg['file_paths'][var].format(year=self.year)
+                try:
+                    file_name = cfg['file_paths'][var].format(year=self.year)
+                except KeyError:
+                    file_name = cfg['file_paths']['all'].format(year=self.year)
+
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
                 self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
                                                                    file_name)))
@@ -370,16 +376,16 @@ class InputData(object):
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['path'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
-        self.ipv = ipv_in.variables['ipv'][:]
-        self.uwnd = ipv_in.variables['uwnd'][:]
+        self.ipv = ipv_in.variables[self.data_cfg['ipv']][:]
+        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
 
         coord_names = ['time', 'lev', 'lat', 'lon']
         for cname in coord_names:
-            setattr(self, cname, ipv_in.variables[cname][:])
+            setattr(self, cname, ipv_in.variables[self.data_cfg[cname]][:])
         if self.time_units is None:
-            self.time_units = ipv_in.variables['time'].units
+            self.time_units = ipv_in.variables[self.data_cfg['time']].units
         if self.calendar is None:
-            self.calendar = ipv_in.variables['time'].calendar
+            self.calendar = ipv_in.variables[self.data_cfg['time']].calendar
 
         self.th_lev = self.lev
         ipv_in.close()
@@ -394,10 +400,10 @@ class InputData(object):
         coord_names = ['time', 'lev', 'lat', 'lon']
         for cname in coord_names:
             if getattr(self, cname) is None:
-                setattr(self, cname, tpause_in.variables[cname][:])
+                setattr(self, cname, tpause_in.variables[self.data_cfg[cname]][:])
         self.th_lev = self.lev
         if self.time_units is None:
-            self.time_units = tpause_in.variables['time'].units
+            self.time_units = tpause_in.variables[self.data_cfg['time']].units
         if self.calendar is None:
-            self.calendar = tpause_in.variables['time'].calendar
+            self.calendar = tpause_in.variables[self.data_cfg['time']].calendar
         tpause_in.close()
