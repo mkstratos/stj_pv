@@ -45,6 +45,7 @@ class InputData(object):
         self.uwnd = None
         self.ipv = None
         self.trop_theta = None
+        self.dyn_trop= None
         self.in_data = None
 
     def get_data_input(self):
@@ -239,11 +240,38 @@ class InputData(object):
                                             self.lev[v_slice])
 
         elif self.data_cfg['ztype'] == 'theta':
-            trop_h_temp, trop_h_pres = trp.get_tropopause_theta(self.in_data['lev'],
+            trop_h_temp, trop_h_pres = trp.get_tropopause_theta(self.lev,
                                                                 self.in_data['pres'])
 
         self.trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')
+
+    def _calc_dyn_trop(self):
+        """Calculate dynamical tropopause (pv==2PVU)."""
+
+        pv_lev = self.config['pv_value']
+        if pv_lev < 0:
+            pv_lev = -np.array([pv_lev])
+        else:
+            pv_lev = np.array([pv_lev])
+
+        self.props.log.info('Start calculating dynamical tropopause')
+        if self.ipv is None:
+            # Calculate PV
+            self._load_ipv()
+
+        # Calculate Theta on PV == 2 PVU
+        _nh = [slice(None), slice(None), self.lat >= 0, slice(None)]
+        _sh = [slice(None), slice(None), self.lat < 0, slice(None)]
+
+        dyn_trop_nh = calc_ipv.vinterp(self.th_lev, self.ipv[_nh] * 1e6, pv_lev)
+        dyn_trop_sh = calc_ipv.vinterp(self.th_lev, self.ipv[_sh] * 1e6, -pv_lev)
+        if self.lat[0] > self.lat[-1]:
+            self.dyn_trop = np.append(dyn_trop_nh, dyn_trop_sh, axis=1)
+        else:
+            self.dyn_trop = np.append(dyn_trop_sh, dyn_trop_nh, axis=1)
+
+        self.props.log.info('Finished calculating dynamical tropopause')
 
     def _write_ipv(self, out_file=None):
         """
@@ -281,6 +309,35 @@ class InputData(object):
 
         dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing')
+
+    def _write_dyn_trop(self, out_file=None):
+        """
+        Save dynamical tropopause data generated to a file, either netCDF4 or pickle.
+
+        Parameters
+        ----------
+        out_file : string, optional
+            Output file path for pickle or netCDF4 file, will contain ipv data and coords
+        """
+        if out_file is None:
+            file_name = self.data_cfg['file_paths']['dyn_trop'].format(year=self.year)
+            out_file = os.path.join(self.data_cfg['path'], file_name)
+
+        self.props.log.info('WRITE DYN TROP: {}'.format(out_file))
+
+        coord_names = ['time', 'lat', 'lon']
+        coords = {cname: getattr(self, cname) for cname in coord_names}
+        props = {'name': 'dynamical_tropopause_theta',
+                    'descr': 'Potential temperature on potential vorticity = 2PVU',
+                    'units': 'K', 'short_name': 'dyntrop',
+                    'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
+                    'timevar': self.data_cfg['time'], 'time_units': self.time_units,
+                    'calendar': self.calendar, 'lat_units': 'degrees_north',
+                    'lon_units': 'degrees_east'}
+
+        dyn_trop_out = dout.NCOutVar(self.dyn_trop, props=props, coords=coords)
+        dout.write_to_netcdf([dyn_trop_out], '{}'.format(out_file))
+        self.props.log.info('Finished Writing Dynamical Tropopause')
 
     def _write_trop(self, out_file=None):
         """
