@@ -146,14 +146,15 @@ def write_to_netcdf(data_in, out_file):
 
     # Open netCDF file for writing
     ncfile = nc.Dataset(out_file, mode='w')
-
     # Loop over coordinates, create those dimensions and variables in the netCDF file
     for coord_name in data_in[0].coords:
-        ncfile.createDimension(coord_name, len(data_in[0].coords[coord_name]['cdata']))
         if coord_name == 'time':
             dtype = np.dtype('double').char
+            ncfile.createDimension(coord_name, size=None)
         else:
             dtype = np.dtype('float32').char
+            ncfile.createDimension(coord_name,
+                                   size=len(data_in[0].coords[coord_name]['cdata']))
 
         cvi = ncfile.createVariable(coord_name, dtype, (coord_name), zlib=True,
                                     complevel=5)
