@@ -49,19 +49,19 @@ class NCOutVar(object):
 
         # Coordinate variables are ordered (slow -> fast or t, p, y, x ), use OrderedDict
         # to make sure they stay that way
-        self.coords = OrderedDict(coords)
-        self._set_coords()
+        self.coords = OrderedDict()
+        self._set_coords(coords)
 
         self.data = data_in
 
-    def _set_coords(self):
+    def _set_coords(self, coords_in):
         """
         Setup coordinate variables based on <self.props> and <self.coords> dictionaries
         """
         # For each possible coordinate variable, (time, lev, lat, lon)
         # set up the coordinate array with its shape and units
         for coord_type in ['time', 'lev', 'lat', 'lon']:
-            if coord_type in self.coords:
+            if coord_type in coords_in:
                 coord_var = self.props['{}var'.format(coord_type)]
                 coord_name = coord_type
                 coord_units = self.props['{}_units'.format(coord_type)]
@@ -71,7 +71,7 @@ class NCOutVar(object):
                 elif coord_var == 'lev' and coord_units == 'K':
                     coord_name = 'air_potential_temperature'
 
-                self.coords[coord_var] = {'cdata': self.coords[coord_type],
+                self.coords[coord_var] = {'cdata': coords_in[coord_type],
                                           'name': coord_name, 'units': coord_units}
 
     def gen_defualt_props(self):
