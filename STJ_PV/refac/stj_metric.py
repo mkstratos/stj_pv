@@ -103,6 +103,11 @@ class STJPV(object):
             self.pder = poly.legendre.legder
             self.peval = poly.legendre.legval
 
+        elif self.props['poly'].lower() in ['poly', 'polynomial']:
+            self.pfit = poly.polynomial.polyfit
+            self.pder = poly.polynomial.polyder
+            self.peval = poly.polynomial.polyval
+
         # Initialise latitude/theta output arrays with correct shape
         dims = self.data.ipv.shape
         if self.props['zonal_opt'].lower() == 'mean':
