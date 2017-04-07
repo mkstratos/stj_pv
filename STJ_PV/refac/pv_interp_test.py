@@ -12,6 +12,7 @@ from scipy import signal as sig
 from numpy.polynomial import chebyshev as cby
 from numpy.polynomial import legendre
 from numpy.polynomial import laguerre
+from numpy.polynomial import polynomial
 
 import cmip5.common.staticParams as sp
 plt.style.use('ggplot')
@@ -33,7 +34,7 @@ def log_setup(name, out_file):
     return logger
 
 
-def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
+def get_data(year, tidx_s=0, tidx_e=None, hemis='SH', root_dir='/Volumes/FN_2187/erai'):
 
     if 'monthly' in root_dir:
         time_skip = None
@@ -45,11 +46,17 @@ def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
     in_file = '{}/erai_theta_{:04d}.nc'.format(root_dir, year)
     data = nc.Dataset(in_file, 'r')
     lat = data.variables['latitude'][:]
-    lat_0 = -10.0
-    pv = data.variables['pv'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
-    uwnd = data.variables['u'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
-    vwnd = data.variables['v'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
-    pres = data.variables['pres'][tidx_s:tidx_e:time_skip, :, lat < lat_0, ...]
+    lat_0 = 5.0
+    if hemis == 'SH':
+        lat_sel = lat < -lat_0
+    else:
+        lat_sel = lat > lat_0
+
+    pv = data.variables['pv'][tidx_s:tidx_e:time_skip, :, lat_sel, ...]
+    uwnd = data.variables['u'][tidx_s:tidx_e:time_skip, :, lat_sel, ...]
+    vwnd = data.variables['v'][tidx_s:tidx_e:time_skip, :, lat_sel, ...]
+    pres = data.variables['pres'][tidx_s:tidx_e:time_skip, :, lat_sel, ...]
+    lat = lat[lat_sel]
 
     time = data.variables['time'][tidx_s:tidx_e:time_skip]
 
@@ -60,7 +67,6 @@ def get_data(year, tidx_s=0, tidx_e=None, root_dir='/Volumes/FN_2187/erai'):
         lat = lat[::lat_skip]
 
     time_units = data.variables['time'].units
-    lat = lat[lat < lat_0]
     lon = data.variables['longitude'][:]
     theta = data.variables['level'][:]
 
@@ -103,9 +109,18 @@ def main():
     therm_trop = False
     high_res = False
     monthly_plots = False
-    cheb_poly = False
-    legendre_poly = False
+    fit_type = 'poly'
+
     fd_jet = False
+    hemis = 'SH'
+
+    max_lev = 400  # np.max(theta_xpv)
+    fit_deg = 6
+
+    if hemis == 'SH':
+        hmult = 1
+    else:
+        hmult = -1
 
     year_s = 1979
     year_e = 2016
@@ -114,22 +129,27 @@ def main():
     mon_idx = 0
     debug_log = log_setup('jet_find', './find_jet_cby.log')
 
-    if cheb_poly:
+    if fit_type == 'cheb':
         pfit = cby.chebfit
         pder = cby.chebder
         peval = cby.chebval
-    elif legendre_poly:
+    elif fit_type == 'legendre':
         pfit = legendre.legfit
         pder = legendre.legder
         peval = legendre.legval
-    else:
+    elif fit_type == 'laguerre':
         pfit = laguerre.lagfit
         pder = laguerre.lagder
         peval = laguerre.lagval
+    elif fit_type == 'poly':
+        pfit = polynomial.polyfit
+        pder = polynomial.polyder
+        peval = polynomial.polyval
+
 
     for year in range(year_s, year_e + 1):
         debug_log.info('CALCULATE: {}'.format(year))
-        data = get_data(year, root_dir='/Volumes/FN_2187/erai/monthly')
+        data = get_data(year, root_dir='/Volumes/FN_2187/erai/monthly', hemis=hemis)
         lat, lon, lev = data['lat'], data['lon'], data['lev']
         dates = nc.num2date(data['time'], data['tunits'])
 
@@ -144,8 +164,7 @@ def main():
             #trop_temp, trop_pres = tpp.get_tropopause_pres(t_pres, pres_levs)
             trop_temp, trop_pres = tpp.get_tropopause_theta(lev, data['pres'])
             trop_theta = np.nanmean(cpv.theta(trop_temp, trop_pres), axis=-1)
-
-        theta_xpv = cpv.vinterp(data['lev'], data['pv'], np.array([-2.0]))
+        theta_xpv = cpv.vinterp(data['lev'], data['pv'], np.array([-2.0 * hmult]))
         theta_xpv = np.nanmean(theta_xpv, axis=-1)
 
         #pv_levs = np.linspace(-1.5, -2.5, 10)
@@ -156,8 +175,6 @@ def main():
             lat_hr = np.linspace(lat.min(), lat.max(), lat.shape[0] * 2)
             theta_hr = interpolate.interp1d(lat, theta_xpv, axis=-1)(lat_hr)
 
-        max_lev = 400  # np.max(theta_xpv)
-        fit_deg = 16
 
         for idx in range(pv_mean.shape[0]):
             y_s = 0
@@ -165,10 +182,10 @@ def main():
             if therm_trop:
                 y_s = np.abs(trop_theta[idx, np.abs(lat) < 50] -
                              theta_xpv[idx, np.abs(lat) < 50]).argmin()
-                y_e = np.abs(-80.0 - lat).argmin()
+                y_e = np.abs(80.0 - np.abs(lat)).argmin()
+
                 if lat[0] < lat[-1]:
                     y_s, y_e = y_e, y_s
-
                 if y_e == 0:
                     y_e = -1
 
@@ -198,10 +215,12 @@ def main():
             # rel_min = set(sig.argrelmin(dtheta_cby)[0])
             # d2_zeros = set(sig.argrelmin(np.abs(d2theta))[0])
             # jet_loc = list(rel_min.intersection(d2_zeros))
+
+
             if fd_jet:
-                jet_loc = sig.argrelmax(dtheta_fd)[0].astype(int)
+                jet_loc = sig.argrelmax(hmult * dtheta_fd)[0].astype(int)
             else:
-                jet_loc = sig.argrelmin(dtheta_cby)[0].astype(int)
+                jet_loc = sig.argrelmax(hmult * dtheta_cby)[0].astype(int)
 
             if y_s is None:
                 jet_loc -= y_e
@@ -217,8 +236,7 @@ def main():
                 jet_loc_ts.append(jet_loc[0])
 
             elif len(jet_loc) > 1:
-                # jet_loc_ts.append(jet_loc[lat[jet_loc].argmin()])
-                jet_loc_ts.append(jet_loc[lat[jet_loc].argmax()])
+                jet_loc_ts.append(jet_loc[np.abs(lat[jet_loc]).argmin()])
 
             if abs(lat[int(jet_loc_ts[mon_idx])]) > 45.0:
                 debug_log.info('JET POLEWARD OF 45: {} {:02d}'.format(year, idx + 1))
@@ -252,7 +270,7 @@ def main():
                         axis.plot(lat[y_e], trop_theta[idx, y_e], 'go')
 
                 axis.plot(lat[y_s:y_e], theta_cby)
-                ax2.plot(lat[y_s:y_e], dtheta_cby, 'C3')
+                ax2.plot(lat[y_s:y_e], dtheta_cby, 'g')
                 ax2.plot(lat_r[1:-1], dtheta_fd, 'C1x-')
 
                 if y_s is not None:
@@ -262,7 +280,8 @@ def main():
                 if fd_jet:
                     ax2.plot(lat[jet_loc], dtheta_fd[jet_loc + corr], 'C1o')
                 else:
-                    ax2.plot(lat[jet_loc], dtheta_cby[jet_loc + corr], 'C1o')
+                    ax2.plot(lat[jet_loc], dtheta_cby[jet_loc + corr], 'go')
+
                 #axis.plot(2 * [lat[dtheta_cby[1:-1].argmin() + 1]], axis.get_ylim(), '--')
 
                 axis.plot(2 * [lat[int(jet_loc_ts[mon_idx])]], axis.get_ylim(), '--')
@@ -288,9 +307,10 @@ def main():
     ax.plot(lat[np.array(jet_loc_ts).astype(int)], 'x-')
     plt.tight_layout()
     if fd_jet:
-        plt.savefig('plt_jet_loc_ts_sh_fd_{}-{}.pdf'.format(year_s, year_e))
+        plt.savefig('plt_jet_loc_ts_{}_fd_{}-{}.pdf'.format(hemis, year_s, year_e))
     else:
-        plt.savefig('plt_jet_loc_ts_sh_cby_{}-{}.pdf'.format(year_s, year_e))
+        plt.savefig('plt_jet_loc_ts_{}_{}{}_{}-{}.pdf'.format(hemis, fit_type, fit_deg,
+                                                              year_s, year_e))
 
     plt.show()
 
