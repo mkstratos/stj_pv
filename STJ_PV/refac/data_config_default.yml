@@ -27,6 +27,7 @@ file_paths:
     'tair': 'tair.nc'
     'ipv': 'ipv.nc'
     'tpause': 'tpause.nc'
+    'dyn_trop': 'dyn_trop.nc'
 
 # multiple vars/file, single year/file - n_years files
 # single_var_file: False    # Variables are in multiple files (if True)
