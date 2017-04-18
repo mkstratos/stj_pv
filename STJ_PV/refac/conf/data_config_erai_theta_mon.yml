@@ -1,0 +1,25 @@
+path: '/Volumes/FN_2187/erai/monthly/'
+short_name: 'ERAI_MONTHLY_THETA'
+
+# all_vars x n_years
+# multiple vars/file, single year/file - n_years files
+single_var_file: False    # Variables are in multiple files (if True)
+single_year_file: True    # Years are in multiple files (if True)
+file_paths:
+  'all': 'erai_theta_{year:04d}.nc'
+  'ipv': 'erai_theta_{year:04d}.nc'
+  'tpause': 'erai_tpause_{year:04d}.nc'
+  'dyn_trop': 'erai_dyn_trop_theta_{year:04d}.nc'
+
+lon: 'longitude'    # Name within netCDF file of 'longitude' variable
+lat: 'latitude'     # Name within netCDF file of 'latitude' variable
+lev: 'level'        # Name within netCDF file of 'level' variable
+time: 'time'        # Name within netCDF file of 'time' variable
+ztype: 'theta'      # Type of levels (pressure, potential temperature, etc.)
+
+# Variable names for u/v wind, air temperature and pv
+uwnd: 'u'
+vwnd: 'v'
+tair: 't'
+ipv: 'pv'
+pres: 'pres'

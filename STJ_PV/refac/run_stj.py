@@ -47,7 +47,7 @@ class JetFindRun(object):
         now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         if config_file is None:
             # Use default parameters if none are specified
-            self.config = {'data_cfg': './data_config_default.yml', 'freq': 'mon',
+            self.config = {'data_cfg': './conf/data_config_default.yml', 'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
                            'zonal_opt': 'mean', 'poly': 'cheby',
                            'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
@@ -134,7 +134,7 @@ class JetFindRun(object):
 def main():
     """Main method, run STJ Metric."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    jf_run = JetFindRun('./stj_config_erai_theta.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     jf_run.run(1980, 1981)
 
 

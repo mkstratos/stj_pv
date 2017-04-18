@@ -1,0 +1,12 @@
+data_cfg: './data_config_erai_theta_mon.yml'
+freq: 'mon'
+zonal_opt: 'mean'
+method: 'STJPV'
+log_file: "stj_find_erai_theta_{}.log"
+pv_value: 2.0
+fit_deg: 12
+min_lat: 10.0
+update_pv: False
+year_s: 1979
+year_e: 2015
+poly: 'cheby'
