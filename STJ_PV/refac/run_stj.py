@@ -72,7 +72,6 @@ class JetFindRun(object):
                     # this allows for the same loop no matter if data is in multiple files
                     self.data_cfg['file_paths'][var] = self.data_cfg['file_paths']['all']
 
-
         if self.config['method'] == 'STJPV':
             self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
                                           'fit{fit_deg}_y0{min_lat}'

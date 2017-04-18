@@ -45,7 +45,7 @@ class InputData(object):
         self.uwnd = None
         self.ipv = None
         self.trop_theta = None
-        self.dyn_trop= None
+        self.dyn_trop = None
         self.in_data = None
 
     def get_data_input(self):
@@ -58,8 +58,8 @@ class InputData(object):
                                cfg['file_paths']['ipv'].format(year=self.year))
         tp_file = os.path.join(cfg['path'],
                                cfg['file_paths']['tpause'].format(year=self.year))
-        data_load = (self.config['update_pv'] or not os.path.exists(pv_file)
-                     or not os.path.exists(tp_file))
+        data_load = (self.config['update_pv'] or not os.path.exists(pv_file) or
+                     not os.path.exists(tp_file))
 
         if data_load:
             self._load_data()
@@ -96,8 +96,8 @@ class InputData(object):
             self.props.log.info('CHECKING: {}'.format(pv_file))
             self.props.log.info('CHECKING: {}'.format(tp_file))
 
-            data_load = (self.config['update_pv'] or not os.path.exists(pv_file)
-                         or not os.path.exists(tp_file))
+            data_load = (self.config['update_pv'] or not os.path.exists(pv_file) or
+                         not os.path.exists(tp_file))
 
             if data_load:
                 self._load_data()
@@ -203,11 +203,11 @@ class InputData(object):
             for ix_s, ix_e in chunks:
                 self.props.log.info('IPV FOR {} - {}'.format(ix_s, ix_e))
                 self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
-                        calc_ipv.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
-                                     self.in_data['vwnd'][ix_s:ix_e, ...],
-                                     self.in_data['tair'][ix_s:ix_e, ...],
-                                     self.lev, self.lat, self.lon,
-                                     self.props.th_levels)
+                    calc_ipv.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
+                                 self.in_data['vwnd'][ix_s:ix_e, ...],
+                                 self.in_data['tair'][ix_s:ix_e, ...],
+                                 self.lev, self.lat, self.lon,
+                                 self.props.th_levels)
 
             self.ipv *= 1e6  # Put PV in units of PVU
             self.th_lev = self.props.th_levels
@@ -334,12 +334,12 @@ class InputData(object):
         coord_names = ['time', 'lat', 'lon']
         coords = {cname: getattr(self, cname) for cname in coord_names}
         props = {'name': 'dynamical_tropopause_theta',
-                    'descr': 'Potential temperature on potential vorticity = 2PVU',
-                    'units': 'K', 'short_name': 'dyntrop',
-                    'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
-                    'timevar': self.data_cfg['time'], 'time_units': self.time_units,
-                    'calendar': self.calendar, 'lat_units': 'degrees_north',
-                    'lon_units': 'degrees_east'}
+                 'descr': 'Potential temperature on potential vorticity = 2PVU',
+                 'units': 'K', 'short_name': 'dyntrop',
+                 'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
+                 'timevar': self.data_cfg['time'], 'time_units': self.time_units,
+                 'calendar': self.calendar, 'lat_units': 'degrees_north',
+                 'lon_units': 'degrees_east'}
 
         dyn_trop_out = dout.NCOutVar(self.dyn_trop, props=props, coords=coords)
         dout.write_to_netcdf([dyn_trop_out], '{}'.format(out_file))
