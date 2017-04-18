@@ -253,4 +253,4 @@ def get_tropopause_theta(theta, pres, thr=2.0):
     pres_levs = np.logspace(5, 3, theta.shape[0])
     t_pres = cpv.vinterp(t_air, pres, pres_levs)
 
-    return get_tropopause_pres(t_air, pres_levs, thr=thr)
+    return get_tropopause_pres(t_pres, pres_levs, thr=thr)
