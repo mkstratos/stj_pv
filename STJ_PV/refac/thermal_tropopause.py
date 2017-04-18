@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Functions for finding thermal tropopause level."""
 import numpy as np
 from scipy import interpolate as interp

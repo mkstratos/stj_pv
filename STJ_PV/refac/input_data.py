@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Generate or load input data for STJ Metric."""
 import os
 import numpy as np

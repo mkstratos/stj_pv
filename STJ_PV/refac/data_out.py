@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 This module contains routines related to output of data to netCDF file.
 

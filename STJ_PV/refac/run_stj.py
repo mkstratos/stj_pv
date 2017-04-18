@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and diags.
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
 import numpy as np
 import numpy.polynomial as poly
