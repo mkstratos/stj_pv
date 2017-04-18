@@ -166,7 +166,7 @@ class STJPV(STJMetric):
 
         self.time = self.data.time[:]
 
-    def _poly_deriv(self, data, y_s=None, y_e=None, deriv=1):
+    def _poly_deriv(self, lat, data, y_s=None, y_e=None, deriv=1):
         """
         Calculate the `deriv`^th derivative of a one-dimensional array w.r.t. latitude.
 
@@ -184,8 +184,8 @@ class STJPV(STJMetric):
         poly_der : array_like
             1D array of 1st derivative of data w.r.t. latitude between indices y_s and y_e
         """
-        poly_fit = self.pfit(self.data.lat[y_s:y_e], data[y_s:y_e], self.fit_deg)
-        poly_der = self.peval(self.data.lat[y_s:y_e], self.pder(poly_fit, deriv))
+        poly_fit = self.pfit(lat[y_s:y_e], data[y_s:y_e], self.fit_deg)
+        poly_der = self.peval(lat[y_s:y_e], self.pder(poly_fit, deriv))
 
         return poly_der
 
@@ -255,11 +255,11 @@ class STJPV(STJMetric):
 
             # If latitude is in decreasing order, switch start/end
             # This makes sure we're selecting the latitude nearest the equator
-            if self.data.lat[0] > self.data.lat[-1]:
+            if lat[0] < lat[-1]:
                 y_s, y_e = y_e, y_s
 
             # Find derivative of dynamical tropopause
-            dtheta = self._poly_deriv(theta_xpv[tix, :], y_s=y_s, y_e=y_e)
+            dtheta = self._poly_deriv(lat, theta_xpv[tix, :], y_s=y_s, y_e=y_e)
 
             jet_loc_all = extrema(dtheta)[0].astype(int)
             if y_s is not None:
