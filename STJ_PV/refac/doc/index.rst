@@ -5,13 +5,15 @@
 
 Welcome to STJ Metric's documentation!
 ======================================
+This is a project to locate the Subtropical Jet, mainly using the gradient of the
+dynamical tropopause (PV == 2PVU).
 
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-
+    refac
 
 Indices and tables
 ==================

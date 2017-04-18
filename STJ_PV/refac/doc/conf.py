@@ -20,6 +20,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, os.path.abspath('../'))
 
 # -- General configuration ------------------------------------------------
 
@@ -61,8 +62,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'STJ Metric'
-copyright = '2016, PM, MK'
-author = 'PM, MK'
+copyright = '2017, Penelope Maher, Michael Kelleher'
+author = 'Penelope Maher, Michael Kelleher'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -132,7 +133,8 @@ todo_include_todos = True
 # a list of builtin themes.
 #
 #html_theme = 'nature'
-html_theme = 'agogo'
+#html_theme = 'agogo'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -273,7 +275,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'STJMetric.tex', 'STJ Metric Documentation',
-     'PM, MK', 'manual'),
+     'Penelope Maher, Michael Kelleher', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

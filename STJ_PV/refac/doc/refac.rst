@@ -4,6 +4,14 @@ refac package
 Submodules
 ----------
 
+refac.stj_metric module
+-----------------------
+
+.. automodule:: refac.stj_metric
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 refac.calc_ipv module
 ---------------------
 
@@ -44,32 +52,10 @@ refac.make_ipv module
     :undoc-members:
     :show-inheritance:
 
-refac.output_test module
-------------------------
-
-.. automodule:: refac.output_test
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 refac.run_stj module
 --------------------
 
 .. automodule:: refac.run_stj
-    :members:
-
-refac.stj_diags module
-----------------------
-
-.. automodule:: refac.stj_diags
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-refac.stj_metric module
------------------------
-
-.. automodule:: refac.stj_metric
     :members:
     :undoc-members:
     :show-inheritance:
@@ -81,7 +67,6 @@ refac.thermal_tropopause module
     :members:
     :undoc-members:
     :show-inheritance:
-
 
 Module contents
 ---------------
