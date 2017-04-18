@@ -50,7 +50,6 @@ class InputData(object):
 
     def get_data_input(self):
         """Get input data for metric calculation."""
-
         # First, check if we want to update data, or need to create from scratch
         # if not, then we can load existing data
         cfg = self.data_cfg
@@ -254,7 +253,6 @@ class InputData(object):
 
     def _calc_dyn_trop(self):
         """Calculate dynamical tropopause (pv==2PVU)."""
-
         pv_lev = self.config['pv_value']
         if pv_lev < 0:
             pv_lev = -np.array([pv_lev])

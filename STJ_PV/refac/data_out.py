@@ -11,6 +11,7 @@ import netCDF4 as nc
 class NCOutVar(object):
     """
     This class contains the relavent information about an atmospheric variable.
+
     See the following site for information about the convention use:
     http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html
 
@@ -25,21 +26,23 @@ class NCOutVar(object):
 
     Used in conjunction with writeTonetCDF() to make a standards
     compliant(-ish) output file
-
-    Parameters
-    ----------
-
-    data_in : array_like
-        N-Dimensional input data to be written to netCDF file
-    props : dict
-        Dictionary as described above, containing properties of the <data_in>
-    coords : dict
-        Dictionary containing at least one of ['time', 'lev', 'lat', 'lon'] or
-        any combination of them, with associated coordinate variable
     """
 
     def __init__(self, data_in, props=None, coords=None):
+        """
+        Initialise NCOutVar to be used by `write_to_netcdf`.
 
+        Parameters
+        ----------
+
+        data_in : array_like
+            N-Dimensional input data to be written to netCDF file
+        props : dict
+            Dictionary as described above, containing properties of the <data_in>
+        coords : dict
+            Dictionary containing at least one of ['time', 'lev', 'lat', 'lon'] or
+            any combination of them, with associated coordinate variable
+        """
         # Pull in required data, (data, diminsion sizes, its name,
         # description, units and netCDF output var)
         if props is None:
@@ -55,9 +58,7 @@ class NCOutVar(object):
         self.data = data_in
 
     def _set_coords(self, coords_in):
-        """
-        Setup coordinate variables based on <self.props> and <self.coords> dictionaries
-        """
+        """Setup coordinate variables based on `self.props` and `self.coords`."""
         # For each possible coordinate variable, (time, lev, lat, lon)
         # set up the coordinate array with its shape and units
         for coord_type in ['time', 'lev', 'lat', 'lon']:
@@ -90,7 +91,7 @@ class NCOutVar(object):
 
     def get_props_from(self, copy_from):
         """
-        Copy properties to another
+        Copy properties to another.
 
         Parameters
         ----------
@@ -103,7 +104,7 @@ class NCOutVar(object):
 
     def set_prop(self, prop_name, prop_in=None):
         """
-        Used to change a single property if prop name is string, or multiple if dict
+        Change a single property if prop name is string, or multiple if dict.
 
         Parameters
         ----------
@@ -116,7 +117,7 @@ class NCOutVar(object):
 
     def set_props(self, prop_dict=None):
         """
-        Used to set multiple properties at once
+        Set multiple properties at once.
 
         Parameters
         ----------
@@ -140,7 +141,6 @@ def write_to_netcdf(data_in, out_file):
     out_file : string
         Name of file to write output
     """
-
     if not isinstance(data_in, list):
         data_in = [data_in]  # Just in case someone forgets to pass a list of variables
 

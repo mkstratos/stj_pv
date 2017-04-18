@@ -90,7 +90,6 @@ class JetFindRun(object):
 
     def log_setup(self):
         """Create a logger object with file location from `self.config`."""
-
         logger = logging.getLogger(self.config['method'])
         logger.setLevel(logging.DEBUG)
 
@@ -134,7 +133,6 @@ class JetFindRun(object):
 
 def main():
     """Main method, run STJ Metric."""
-
     # Generate an STJProperties, allows easy access to these properties across methods.
     jf_run = JetFindRun('./stj_config_erai_theta.yml')
     jf_run.run(1980, 1981)

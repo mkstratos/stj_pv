@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Methods for calculating isentropic potential vorticity from data on pressure levels.
-"""
+"""Methods for calculating isentropic potential vorticity from data on pressure levels."""
 
 import numpy as np
 
@@ -18,6 +16,7 @@ __author__ = "Michael Kelleher"
 
 class NDSlicer(object):
     """N-Dimensional slice class for numpy arrays."""
+
     def __init__(self, axis, ndim, start=None, end=None, skip=None):
         """
         Create an n-dimensional slice list.
@@ -414,7 +413,7 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
 
 def dth_dp(theta_in, data_in):
     """
-    Calculates vertical derivative on even (theta) levels.
+    Calculate vertical derivative on even (theta) levels.
 
     Parameters
     ----------
@@ -453,8 +452,11 @@ def dth_dp(theta_in, data_in):
 
 def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
     """
-    This method calculates isentropic PV on theta surfaces
-    Note: interpolation assumes pressure is monotonically increasing.
+    Calculate isentropic PV on theta surfaces.
+
+    Notes
+    -----
+    Interpolation assumes pressure is monotonically increasing.
 
     Parameters
     ----------
@@ -484,7 +486,6 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
     u_th : array_like
         Zonal wind on isentropic levels [m/s]
     """
-
     # Calculate potential temperature on isobaric (pressure) levels
     thta = theta(tair, pres)
     # Interpolate zonal, meridional wind, pressure to isentropic from isobaric levels
@@ -500,8 +501,7 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
 
 def ipv_theta(uwnd, vwnd, pres, lat, lon, th_levels):
     """
-    This method calculates isentropic PV on theta surfaces from data on theta levels
-    Note: interpolation assumes pressure is monotonically increasing.
+    Calculate isentropic PV on theta surfaces from data on theta levels.
 
     Parameters
     ----------

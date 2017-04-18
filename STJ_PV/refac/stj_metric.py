@@ -79,6 +79,18 @@ class STJMetric(object):
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
 
     def __init__(self, name=None, data=None, props=None):
+        """
+        Initialize a subtropical jet metric.
+
+        Parameters
+        ----------
+        name : string
+            Name of this type of method
+        data : InputData
+            Object containing required input data
+        props : JetFindRun
+            Properties about the current jet finding attempt, including log file
+        """
         self.name = name
         self.data = data
         self.props = props.config
@@ -123,18 +135,26 @@ class STJMetric(object):
                             self.props['output_file'] + '.nc')
 
     def append(self, other):
-        """Appends this metric's latitude and theta positon to another's."""
+        """Append another metric's latitude and theta positon to this one."""
         self.jet_lat = np.append(self.jet_lat, other.jet_lat, axis=1)
         self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
         self.time = np.append(self.time, other.time, axis=0)
 
 
 class STJPV(STJMetric):
-    """
-    Metric for Subtropical jet position using dynamic tropopause on isentropic levels.
-    """
+    """Subtropical jet position metric using dynamic tropopause on isentropic levels."""
 
     def __init__(self, jet_run, data):
+        """
+        Initialise Metric using PV Gradient Method.
+
+        Parameters
+        ----------
+        jet_run : JetFindRun
+            Class containing properties about the current search for the STJ
+        data : InputData
+            Input data class containing a year (or more) of required data
+        """
         name = 'PVGrad'
         super().__init__(name=name, props=jet_run, data=data)
 
