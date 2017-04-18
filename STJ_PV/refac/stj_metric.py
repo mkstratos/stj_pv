@@ -122,6 +122,12 @@ class STJMetric(object):
         dio.write_to_netcdf([lat_sh_out, theta_sh_out, lat_nh_out, theta_nh_out],
                             self.props['output_file'] + '.nc')
 
+    def append(self, other):
+        """Appends this metric's latitude and theta positon to another's."""
+        self.jet_lat = np.append(self.jet_lat, other.jet_lat, axis=1)
+        self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
+        self.time = np.append(self.time, other.time, axis=0)
+
 
 class STJPV(STJMetric):
     """
@@ -285,8 +291,3 @@ class STJPV(STJMetric):
             jet_loc = locs[np.abs(lat[locs]).argmin()]
 
         return jet_loc
-
-    def append(self, other):
-        self.jet_lat = np.append(self.jet_lat, other.jet_lat, axis=1)
-        self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
-        self.time = np.append(self.time, other.time, axis=0)
