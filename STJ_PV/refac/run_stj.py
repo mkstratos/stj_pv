@@ -108,15 +108,21 @@ class JetFindRun(object):
         data.get_data_input()
         return data
 
-    def run(self, year_s, year_e):
+    def run(self, year_s=None, year_e=None):
         """
         Find the jet, save location to a file.
 
         Parameters
         ----------
         year_s, year_e : int
-            Beginning and end years
+            Beginning and end years, optional. If not included,
+            use self.year_s and/or self.year_e
         """
+        if year_s is None:
+            year_s = self.config['year_s']
+        if year_e is None:
+            year_e = self.config['year_e']
+
         for year in range(year_s, year_e + 1):
             data = self._get_data(year)
             jet = self.metric(self, data)
@@ -135,8 +141,8 @@ class JetFindRun(object):
 def main():
     """Main method, run STJ Metric."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    jf_run.run(1980, 1981)
+    jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+    jf_run.run(1979, 1979)
 
 
 if __name__ == "__main__":
