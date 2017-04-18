@@ -9,7 +9,8 @@ import datetime as dt
 import collections
 import numpy as np
 import yaml
-import stj_metric as metric
+import stj_metric
+import input_data as inp
 #import input_data as makeipv
 
 # Metric named tuple, use later?
@@ -266,14 +267,19 @@ class JetFindRun(object):
 
 
         if self.config['method'] == 'STJPV':
-            self.output_file = ('{short_name}_{method}_pv{pv_value}_fit{fit_deg}_'
-                                'y0{min_lat}'.format(**self.data_cfg, **self.config))
+            self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
+                                          'fit{fit_deg}_y0{min_lat}'
+                                          .format(**self.data_cfg, **self.config))
 
             self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
                                        350.0, 370.0, 395.0, 430.0])
+            self.metric = stj_metric.STJPV
+
         else:
             self.config['output_file'] = ('{short_name}_{method}'
                                           .format(**self.data_cfg, **self.config))
+            self.metric = None
+
         self.log_setup()
 
     def log_setup(self):
@@ -292,12 +298,26 @@ class JetFindRun(object):
 
     def _get_data(self, curr_year=None):
         """Retrieve data stored according to `self.data_cfg`."""
+        data = inp.InputData(self, curr_year)
+        data.get_data_input()
+        return data
 
+    def run(self, year_s, year_e):
+
+        for year in range(year_s, year_e + 1):
+            data = self._get_data(year)
+            jet = self.metric(self, data)
+            jet.find_jet(shemis=True)
+            jet.find_jet(shemis=False)
+            if year == year_s:
+                jet_all = jet
+            else:
+                jet_all.append(jet)
+
+        jet_all.save_jet()
 
 def main():
-    """
-    Main method, run STJ Metric
-    """
+    """Main method, run STJ Metric."""
 
     # Generate an STJProperties, allows easy access to these properties across methods.
     stj_props = STJProperties()
