@@ -75,16 +75,60 @@ def interp_nd(lat, theta, data, lat_hr, theta_hr):
     return data_interp
 
 
-class STJPV(object):
+class STJMetric(object):
+    """Generic Class containing Sub Tropical Jet metric methods and attributes."""
+
+    def __init__(self, name=None, data=None, props=None):
+        self.name = name
+        self.data = data
+        self.props = props.config
+        self.log = props.log
+        self.jet_lat = None
+        self.jet_theta = None
+
+    def save_jet(self):
+        """Save jet position to file."""
+        # Create output variables
+        props = {'name': 'jet_latitude', 'descr': 'Latitude of subtropical jet',
+                 'units': 'degrees_north', 'short_name': 'lat_sh', 'timevar': 'time',
+                 'calendar': self.data.calendar, 'time_units': self.data.time_units}
+        coords = {'time': self.data.time}
+
+        if self.props['zonal_opt'].lower() != 'mean':
+            props['lonvar'] = 'lon'
+            props['lon_units'] = 'degrees_east'
+            coords['lon'] = self.data.lon
+
+        props_th = dict(props)
+        props_th['name'] = 'jet_theta'
+        props_th['descr'] = 'Theta level of subtropical jet'
+        props_th['units'] = 'K'
+        props_th['short_name'] = 'theta_sh'
+
+        self.log.info("CREATE VARIABLES")
+        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props)
+        theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords, props=props_th)
+
+        props['short_name'] = 'lat_nh'
+        props_th['short_name'] = 'theta_nh'
+        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props)
+        theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords, props=props_th)
+
+        self.log.info("WRITE TO {out_file}".format(**self.props))
+        # Write jet/theta positions to file
+        dio.write_to_netcdf([lat_sh_out, theta_sh_out, lat_nh_out, theta_nh_out],
+                            self.props['out_file'] + '.nc')
+
+
+class STJPV(STJMetric):
     """
     Metric for Subtropical jet position using dynamic tropopause on isentropic levels.
     """
-    name = 'PVGrad'
 
     def __init__(self, jet_run, data):
-        self.props = jet_run.config
-        self.log = jet_run.log
-        self.data = data
+        name = 'PVGrad'
+        super().__init__(name=name, props=jet_run, data=data)
+
         if np.max(np.abs(self.data.ipv)) < 1.0:
             self.data.ipv *= 1e6    # Put PV into units of PVU from 1e-6 PVU
 
@@ -171,11 +215,13 @@ class STJPV(object):
             hem_slice[lat_axis] = self.data.lat < 0
             hem_slice_3d[lat_axis_3d] = self.data.lat < 0
             hidx = 0
+            # Link `extrema` function to argrelmax for SH
             extrema = sig.argrelmax
         else:
             hem_slice[lat_axis] = self.data.lat > 0
             hem_slice_3d[lat_axis_3d] = self.data.lat > 0
             hidx = 1
+            # Link `extrema` function to argrelmin for NH
             extrema = sig.argrelmin
 
         # Get theta on PV==pv_level
@@ -230,38 +276,3 @@ class STJPV(object):
             jet_loc = locs[np.abs(self.data.lat[locs]).argmin()]
 
         return jet_loc
-
-    def save_jet(self):
-        """
-        Save jet position to file.
-        """
-        # Create output variables
-        props = {'name': 'jet_latitude', 'descr': 'Latitude of subtropical jet',
-                 'units': 'degrees_north', 'short_name': 'lat_sh', 'timevar': 'time',
-                 'calendar': self.data.calendar, 'time_units': self.data.time_units}
-        coords = {'time': self.data.time}
-
-        if self.props['zonal_opt'].lower() != 'mean':
-            props['lonvar'] = 'lon'
-            props['lon_units'] = 'degrees_east'
-            coords['lon'] = self.data.lon
-
-        props_th = dict(props)
-        props_th['name'] = 'jet_theta'
-        props_th['descr'] = 'Theta level of subtropical jet'
-        props_th['units'] = 'K'
-        props_th['short_name'] = 'theta_sh'
-
-        self.log.info("CREATE VARIABLES")
-        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props)
-        theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords, props=props_th)
-
-        props['short_name'] = 'lat_nh'
-        props_th['short_name'] = 'theta_nh'
-        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props)
-        theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords, props=props_th)
-
-        self.log.info("WRITE TO {out_file}".format(**self.props))
-        # Write jet/theta positions to file
-        dio.write_to_netcdf([lat_sh_out, theta_sh_out, lat_nh_out, theta_nh_out],
-                            self.props['out_file'] + '.nc')
