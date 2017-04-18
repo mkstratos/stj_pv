@@ -5,75 +5,8 @@ import numpy.polynomial as poly
 from scipy import interpolate
 from scipy import signal as sig
 
-import calc_ipv as cpv
+import utils
 import data_out as dio
-
-
-def interp_nd(lat, theta, data, lat_hr, theta_hr):
-    """
-    Perform interpolation on 2-dimensions on up to 4-dimensional numpy array.
-
-    Parameters
-    ----------
-    lat : array_like
-        One dimensional latitude coordinate array, matches a dimension of `data`
-    theta : array_like
-        One dimensional theta (vertical) coordinate array, matches a dimension of `data`
-    data : array_like
-        Data to be interpolated to high-resolution grid
-    lat_hr : array_like
-        1-D latitude coordinate array that `data` is interpolated to
-    theta_hr : array_like
-        1-D vertical coordinate array that `data` is interpolated to
-
-    Returns
-    -------
-    data_interp : array_like
-        Interpolated data where lat/theta dimensions are interpolated to `lat_hr` and
-        `theta_hr`
-    """
-    lat_dim = np.where(np.array(data.shape) == lat.shape[0])[0]
-    theta_dim = np.where(np.array(data.shape) == theta.shape[0])[0]
-
-    if data.ndim == 2:
-        data_f = interpolate.interp2d(lat, theta, data, kind='cubic')
-        data_interp = data_f(lat_hr, theta_hr)
-
-    elif data.ndim == 3:
-        out_shape = list(data.shape)
-        out_shape[lat_dim] = lat_hr.shape[0]
-        out_shape[theta_dim] = theta_hr.shape[0]
-
-        data_interp = np.zeros(out_shape)
-        cmn_axis = np.where(out_shape == np.array(data.shape))[0]
-
-        for idx0 in range(data.shape[cmn_axis]):
-            data_f = interpolate.interp2d(lat, theta, data.take(idx0, axis=cmn_axis),
-                                          kind='cubic')
-            slc = [slice(None)] * data_interp.ndim
-            slc[cmn_axis] = idx0
-            data_interp[slc] = data_f(lat_hr, theta_hr)
-
-    elif data.ndim == 4:
-
-        out_shape = list(data.shape)
-        out_shape[lat_dim] = lat_hr.shape[0]
-        out_shape[theta_dim] = theta_hr.shape[0]
-        data_interp = np.zeros(out_shape)
-
-        cmn_axis = np.where(out_shape == np.array(data.shape))[0][:]
-        for idx0 in range(data.shape[cmn_axis[0]]):
-            for idx1 in range(data.shape[cmn_axis[1]]):
-                data_slice = data.take(idx1, axis=cmn_axis[1]).take(idx0,
-                                                                    axis=cmn_axis[0])
-                data_f = interpolate.interp2d(lat, theta, data_slice, kind='cubic')
-                # slc says which axis to place interpolated array on, it's what changes
-                # with the loops
-                slc = [slice(None)] * data_interp.ndim
-                slc[cmn_axis[0]] = idx0
-                slc[cmn_axis[1]] = idx1
-                data_interp[slc] = data_f(lat_hr, theta_hr)
-    return data_interp
 
 
 class STJMetric(object):
@@ -259,8 +192,8 @@ class STJPV(STJMetric):
             extrema = sig.argrelmin
 
         # Get theta on PV==pv_level
-        theta_xpv = cpv.vinterp(self.data.th_lev, self.data.ipv[hem_slice],
-                                np.array([pv_lev]))
+        theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[hem_slice],
+                                  np.array([pv_lev]))
         dims = theta_xpv.shape
 
         uwnd = self.data.uwnd[hem_slice]

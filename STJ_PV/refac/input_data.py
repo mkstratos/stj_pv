@@ -4,7 +4,7 @@ import os
 import numpy as np
 import netCDF4 as nc
 # Dependent code
-import calc_ipv
+import utils
 import data_out as dout
 import psutil
 
@@ -119,6 +119,8 @@ class InputData(object):
             data_vars.remove('tair')
             data_vars.append('pres')
 
+        # This is how they're called in the configuration file, each should point to
+        # how the variable is called in the actual netCDF file
         dim_vars = ['time', 'lev', 'lat', 'lon']
 
         # Load u/v/t; create pv file that has ipv, tpause file with tropopause lev
@@ -143,6 +145,8 @@ class InputData(object):
                     v_in_name = cfg[var]
                     if var == 'time':
                         setattr(self, var, nc_file.variables[v_in_name][:])
+                    elif var == 'lev' and cfg['ztype'] == 'pres':
+                        setattr(self, var, nc_file.variables[v_in_name][:] * cfg['pfac'])
                     else:
                         setattr(self, var, nc_file.variables[v_in_name][:])
 
@@ -203,18 +207,16 @@ class InputData(object):
             for ix_s, ix_e in chunks:
                 self.props.log.info('IPV FOR {} - {}'.format(ix_s, ix_e))
                 self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
-                    calc_ipv.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
-                                 self.in_data['vwnd'][ix_s:ix_e, ...],
-                                 self.in_data['tair'][ix_s:ix_e, ...],
-                                 self.lev, self.lat, self.lon,
-                                 self.props.th_levels)
-
+                    utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
+                              self.in_data['vwnd'][ix_s:ix_e, ...],
+                              self.in_data['tair'][ix_s:ix_e, ...],
+                              self.lev, self.lat, self.lon, self.props.th_levels)
             self.ipv *= 1e6  # Put PV in units of PVU
             self.th_lev = self.props.th_levels
 
         elif cfg['ztype'] == 'theta':
             self.uwnd = self.in_data['uwnd']
-            self.ipv = calc_ipv.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
+            self.ipv = utils.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
                                           self.in_data['pres'], self.lat, self.lon,
                                           self.lev)
 
@@ -249,7 +251,7 @@ class InputData(object):
             trop_h_temp, trop_h_pres = trp.get_tropopause_theta(self.lev,
                                                                 self.in_data['pres'])
 
-        self.trop_theta = calc_ipv.theta(trop_h_temp, trop_h_pres)
+        self.trop_theta = utils.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')
 
     def _calc_dyn_trop(self):
@@ -269,8 +271,8 @@ class InputData(object):
         _nh = [slice(None), slice(None), self.lat >= 0, slice(None)]
         _sh = [slice(None), slice(None), self.lat < 0, slice(None)]
 
-        dyn_trop_nh = calc_ipv.vinterp(self.th_lev, self.ipv[_nh] * 1e6, pv_lev)
-        dyn_trop_sh = calc_ipv.vinterp(self.th_lev, self.ipv[_sh] * 1e6, -pv_lev)
+        dyn_trop_nh = utils.vinterp(self.th_lev, self.ipv[_nh] * 1e6, pv_lev)
+        dyn_trop_sh = utils.vinterp(self.th_lev, self.ipv[_sh] * 1e6, -pv_lev)
         if self.lat[0] > self.lat[-1]:
             self.dyn_trop = np.append(dyn_trop_nh, dyn_trop_sh, axis=1)
         else:
@@ -299,7 +301,7 @@ class InputData(object):
 
         props = {'name': 'isentropic_potential_vorticity',
                  'descr': 'Potential vorticity on theta levels',
-                 'units': 'PVU', 'short_name': 'ipv', 'levvar': 'lev',
+                 'units': 'PVU', 'short_name': 'ipv', 'levvar': self.data_cfg['lev'],
                  'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
                  'timevar': self.data_cfg['time'], 'time_units': self.time_units,
                  'calendar': self.calendar, 'lat_units': 'degrees_north',
@@ -375,7 +377,7 @@ class InputData(object):
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['path'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
-        self.ipv = ipv_in.variables[self.data_cfg['ipv']][:]
+        self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
         self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
 
         coord_names = ['time', 'lev', 'lat', 'lon']
@@ -386,7 +388,7 @@ class InputData(object):
         if self.calendar is None:
             self.calendar = ipv_in.variables[self.data_cfg['time']].calendar
 
-        self.th_lev = self.lev
+        self.th_lev = self.lev[:]
         ipv_in.close()
 
     def _load_trop(self):
@@ -400,7 +402,7 @@ class InputData(object):
         for cname in coord_names:
             if getattr(self, cname) is None:
                 setattr(self, cname, tpause_in.variables[self.data_cfg[cname]][:])
-        self.th_lev = self.lev
+        self.th_lev = self.lev[:]
         if self.time_units is None:
             self.time_units = tpause_in.variables[self.data_cfg['time']].units
         if self.calendar is None:
