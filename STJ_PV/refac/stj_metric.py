@@ -85,39 +85,42 @@ class STJMetric(object):
         self.log = props.log
         self.jet_lat = None
         self.jet_theta = None
+        self.time = None
 
     def save_jet(self):
         """Save jet position to file."""
         # Create output variables
-        props = {'name': 'jet_latitude', 'descr': 'Latitude of subtropical jet',
-                 'units': 'degrees_north', 'short_name': 'lat_sh', 'timevar': 'time',
-                 'calendar': self.data.calendar, 'time_units': self.data.time_units}
-        coords = {'time': self.data.time}
+        props_lat = {'name': 'jet_latitude', 'descr': 'Latitude of subtropical jet',
+                     'units': 'degrees_north', 'short_name': 'lat_sh', 'timevar': 'time',
+                     'calendar': self.data.calendar, 'time_units': self.data.time_units}
+        coords = {'time': self.time}
 
         if self.props['zonal_opt'].lower() != 'mean':
-            props['lonvar'] = 'lon'
-            props['lon_units'] = 'degrees_east'
+            props_lat['lonvar'] = 'lon'
+            props_lat['lon_units'] = 'degrees_east'
             coords['lon'] = self.data.lon
 
-        props_th = dict(props)
+        props_th = dict(props_lat)
         props_th['name'] = 'jet_theta'
         props_th['descr'] = 'Theta level of subtropical jet'
         props_th['units'] = 'K'
         props_th['short_name'] = 'theta_sh'
 
         self.log.info("CREATE VARIABLES")
-        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props)
+        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props_lat)
         theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords, props=props_th)
+        props_lat_nh = dict(props_lat)
+        props_th_nh = dict(props_th)
+        props_lat_nh['short_name'] = 'lat_nh'
+        props_th_nh['short_name'] = 'theta_nh'
+        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props_lat_nh)
+        theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords,
+                                    props=props_th_nh)
 
-        props['short_name'] = 'lat_nh'
-        props_th['short_name'] = 'theta_nh'
-        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props)
-        theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords, props=props_th)
-
-        self.log.info("WRITE TO {out_file}".format(**self.props))
+        self.log.info("WRITE TO {output_file}".format(**self.props))
         # Write jet/theta positions to file
         dio.write_to_netcdf([lat_sh_out, theta_sh_out, lat_nh_out, theta_nh_out],
-                            self.props['out_file'] + '.nc')
+                            self.props['output_file'] + '.nc')
 
 
 class STJPV(STJMetric):
@@ -160,6 +163,8 @@ class STJPV(STJMetric):
         else:
             self.jet_lat = np.zeros([2, dims[0], dims[-1]])
             self.jet_theta = np.zeros([2, dims[0], dims[-1]])
+
+        self.time = self.data.time[:]
 
     def _poly_deriv(self, data, y_s=None, y_e=None, deriv=1):
         """
@@ -214,12 +219,14 @@ class STJPV(STJMetric):
         if shemis:
             hem_slice[lat_axis] = self.data.lat < 0
             hem_slice_3d[lat_axis_3d] = self.data.lat < 0
+            lat = self.data.lat[self.data.lat < 0]
             hidx = 0
             # Link `extrema` function to argrelmax for SH
             extrema = sig.argrelmax
         else:
             hem_slice[lat_axis] = self.data.lat > 0
             hem_slice_3d[lat_axis_3d] = self.data.lat > 0
+            lat = self.data.lat[self.data.lat > 0]
             hidx = 1
             # Link `extrema` function to argrelmin for NH
             extrema = sig.argrelmin
@@ -240,11 +247,14 @@ class STJPV(STJMetric):
 
         for tix in range(dims[0]):
             self.log.info('COMPUTE JET POSITION FOR {}'.format(tix))
-            # Get thermal tropopause intersection with dynamical tropopause
-            y_s = np.abs(self.data.trop_theta[tix, :] - theta_xpv[tix, :]).argmin()
+            # Get thermal tropopause intersection with dynamical tropopause within 45deg
+            # of the equator
+            y_s = np.abs(ttrop[tix, np.abs(lat) < 45] -
+                         theta_xpv[tix, np.abs(lat) < 45]).argmin()
             y_e = None
 
             # If latitude is in decreasing order, switch start/end
+            # This makes sure we're selecting the latitude nearest the equator
             if self.data.lat[0] > self.data.lat[-1]:
                 y_s, y_e = y_e, y_s
 
@@ -256,12 +266,11 @@ class STJPV(STJMetric):
                 # If beginning of array is cut off rather than end, add cut-off to adjust
                 jet_loc_all += y_s
 
-            jet_loc = self.select_jet(jet_loc_all, tix, uwnd[tix, ...])
-
-            self.jet_lat[hidx, tix] = self.data.lat[tix, jet_loc]
+            jet_loc = self.select_jet(jet_loc_all, tix, lat, uwnd[tix, ...])
+            self.jet_lat[hidx, tix] = lat[jet_loc]
             self.jet_theta[hidx, tix] = theta_xpv[tix, jet_loc]
 
-    def select_jet(self, locs, tix, uwnd):
+    def select_jet(self, locs, tix, lat, uwnd):
         """Select correct jet latitude."""
         if len(locs) == 0:
             self.log.info("NO JET LOC {}".format(tix))
@@ -270,9 +279,14 @@ class STJPV(STJMetric):
         elif len(locs) == 1:
             jet_loc = locs[0]
 
-        elif len(jet_loc) > 1:
+        elif len(locs) > 1:
             # TODO: Decide on which (if multiple local mins) to be the location
             # Should be based on wind shear at that location, for now, lowest latitude
-            jet_loc = locs[np.abs(self.data.lat[locs]).argmin()]
+            jet_loc = locs[np.abs(lat[locs]).argmin()]
 
         return jet_loc
+
+    def append(self, other):
+        self.jet_lat = np.append(self.jet_lat, other.jet_lat, axis=1)
+        self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
+        self.time = np.append(self.time, other.time, axis=0)
