@@ -307,8 +307,10 @@ class JetFindRun(object):
         for year in range(year_s, year_e + 1):
             data = self._get_data(year)
             jet = self.metric(self, data)
-            jet.find_jet(shemis=True)
-            jet.find_jet(shemis=False)
+
+            for shemis in [True, False]:
+                jet.find_jet(shemis)
+
             if year == year_s:
                 jet_all = jet
             else:
