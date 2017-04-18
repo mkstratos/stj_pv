@@ -3,10 +3,8 @@ Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and 
 
 Authors: Penelope Maher, Michael Kelleher
 """
-import os
 import logging
 import datetime as dt
-import collections
 import numpy as np
 import yaml
 import stj_metric
@@ -112,7 +110,14 @@ class JetFindRun(object):
         return data
 
     def run(self, year_s, year_e):
+        """
+        Find the jet, save location to a file.
 
+        Parameters
+        ----------
+        year_s, year_e : int
+            Beginning and end years
+        """
         for year in range(year_s, year_e + 1):
             data = self._get_data(year)
             jet = self.metric(self, data)
@@ -127,13 +132,13 @@ class JetFindRun(object):
 
         jet_all.save_jet()
 
+
 def main():
     """Main method, run STJ Metric."""
 
     # Generate an STJProperties, allows easy access to these properties across methods.
-    stj_props = STJProperties()
-    print(stj_props)
-    stj_metric = metric.STJIPVMetric(stj_props)
+    jf_run = JetFindRun('./stj_config_erai_theta.yml')
+    jf_run.run(1980, 1981)
 
 
 if __name__ == "__main__":
