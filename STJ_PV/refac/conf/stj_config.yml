@@ -1,4 +1,4 @@
-data_cfg: './data_config_ncep.yml'
+data_cfg: './conf/data_config_ncep.yml'
 freq: 'mon'
 zonal_opt: 'mean'
 method: 'STJPV'
