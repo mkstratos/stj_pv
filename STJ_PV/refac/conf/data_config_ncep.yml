@@ -41,6 +41,7 @@ lat: 'lat'      # Name within netCDF file of 'latitude' variable
 lev: 'level'    # Name within netCDF file of 'level' variable
 time: 'time'    # Name within netCDF file of 'time' variable
 ztype: 'pres'   # Type of levels (pressure, potential temperature, etc.)
+pfac: 100.0     # Multiply pressure by this to get units of Pascals
 
 # Variable names for u/v wind, air temperature and pv
 uwnd: 'uwnd'
