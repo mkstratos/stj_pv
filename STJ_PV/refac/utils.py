@@ -89,6 +89,245 @@ class NDSlicer(object):
         return self.slicer
 
 
+def vinterp(data, vcoord, vlevels):
+    """
+    Perform linear vertical interpolation.
+
+    Parameters
+    ----------
+    data : array_like (>= 2D)
+        Array of data to be interpolated
+    vcoord : array_like (>= 2D, where data.shape[1] == vcoord.shape[1])
+        Vertical coordinate to interpolate to
+    vlevels : array_like (1D)
+        Levels, in same units as vcoord, to interpolate to
+
+    Returns
+    -------
+    out_data : array_like, (data.shape[0], vlevels.shape[0], *data.shape[2:])
+        Data on vlevels
+    """
+    vcoord_shape = list(vcoord.shape)
+    vcoord_shape.pop(1)
+    if np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) / np.prod(vcoord_shape) > 0.80:
+        # Vcoord data is decreasing on interpolation axis, (at least 80% is)
+        idx_gt = 1
+        idx_lt = 0
+    else:
+        # Data is increasing on interpolation axis
+        idx_gt = 0
+        idx_lt = 1
+
+    if data.ndim >= vcoord.ndim:
+        # Handle case where data has the same dimensions or data has more dimensions
+        # compared to vcoord (e.g. vcoord is 4D, data is 4D, or vcoord is 1D, data is 4D)
+        out_shape = list(data.shape)
+    else:
+        # Handle case where data has fewer dimensions than vcoord
+        # (e.g. data is 1-D vcoord is N-D)
+        out_shape = list(vcoord.shape)
+    out_shape[1] = vlevels.shape[0]
+
+    out_data = np.zeros(out_shape) + np.nan
+
+    for lev_idx, lev in enumerate(vlevels):
+        if idx_gt == 0:
+            # Case where vcoord data is increasing, find index where vcoord below [:-1]
+            # is equal or less than desired lev, and vcoord above [1:] is greater than
+            # lev, this means <data> for lev is between these points, use
+            # weight to determine exactly where
+            idx = np.squeeze(np.where(np.logical_and(vcoord[:, :-1, ...] <= lev,
+                                                     vcoord[:, 1:, ...] > lev)))
+        else:
+            # This does the same, but where vcoord is decreasing with index, so find
+            # where vcoord below [:-1] is greater, and vcoord above [1:] is less or equal
+            idx = np.squeeze(np.where(np.logical_and(vcoord[:, :-1, ...] > lev,
+                                                     vcoord[:, 1:, ...] <= lev)))
+
+        # Create copies of this index, so they can be modified for weighting functions
+        # and output array
+        idx_abve = idx.copy()
+        idx_belw = idx.copy()
+        out_idx = idx.copy()
+
+        # The interpolation axis index (1) for output is the level index (lev_idx)
+        out_idx[1, :] = lev_idx
+
+        # Weighting function 'above' is index +1 for decreasing, or index +0 for decr.
+        idx_abve[1, :] += idx_gt
+        # Weighting function 'below' is index +0 for decreasing, or index +1 for decr.
+        idx_belw[1, :] += idx_lt
+
+        # Change indicies back into tuples so numpy.array.__getitem__ understands them
+        idx_abve = tuple(idx_abve)
+        idx_belw = tuple(idx_belw)
+        out_idx = tuple(out_idx)
+
+        # Weighting function for distance above lev
+        wgt1 = ((lev - vcoord[idx_belw]) / (vcoord[idx_abve] - vcoord[idx_belw]))
+
+        # Weighting function for distance below lev
+        wgt0 = 1.0 - wgt1
+
+        if data.ndim >= vcoord.ndim:
+            # Handle case where data has same or more dimensions than vcoord
+            out_data[out_idx] = (wgt0 * data[idx_belw] + wgt1 * data[idx_abve])
+        else:
+            # Handle case where data has fewer dimensions than vcoord
+            out_data[out_idx] = (wgt0 * data[idx_belw[1]] + wgt1 * data[idx_abve[1]])
+
+    return np.squeeze(out_data)
+
+
+def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
+    """
+    Perform interpolation on 2-dimensions on up to 4-dimensional numpy array.
+
+    Parameters
+    ----------
+    lat : array_like
+        One dimensional latitude coordinate array, matches a dimension of `data`
+    theta_in : array_like
+        One dimensional theta (vertical) coordinate array, matches a dimension of `data`
+    data : array_like
+        Data to be interpolated to high-resolution grid
+    lat_hr : array_like
+        1-D latitude coordinate array that `data` is interpolated to
+    theta_hr : array_like
+        1-D vertical coordinate array that `data` is interpolated to
+
+    Returns
+    -------
+    data_interp : array_like
+        Interpolated data where lat/theta dimensions are interpolated to `lat_hr` and
+        `theta_hr`
+    """
+    lat_dim = np.where(np.array(data.shape) == lat.shape[0])[0]
+    theta_dim = np.where(np.array(data.shape) == theta_in.shape[0])[0]
+
+    if data.ndim == 2:
+        data_f = interp.interp2d(lat, theta_in, data, kind='cubic')
+        data_interp = data_f(lat_hr, theta_hr)
+
+    elif data.ndim == 3:
+        out_shape = list(data.shape)
+        out_shape[lat_dim] = lat_hr.shape[0]
+        out_shape[theta_dim] = theta_hr.shape[0]
+
+        data_interp = np.zeros(out_shape)
+        cmn_axis = np.where(out_shape == np.array(data.shape))[0]
+
+        for idx0 in range(data.shape[cmn_axis]):
+            data_f = interp.interp2d(lat, theta_in, data.take(idx0, axis=cmn_axis),
+                                     kind='cubic')
+            slc = [slice(None)] * data_interp.ndim
+            slc[cmn_axis] = idx0
+            data_interp[slc] = data_f(lat_hr, theta_hr)
+
+    elif data.ndim == 4:
+
+        out_shape = list(data.shape)
+        out_shape[lat_dim] = lat_hr.shape[0]
+        out_shape[theta_dim] = theta_hr.shape[0]
+        data_interp = np.zeros(out_shape)
+
+        cmn_axis = np.where(out_shape == np.array(data.shape))[0][:]
+        for idx0 in range(data.shape[cmn_axis[0]]):
+            for idx1 in range(data.shape[cmn_axis[1]]):
+                data_slice = data.take(idx1, axis=cmn_axis[1]).take(idx0,
+                                                                    axis=cmn_axis[0])
+                data_f = interp.interp2d(lat, theta_in, data_slice, kind='cubic')
+                # slc says which axis to place interpolated array on, it's what changes
+                # with the loops
+                slc = [slice(None)] * data_interp.ndim
+                slc[cmn_axis[0]] = idx0
+                slc[cmn_axis[1]] = idx1
+                data_interp[slc] = data_f(lat_hr, theta_hr)
+    return data_interp
+
+
+def theta(tair, pres):
+    """
+    Calculate potential temperature from temperature and pressure coordinate.
+
+    Parameters
+    ----------
+    tair : array_like
+        ND array of air temperature [in K]
+    pres : array_like
+        Either ND array of pressure same shape as `tair`, or 1D array of pressure where
+        its shape is same as one dimension of `tair` [in Pa]
+
+    Returns
+    -------
+    theta : array_like
+        ND array of potential temperature in K, same shape as `tair` input
+    """
+    r_d = 287.0
+    c_p = 1004.0
+    kppa = r_d / c_p
+    p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
+
+    if tair.ndim == pres.ndim:
+        p_axis = pres
+    else:
+        # Find which coordinate of tair is same shape as pres
+        zaxis = tair.shape.index(pres.shape[0])
+
+        # Generates a list of [None, None, ..., None] whose length is the number of
+        # dimensions of tair, then set the z-axis element in this list to be a slice
+        # of None:None This accomplishes same thing as [None, :, None, None] for
+        # ndim=4, zaxis=1
+        slice_idx = [None] * tair.ndim
+        slice_idx[zaxis] = slice(None)
+
+        # Create an array of pres so that its shape is (1, NPRES, 1, 1) if zaxis=1, ndim=4
+        p_axis = pres[slice_idx]
+
+    return tair * (p_0 / p_axis) ** kppa
+
+
+def inv_theta(thta, pres):
+    """
+    Calculate potential temperature from temperature and pressure coordinate.
+
+    Parameters
+    ----------
+    thta : array_like
+        Either ND array of potential temperature same shape as `pres`, or 1D array of
+        potential temperature where its shape is same as one dimension of `pres` [in K]
+    pres : array_like
+        ND array of pressure [in Pa]
+
+    Returns
+    -------
+    tair : array_like
+        ND array of air temperature in K, same shape as `tair` input
+    """
+    r_d = 287.0
+    c_p = 1004.0
+    kppa = r_d / c_p
+    p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
+
+    if thta.ndim == pres.ndim:
+        th_axis = thta
+    else:
+        # Find which coordinate of tair is same shape as pres
+        zaxis = pres.shape.index(thta.shape[0])
+
+        # Generates a list of [None, None, ..., None] whose length is the number of
+        # dimensions of tair, then set the z-axis element in this list to be a slice
+        # of None:None This accomplishes same thing as [None, :, None, None] for
+        # ndim=4, zaxis=1
+        slice_idx = [None] * pres.ndim
+        slice_idx[zaxis] = slice(None)
+
+        # Create an array of pres so that its shape is (1, NPRES, 1, 1) if zaxis=1, ndim=4
+        th_axis = thta[slice_idx]
+
+    return th_axis * (p_0 / pres) ** -kppa
+
+
 def lapse_rate(t_air, pres, vaxis=None):
     """
     Calculate the lapse rate of temperature in K/km from isobaric temperature data.
@@ -335,73 +574,6 @@ def get_tropopause_theta(theta_in, pres, thr=2.0):
     return get_tropopause_pres(t_pres, pres_levs, thr=thr)
 
 
-def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
-    """
-    Perform interpolation on 2-dimensions on up to 4-dimensional numpy array.
-
-    Parameters
-    ----------
-    lat : array_like
-        One dimensional latitude coordinate array, matches a dimension of `data`
-    theta_in : array_like
-        One dimensional theta (vertical) coordinate array, matches a dimension of `data`
-    data : array_like
-        Data to be interpolated to high-resolution grid
-    lat_hr : array_like
-        1-D latitude coordinate array that `data` is interpolated to
-    theta_hr : array_like
-        1-D vertical coordinate array that `data` is interpolated to
-
-    Returns
-    -------
-    data_interp : array_like
-        Interpolated data where lat/theta dimensions are interpolated to `lat_hr` and
-        `theta_hr`
-    """
-    lat_dim = np.where(np.array(data.shape) == lat.shape[0])[0]
-    theta_dim = np.where(np.array(data.shape) == theta_in.shape[0])[0]
-
-    if data.ndim == 2:
-        data_f = interp.interp2d(lat, theta_in, data, kind='cubic')
-        data_interp = data_f(lat_hr, theta_hr)
-
-    elif data.ndim == 3:
-        out_shape = list(data.shape)
-        out_shape[lat_dim] = lat_hr.shape[0]
-        out_shape[theta_dim] = theta_hr.shape[0]
-
-        data_interp = np.zeros(out_shape)
-        cmn_axis = np.where(out_shape == np.array(data.shape))[0]
-
-        for idx0 in range(data.shape[cmn_axis]):
-            data_f = interp.interp2d(lat, theta_in, data.take(idx0, axis=cmn_axis),
-                                     kind='cubic')
-            slc = [slice(None)] * data_interp.ndim
-            slc[cmn_axis] = idx0
-            data_interp[slc] = data_f(lat_hr, theta_hr)
-
-    elif data.ndim == 4:
-
-        out_shape = list(data.shape)
-        out_shape[lat_dim] = lat_hr.shape[0]
-        out_shape[theta_dim] = theta_hr.shape[0]
-        data_interp = np.zeros(out_shape)
-
-        cmn_axis = np.where(out_shape == np.array(data.shape))[0][:]
-        for idx0 in range(data.shape[cmn_axis[0]]):
-            for idx1 in range(data.shape[cmn_axis[1]]):
-                data_slice = data.take(idx1, axis=cmn_axis[1]).take(idx0,
-                                                                    axis=cmn_axis[0])
-                data_f = interp.interp2d(lat, theta_in, data_slice, kind='cubic')
-                # slc says which axis to place interpolated array on, it's what changes
-                # with the loops
-                slc = [slice(None)] * data_interp.ndim
-                slc[cmn_axis[0]] = idx0
-                slc[cmn_axis[1]] = idx1
-                data_interp[slc] = data_f(lat_hr, theta_hr)
-    return data_interp
-
-
 def diff_cfd(data, axis=-1, cyclic=False):
     """
     Calculate centered finite difference on a field along an axis with even spacing.
@@ -500,96 +672,6 @@ def diffz(data, vcoord, axis=None):
                                  data[slc.slice(-2, -1)]) / dz1
 
     return dxdz
-
-
-def vinterp(data, vcoord, vlevels):
-    """
-    Perform linear vertical interpolation.
-
-    Parameters
-    ----------
-    data : array_like (>= 2D)
-        Array of data to be interpolated
-    vcoord : array_like (>= 2D, where data.shape[1] == vcoord.shape[1])
-        Vertical coordinate to interpolate to
-    vlevels : array_like (1D)
-        Levels, in same units as vcoord, to interpolate to
-
-    Returns
-    -------
-    out_data : array_like, (data.shape[0], vlevels.shape[0], *data.shape[2:])
-        Data on vlevels
-    """
-    vcoord_shape = list(vcoord.shape)
-    vcoord_shape.pop(1)
-    if np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) / np.prod(vcoord_shape) > 0.80:
-        # Vcoord data is decreasing on interpolation axis, (at least 80% is)
-        idx_gt = 1
-        idx_lt = 0
-    else:
-        # Data is increasing on interpolation axis
-        idx_gt = 0
-        idx_lt = 1
-
-    if data.ndim >= vcoord.ndim:
-        # Handle case where data has the same dimensions or data has more dimensions
-        # compared to vcoord (e.g. vcoord is 4D, data is 4D, or vcoord is 1D, data is 4D)
-        out_shape = list(data.shape)
-    else:
-        # Handle case where data has fewer dimensions than vcoord
-        # (e.g. data is 1-D vcoord is N-D)
-        out_shape = list(vcoord.shape)
-    out_shape[1] = vlevels.shape[0]
-
-    out_data = np.zeros(out_shape) + np.nan
-
-    for lev_idx, lev in enumerate(vlevels):
-        if idx_gt == 0:
-            # Case where vcoord data is increasing, find index where vcoord below [:-1]
-            # is equal or less than desired lev, and vcoord above [1:] is greater than
-            # lev, this means <data> for lev is between these points, use
-            # weight to determine exactly where
-            idx = np.squeeze(np.where(np.logical_and(vcoord[:, :-1, ...] <= lev,
-                                                     vcoord[:, 1:, ...] > lev)))
-        else:
-            # This does the same, but where vcoord is decreasing with index, so find
-            # where vcoord below [:-1] is greater, and vcoord above [1:] is less or equal
-            idx = np.squeeze(np.where(np.logical_and(vcoord[:, :-1, ...] > lev,
-                                                     vcoord[:, 1:, ...] <= lev)))
-
-        # Create copies of this index, so they can be modified for weighting functions
-        # and output array
-        idx_abve = idx.copy()
-        idx_belw = idx.copy()
-        out_idx = idx.copy()
-
-        # The interpolation axis index (1) for output is the level index (lev_idx)
-        out_idx[1, :] = lev_idx
-
-        # Weighting function 'above' is index +1 for decreasing, or index +0 for decr.
-        idx_abve[1, :] += idx_gt
-        # Weighting function 'below' is index +0 for decreasing, or index +1 for decr.
-        idx_belw[1, :] += idx_lt
-
-        # Change indicies back into tuples so numpy.array.__getitem__ understands them
-        idx_abve = tuple(idx_abve)
-        idx_belw = tuple(idx_belw)
-        out_idx = tuple(out_idx)
-
-        # Weighting function for distance above lev
-        wgt1 = ((lev - vcoord[idx_belw]) / (vcoord[idx_abve] - vcoord[idx_belw]))
-
-        # Weighting function for distance below lev
-        wgt0 = 1.0 - wgt1
-
-        if data.ndim >= vcoord.ndim:
-            # Handle case where data has same or more dimensions than vcoord
-            out_data[out_idx] = (wgt0 * data[idx_belw] + wgt1 * data[idx_abve])
-        else:
-            # Handle case where data has fewer dimensions than vcoord
-            out_data[out_idx] = (wgt0 * data[idx_belw[1]] + wgt1 * data[idx_abve[1]])
-
-    return np.squeeze(out_data)
 
 
 def convert_radians_latlon(lat, lon):
@@ -865,85 +947,3 @@ def ipv_theta(uwnd, vwnd, pres, lat, lon, th_levels):
 
     # Return isentropic potential vorticity
     return ipv_out
-
-
-def theta(tair, pres):
-    """
-    Calculate potential temperature from temperature and pressure coordinate.
-
-    Parameters
-    ----------
-    tair : array_like
-        ND array of air temperature [in K]
-    pres : array_like
-        Either ND array of pressure same shape as `tair`, or 1D array of pressure where
-        its shape is same as one dimension of `tair` [in Pa]
-
-    Returns
-    -------
-    theta : array_like
-        ND array of potential temperature in K, same shape as `tair` input
-    """
-    r_d = 287.0
-    c_p = 1004.0
-    kppa = r_d / c_p
-    p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
-
-    if tair.ndim == pres.ndim:
-        p_axis = pres
-    else:
-        # Find which coordinate of tair is same shape as pres
-        zaxis = tair.shape.index(pres.shape[0])
-
-        # Generates a list of [None, None, ..., None] whose length is the number of
-        # dimensions of tair, then set the z-axis element in this list to be a slice
-        # of None:None This accomplishes same thing as [None, :, None, None] for
-        # ndim=4, zaxis=1
-        slice_idx = [None] * tair.ndim
-        slice_idx[zaxis] = slice(None)
-
-        # Create an array of pres so that its shape is (1, NPRES, 1, 1) if zaxis=1, ndim=4
-        p_axis = pres[slice_idx]
-
-    return tair * (p_0 / p_axis) ** kppa
-
-
-def inv_theta(thta, pres):
-    """
-    Calculate potential temperature from temperature and pressure coordinate.
-
-    Parameters
-    ----------
-    thta : array_like
-        Either ND array of potential temperature same shape as `pres`, or 1D array of
-        potential temperature where its shape is same as one dimension of `pres` [in K]
-    pres : array_like
-        ND array of pressure [in Pa]
-
-    Returns
-    -------
-    tair : array_like
-        ND array of air temperature in K, same shape as `tair` input
-    """
-    r_d = 287.0
-    c_p = 1004.0
-    kppa = r_d / c_p
-    p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
-
-    if thta.ndim == pres.ndim:
-        th_axis = thta
-    else:
-        # Find which coordinate of tair is same shape as pres
-        zaxis = pres.shape.index(thta.shape[0])
-
-        # Generates a list of [None, None, ..., None] whose length is the number of
-        # dimensions of tair, then set the z-axis element in this list to be a slice
-        # of None:None This accomplishes same thing as [None, :, None, None] for
-        # ndim=4, zaxis=1
-        slice_idx = [None] * pres.ndim
-        slice_idx[zaxis] = slice(None)
-
-        # Create an array of pres so that its shape is (1, NPRES, 1, 1) if zaxis=1, ndim=4
-        th_axis = thta[slice_idx]
-
-    return th_axis * (p_0 / pres) ** -kppa
