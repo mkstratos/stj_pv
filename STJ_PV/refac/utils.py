@@ -109,7 +109,10 @@ def vinterp(data, vcoord, vlevels):
     """
     vcoord_shape = list(vcoord.shape)
     vcoord_shape.pop(1)
-    if np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) / np.prod(vcoord_shape) > 0.80:
+    valid = np.max([np.prod(vcoord_shape) - np.sum(np.isnan(vcoord[:, 0, ...])),
+                    np.prod(vcoord_shape) - np.sum(np.isnan(vcoord[:, -1, ...]))])
+
+    if np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) / valid > 0.80:
         # Vcoord data is decreasing on interpolation axis, (at least 80% is)
         idx_gt = 1
         idx_lt = 0
