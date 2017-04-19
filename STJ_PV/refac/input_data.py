@@ -135,10 +135,9 @@ class InputData(object):
                     file_name = cfg['file_paths'][var].format(year=self.year)
                 except KeyError:
                     file_name = cfg['file_paths']['all'].format(year=self.year)
-
-                nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
                 self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
                                                                    file_name)))
+                nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
             self.props.log.info("\tLOAD: {}".format(var))
             self.in_data[var] = nc_file.variables[vname][:, ...].astype(np.float16)
             if first_file:
@@ -218,8 +217,8 @@ class InputData(object):
         elif cfg['ztype'] == 'theta':
             self.uwnd = self.in_data['uwnd']
             self.ipv = utils.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
-                                          self.in_data['pres'], self.lat, self.lon,
-                                          self.lev)
+                                       self.in_data['pres'], self.lat, self.lon,
+                                       self.lev)
 
         self.props.log.info('Finished calculating IPV')
 
