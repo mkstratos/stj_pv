@@ -641,24 +641,33 @@ def diffz(data, vcoord, axis=None):
     dxdz : array_like
         N-D array of d(data)/d(vcoord), same shape as input `data`
     """
+    # TODO: fix this so data and vcoord are interchangeable
     if axis is None:
         # Find matching axis between data and vcoord
-        axis = data.shape.index(vcoord.shape[0])
+        try:
+            axis = data.shape.index(vcoord.shape[0])
+        except ValueError:
+            axis = vcoord.shape.index(data.shape[0])
 
     # Create array to hold vertical derivative
     dxdz = np.ones(data.shape)
 
-    # Create n-dimensional slicer along matching axis
-    slc = NDSlicer(axis, data.ndim)
-
     # Create an n-dimensional broadcast along matching axis, same as [None, :, None, None]
     # for axis=1, ndim=4
-    bcast = [np.newaxis] * data.ndim
-    bcast[axis] = slice(None)
-
-    d_z = (vcoord[1:] - vcoord[:-1])
-    d_z2 = d_z[:-1][bcast]
-    d_z1 = d_z[1:][bcast]
+    if vcoord.ndim < data.ndim:
+        bcast = [np.newaxis] * data.ndim
+        bcast[axis] = slice(None)
+        d_z = (vcoord[1:] - vcoord[:-1])
+        d_z2 = d_z[:-1][bcast]
+        d_z1 = d_z[1:][bcast]
+        # Create n-dimensional slicer along matching axis
+        slc = NDSlicer(axis, data.ndim)
+    else:
+        slc_vc = NDSlicer(axis, vcoord.ndim)
+        d_z = (vcoord[slc_vc.slice(1, None)] - vcoord[slc_vc.slice(None, -1)])
+        d_z2 = d_z[slc_vc.slice(None, -1)]
+        d_z1 = d_z[slc_vc.slice(1, None)]
+        slc = NDSlicer(0, data.ndim)
 
     dxdz[slc.slice(1, -1)] = ((d_z2 * data[slc.slice(2, None)] +
                                (d_z1 - d_z2) * data[slc.slice(1, -1)] -
@@ -896,7 +905,6 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
     u_th = vinterp(uwnd, thta, th_levels)
     v_th = vinterp(vwnd, thta, th_levels)
     p_th = vinterp(pres, thta, th_levels)
-
     # Calculate IPV on theta levels
     ipv_out = ipv_theta(u_th, v_th, p_th, lat, lon, th_levels)
 
