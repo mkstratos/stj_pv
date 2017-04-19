@@ -22,19 +22,19 @@ short_name: 'NCEP_NCAR_DAILY'
 # single_var_file: False    # Variables are in multiple files (if True)
 # single_year_file: True    # Years are in multiple files (if True)
 # file_paths:
-#   'all': 'erai_theta_{year:04d}.nc'
-#   'ipv': 'erai_theta_{year:04d}.nc'
-#   'tpause': 'erai_tpause_{year:04d}.nc'
+#   all: 'erai_theta_{year:04d}.nc'
+#   ipv: 'erai_theta_{year:04d}.nc'
+#   tpause: 'erai_tpause_{year:04d}.nc'
 
 # single var/file, single year/file - n_vars * n_years files
 single_var_file: True     # Variables are in multiple files (if True)
 single_year_file: True    # Years are in multiple files (if True)
 file_paths:
-    'uwnd': 'uwnd.{year:04d}.nc'
-    'vwnd': 'vwnd.{year:04d}.nc'
-    'tair': 'air.{year:04d}.nc'
-    'ipv': 'ipv.{year:04d}.nc'
-    'tpause': 'tpause.{year:04d}.nc'
+    uwnd: 'uwnd.{year:04d}.nc'
+    vwnd: 'vwnd.{year:04d}.nc'
+    tair: 'air.{year:04d}.nc'
+    ipv: 'ipv.{year:04d}.nc'
+    tpause: 'tpause.{year:04d}.nc'
 
 lon: 'lon'      # Name within netCDF file of 'longitude' variable
 lat: 'lat'      # Name within netCDF file of 'latitude' variable
