@@ -4,6 +4,7 @@ Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and 
 
 Authors: Penelope Maher, Michael Kelleher
 """
+import sys
 import logging
 import datetime as dt
 import numpy as np
@@ -56,15 +57,19 @@ class JetFindRun(object):
         else:
             # Open the configuration file, put its contents into a variable to be read by
             # YAML reader
-            with open(config_file) as cfg:
-                self.config = yaml.load(cfg.read())
+            self.config, cfg_failed = check_run_config(config_file)
+            if cfg_failed:
+                print('CONFIG CHECKS FAILED...EXITING')
+                sys.exit(1)
 
             if '{}' in self.config['log_file']:
                 # Log file name contains a format placeholder, use current time
                 self.config['log_file'] = self.config['log_file'].format(now)
 
-        with open(self.config['data_cfg']) as data_cfg:
-            self.data_cfg = yaml.load(data_cfg.read())
+        self.data_cfg, data_cfg_failed = check_data_config(self.config['data_cfg'])
+        if data_cfg_failed:
+            print('DATA CONFIG CHECKS FAILED...EXITING')
+            sys.exit(1)
 
         if self.data_cfg['single_var_file']:
             for var in ['uwnd', 'vwnd', 'tair']:
@@ -136,6 +141,119 @@ class JetFindRun(object):
                 jet_all.append(jet)
 
         jet_all.save_jet()
+
+
+def check_config_req(cfg_file, required_keys_all, id_file=True):
+    """
+    Check that required keys exist within a configuration file.
+
+    Parameters
+    ----------
+    cfg_file : string
+        Path to configuration file
+    required_keys_all : list
+        Required keys that must exist in configuration file
+
+    Returns
+    -------
+    config : dict
+        Dictionary of loaded configuration file
+    mkeys : bool
+        True if required keys are missing
+    """
+    with open(cfg_file) as cfg:
+        config = yaml.load(cfg.read())
+
+    if id_file:
+        print('{0} {1:^40s} {0}'.format(7 * '#', cfg_file))
+    keys_in = config.keys()
+    missing = []
+    wrong_type = []
+    for key in required_keys_all:
+        if key not in keys_in:
+            missing.append(key)
+            check_str = '[MISSING]'
+        elif not isinstance(config[key], required_keys_all[key]):
+            wrong_type.append(key)
+            check_str = '[WRONG TYPE]'
+        else:
+            check_str = '[OKAY]'
+        print('{:30s} {:30s}'.format(key, check_str))
+
+    if len(missing) > 0 or len(wrong_type) > 0:
+        print('{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
+                                           'KEYS MISSING OR WRONG TYPE', 12 * '<'))
+
+        for key in missing:
+            print('    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
+        for key in wrong_type:
+            print('    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
+                                                                  required_keys_all[key]))
+        mkeys = True
+    else:
+        mkeys = False
+
+    return config, mkeys
+
+
+def check_run_config(cfg_file):
+    """
+    Check the settings in a run configuration file.
+
+    Parameters
+    ----------
+    cfg_file : string
+        Path to configuration file
+    """
+    required_keys_all = {'data_cfg': str, 'freq': str, 'zonal_opt': str, 'method': str,
+                         'log_file': str, 'year_s': int, 'year_e': int}
+
+    config, missing_req = check_config_req(cfg_file, required_keys_all)
+
+    # Optional checks
+    missing_optionals = []
+    if not missing_req:
+        if config['method'] not in ['STJPV']:
+            # config must have pfac if it's pressure level data
+            missing_optionals.append(False)
+            print('NO METHOD FOR HANDLING: {}'.format(config['method']))
+
+        elif config['method'] == 'STJPV':
+            opt_keys = {'poly': str, 'fit_deg': int, 'pv_value': float}
+            cfg, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
+            missing_optionals.append(missing_opt)
+
+    return config, any([missing_req, all(missing_optionals)])
+
+
+def check_data_config(cfg_file):
+    """
+    Check the settings in a data configuration file.
+
+    Parameters
+    ----------
+    cfg_file : string
+        Path to configuration file
+    """
+    required_keys_all = {'path': str, 'short_name': str, 'single_var_file': bool,
+                         'single_year_file': bool, 'file_paths': dict,
+                         'lon': str, 'lat': str, 'lev': str, 'time': str, 'ztype': str}
+
+    config, missing_req = check_config_req(cfg_file, required_keys_all)
+    # Optional checks
+    missing_optionals = []
+    if not missing_req:
+        if config['ztype'] == 'pres':
+            # config must have pfac if it's pressure level data
+            opt_reqs = {'pfac': float}
+            d_cfg, miss_opts = check_config_req(cfg_file, opt_reqs)
+            missing_optionals.append(miss_opts)
+
+        elif config['ztype'] not in ['pres', 'theta']:
+            print('NO METHOD TO HANDLE {} level data'.format(config['ztype']))
+            missing_optionals.append(False)
+
+    return config, any([missing_req, all(missing_optionals)])
 
 
 def main():
