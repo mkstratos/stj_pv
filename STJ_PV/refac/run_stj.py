@@ -78,6 +78,11 @@ class JetFindRun(object):
                     # this allows for the same loop no matter if data is in multiple files
                     self.data_cfg['file_paths'][var] = self.data_cfg['file_paths']['all']
 
+        if 'wpath' not in self.data_cfg:
+            # Sometimes, can't write to original data's path, so wpath is set
+            # if it isn't, then wpath == path is fine, set that here
+            self.data_cfg['wpath'] = self.data_cfg['path']
+
         if self.config['method'] == 'STJPV':
             self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
                                           'fit{fit_deg}_y0{min_lat}'

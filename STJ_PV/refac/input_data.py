@@ -54,9 +54,10 @@ class InputData(object):
         # First, check if we want to update data, or need to create from scratch
         # if not, then we can load existing data
         cfg = self.data_cfg
-        pv_file = os.path.join(cfg['path'],
+
+        pv_file = os.path.join(cfg['wpath'],
                                cfg['file_paths']['ipv'].format(year=self.year))
-        tp_file = os.path.join(cfg['path'],
+        tp_file = os.path.join(cfg['wpath'],
                                cfg['file_paths']['tpause'].format(year=self.year))
         data_load = (self.config['update_pv'] or not os.path.exists(pv_file) or
                      not os.path.exists(tp_file))
@@ -85,8 +86,8 @@ class InputData(object):
             Start and end years of period, respectively
         """
         cfg = self.data_cfg
-        pv_file_fmt = os.path.join(cfg['path'], cfg['file_paths']['ipv'])
-        tp_file_fmt = os.path.join(cfg['path'], cfg['file_paths']['tpause'])
+        pv_file_fmt = os.path.join(cfg['wpath'], cfg['file_paths']['ipv'])
+        tp_file_fmt = os.path.join(cfg['wpath'], cfg['file_paths']['tpause'])
 
         for year in range(year_s, year_e + 1):
             self.year = year
@@ -291,7 +292,7 @@ class InputData(object):
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
-            out_file = os.path.join(self.data_cfg['path'], file_name)
+            out_file = os.path.join(self.data_cfg['wpath'], file_name)
 
         self.props.log.info('WRITE IPV: {}'.format(out_file))
 
@@ -328,7 +329,7 @@ class InputData(object):
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['dyn_trop'].format(year=self.year)
-            out_file = os.path.join(self.data_cfg['path'], file_name)
+            out_file = os.path.join(self.data_cfg['wpath'], file_name)
 
         self.props.log.info('WRITE DYN TROP: {}'.format(out_file))
 
@@ -357,7 +358,7 @@ class InputData(object):
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['tpause'].format(year=self.year)
-            out_file = os.path.join(self.data_cfg['path'], file_name)
+            out_file = os.path.join(self.data_cfg['wpath'], file_name)
 
         coord_names = ['time', 'lat', 'lon']
         coords = {cname: getattr(self, cname) for cname in coord_names}
@@ -375,7 +376,7 @@ class InputData(object):
     def _load_ipv(self):
         """Open IPV file, load into self.ipv."""
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
-        in_file = os.path.join(self.data_cfg['path'], file_name)
+        in_file = os.path.join(self.data_cfg['wpath'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
         self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
         self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
@@ -394,7 +395,7 @@ class InputData(object):
     def _load_trop(self):
         """Open IPV file, load into self.ipv."""
         file_name = self.data_cfg['file_paths']['tpause'].format(year=self.year)
-        in_file = os.path.join(self.data_cfg['path'], file_name)
+        in_file = os.path.join(self.data_cfg['wpath'], file_name)
         tpause_in = nc.Dataset(in_file, 'r')
         self.trop_theta = tpause_in.variables['trop_theta'][:]
 
