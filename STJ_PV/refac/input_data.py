@@ -206,8 +206,8 @@ class InputData(object):
             self.ipv = np.zeros(th_shape)
             self.uwnd = np.zeros(th_shape)
             chunks = self._gen_chunks()
+            self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
-                self.props.log.info('IPV FOR {} - {}'.format(ix_s, ix_e))
                 self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
                     utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
                               self.in_data['vwnd'][ix_s:ix_e, ...],
@@ -243,8 +243,8 @@ class InputData(object):
             trop_h_temp = np.zeros(dims)
             trop_h_pres = np.zeros(dims)
 
+            self.props.log.info('TROPOPAUSE FOR USUNG {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
-                self.props.log.info('TROPOPAUSE FOR {} - {}'.format(ix_s, ix_e))
                 trop_h_temp[ix_s:ix_e, ...], trop_h_pres[ix_s:ix_e, ...] =\
                     trp.get_tropopause_pres(self.in_data['tair'][ix_s:ix_e, v_slice, ...],
                                             self.lev[v_slice])
