@@ -115,7 +115,7 @@ def vinterp(data, vcoord, vlevels):
     """
     vcoord_shape = list(vcoord.shape)
     vcoord_shape.pop(1)
-    valid = np.max([np.prod(vcoord_shape) - np.sum(np.isnan(vcoord[:, 0, ...])),
+    valid = np.min([np.prod(vcoord_shape) - np.sum(np.isnan(vcoord[:, 0, ...])),
                     np.prod(vcoord_shape) - np.sum(np.isnan(vcoord[:, -1, ...]))])
 
     if np.sum(vcoord[:, 0, ...] > vcoord[:, -1, ...]) / valid > 0.80:
