@@ -24,6 +24,7 @@ class STJMetric(object):
             Object containing required input data
         props : JetFindRun
             Properties about the current jet finding attempt, including log file
+
         """
         self.name = name
         self.data = data
@@ -88,6 +89,7 @@ class STJPV(STJMetric):
             Class containing properties about the current search for the STJ
         data : InputData
             Input data class containing a year (or more) of required data
+
         """
         name = 'PVGrad'
         super().__init__(name=name, props=jet_run, data=data)
@@ -143,6 +145,7 @@ class STJPV(STJMetric):
         -------
         poly_der : array_like
             1D array of 1st derivative of data w.r.t. latitude between indices y_s and y_e
+
         """
         poly_fit = self.pfit(lat[y_s:y_e], data[y_s:y_e], self.fit_deg)
         poly_der = self.peval(lat[y_s:y_e], self.pder(poly_fit, deriv))
@@ -151,12 +154,13 @@ class STJPV(STJMetric):
 
     def find_jet(self, shemis=True):
         """
-        Using input parameters find the subtropical jet.
+        Find the subtropical jet using input parameters.
 
         Parameters
         ----------
         shemis : logical, optional
             If True, find jet position in Southern Hemisphere, if False, find N.H. jet
+
         """
         if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
             pv_lev = self.pv_lev

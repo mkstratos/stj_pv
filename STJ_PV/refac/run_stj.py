@@ -32,9 +32,9 @@ class JetFindRun(object):
 
     Methods
     -------
-    setup_logger
-    find_jet
-    write_data
+    log_setup
+    run
+
     """
 
     def __init__(self, config_file=None):
@@ -45,6 +45,7 @@ class JetFindRun(object):
         ----------
         config : string, optional
             Location of YAML-formatted configuration file, default None
+
         """
         now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         if config_file is None:
@@ -127,6 +128,7 @@ class JetFindRun(object):
         year_s, year_e : int
             Beginning and end years, optional. If not included,
             use self.year_s and/or self.year_e
+
         """
         if year_s is None:
             year_s = self.config['year_s']
@@ -165,6 +167,7 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
         Dictionary of loaded configuration file
     mkeys : bool
         True if required keys are missing
+
     """
     with open(cfg_file) as cfg:
         config = yaml.load(cfg.read())
@@ -209,6 +212,7 @@ def check_run_config(cfg_file):
     ----------
     cfg_file : string
         Path to configuration file
+
     """
     required_keys_all = {'data_cfg': str, 'freq': str, 'zonal_opt': str, 'method': str,
                          'log_file': str, 'year_s': int, 'year_e': int}
@@ -239,6 +243,7 @@ def check_data_config(cfg_file):
     ----------
     cfg_file : string
         Path to configuration file
+
     """
     required_keys_all = {'path': str, 'short_name': str, 'single_var_file': bool,
                          'single_year_file': bool, 'file_paths': dict,
@@ -262,10 +267,10 @@ def check_data_config(cfg_file):
 
 
 def main():
-    """Main method, run STJ Metric."""
+    """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run.run(1979, 1979)
+    jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+    jf_run.run(1979, 2016)
 
 
 if __name__ == "__main__":

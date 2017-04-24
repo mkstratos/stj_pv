@@ -35,7 +35,6 @@ class NCOutVar(object):
 
         Parameters
         ----------
-
         data_in : array_like
             N-Dimensional input data to be written to netCDF file
         props : dict
@@ -43,6 +42,7 @@ class NCOutVar(object):
         coords : dict
             Dictionary containing at least one of ['time', 'lev', 'lat', 'lon'] or
             any combination of them, with associated coordinate variable
+
         """
         # Pull in required data, (data, diminsion sizes, its name,
         # description, units and netCDF output var)
@@ -59,7 +59,7 @@ class NCOutVar(object):
         self.data = data_in
 
     def _set_coords(self, coords_in):
-        """Setup coordinate variables based on `self.props` and `self.coords`."""
+        """Set coordinate variables based on `self.props` and `self.coords`."""
         # For each possible coordinate variable, (time, lev, lat, lon)
         # set up the coordinate array with its shape and units
         for coord_type in ['time', 'lev', 'lat', 'lon']:
@@ -98,6 +98,7 @@ class NCOutVar(object):
         ----------
         copy_from : NCOutVar
             NCOutVar from which to get properties
+
         """
         self.props = dict(copy_from.props)
         self.coords = dict(copy_from.coords)
@@ -113,6 +114,7 @@ class NCOutVar(object):
             Name of property to change
         prop_in : any
             Set self.props[prop_name] = prop_in
+
         """
         self.props[prop_name] = prop_in
 
@@ -124,6 +126,7 @@ class NCOutVar(object):
         ----------
         prop_dict: dict
             Format of {'prop_name': new prop value, ...}
+
         """
         for prop in prop_dict:
             self.set_prop(prop, prop_dict[prop])
@@ -141,6 +144,7 @@ def write_to_netcdf(data_in, out_file):
         List of NCOutVars to write to file
     out_file : string
         Name of file to write output
+
     """
     if not isinstance(data_in, list):
         data_in = [data_in]  # Just in case someone forgets to pass a list of variables

@@ -31,6 +31,7 @@ class NDSlicer(object):
         start, end, skip : integer, optional
             Index of beginning, end and skip width of the slice [start:end:skip]
             default for each is None.
+
         """
         self.axis = axis
         self.ndim = ndim
@@ -80,6 +81,7 @@ class NDSlicer(object):
             [[ 1.06804045  0.63094676 -0.76633033]
              [-1.69841915  0.35207064 -0.4582049 ]
              [-0.56431067  0.62833728 -0.04101542]]
+
         """
         self.start = start
         self.end = end
@@ -106,6 +108,7 @@ def vinterp(data, vcoord, vlevels):
     -------
     out_data : array_like, (data.shape[0], vlevels.shape[0], *data.shape[2:])
         Data on vlevels
+
     """
     vcoord_shape = list(vcoord.shape)
     vcoord_shape.pop(1)
@@ -204,6 +207,7 @@ def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
     data_interp : array_like
         Interpolated data where lat/theta dimensions are interpolated to `lat_hr` and
         `theta_hr`
+
     """
     lat_dim = np.where(np.array(data.shape) == lat.shape[0])[0]
     theta_dim = np.where(np.array(data.shape) == theta_in.shape[0])[0]
@@ -265,6 +269,7 @@ def theta(tair, pres):
     -------
     theta : array_like
         ND array of potential temperature in K, same shape as `tair` input
+
     """
     r_d = 287.0
     c_p = 1004.0
@@ -306,6 +311,7 @@ def inv_theta(thta, pres):
     -------
     tair : array_like
         ND array of air temperature in K, same shape as `tair` input
+
     """
     r_d = 287.0
     c_p = 1004.0
@@ -348,6 +354,7 @@ def lapse_rate(t_air, pres, vaxis=None):
         N-D array of lapse rate in K/km matching dimensionality of t_air
     d_z : array_like
         N-D array of height differences in km between levels, same shape as t_air
+
     """
     r_d = 287.0         # J K^-1 kg^-1  gas constant of dry air
 
@@ -415,6 +422,7 @@ def trop_lev_1d(dtdz, d_z, thr=2.0, return_idx=False):
     out_mask : array_like
         1D array, same shape as `dtdz` and `d_z`, of booleans, `True` everywhere except
         the tropopause level
+
     """
     lt_thr = dtdz < thr
     lt_transition = np.append(False, np.logical_and(np.logical_not(lt_thr[:-1]),
@@ -455,6 +463,7 @@ def find_tropopause_mask(dtdz, d_z, thr=2.0):
     -------
     trop_level : integer
         Index of tropopause level on the vertical axis
+
     """
     # For now, we'll assume if 1-D data: vertical is dim 0, >= 2-D vertical is dim 1
     # Loops are slow, but still can't figure out a way beyond them :-(
@@ -498,6 +507,7 @@ def get_tropopause(t_air, pres, thr=2.0, vaxis=1):
     trop_temp, trop_pres : array_like
         Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension
         dropped is vertical axis, same units as input t_air and pres respectively
+
     """
     # Calculate the lapse rate, gives back lapse rate and d(height)
     dtdz, d_z = lapse_rate(t_air, pres, vaxis=vaxis)
@@ -530,6 +540,7 @@ def get_tropopause_pres(t_air, pres, thr=2.0):
     trop_temp, trop_pres : array_like
         Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension
         dropped is vertical axis, same units as input t_air and pres respectively
+
     """
     # Find half pressure levels
     pres_hf = (pres[:-1] - pres[1:]) / 2.0 + pres[1:]
@@ -569,6 +580,7 @@ def get_tropopause_theta(theta_in, pres, thr=2.0):
     trop_temp, trop_pres : array_like
         Temperature and pressure at tropopause level, in (N-1)-D arrays, where dimension
         dropped is vertical axis, same units as input t_air and pres respectively
+
     """
     t_air = inv_theta(theta_in, pres)
     pres_levs = np.logspace(5, 3, theta_in.shape[0])
@@ -594,6 +606,7 @@ def diff_cfd(data, axis=-1, cyclic=False):
     -------
     diff : array_like
         ND array of central finite differences of `data` along `axis`
+
     """
     # Calculate centred differences along longitude direction
     # Eqivalent to: diff = data[..., 2:] - data[..., :-2] for axis == -1
@@ -640,6 +653,7 @@ def diffz(data, vcoord, axis=None):
     -------
     dxdz : array_like
         N-D array of d(data)/d(vcoord), same shape as input `data`
+
     """
     # TODO: fix this so data and vcoord are interchangeable
     if axis is None:
@@ -703,6 +717,7 @@ def convert_radians_latlon(lat, lon):
         ND array of latitude in radians
     lon : array_like
         ND array of longitude in radians
+
     """
     if (np.max(np.abs(lat)) - np.pi / 2.0) > 1.0:
         lat_out = lat * RAD
@@ -737,6 +752,7 @@ def dlon_dlat(lon, lat, cyclic=True):
         NLat x Nlon array of horizontal distnaces along longitude axis
     dlatg : array_like
         NLat x Nlon array of horizontal distnaces along latitude axis
+
     """
     # Check that lat/lon are in radians
     lat, lon = convert_radians_latlon(lat, lon)
@@ -787,6 +803,7 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
         Relative vorticity V = U x V (cross product of U and V wind)
         If cyclic, returns same dimensions as uwnd & vwnd, if not it is
         (*vwnd.shape[0:-1], vwnd.shape[-1] - 2)
+
     """
     # Check that lat/lon are in radians
     lat, lon = convert_radians_latlon(lat, lon)
@@ -840,6 +857,7 @@ def dth_dp(theta_in, data_in):
     out_data : array_like ND, same as data
         Centered finite difference for data_in[:, 1:-1, ...], backward/forward for
         bottom/top boundaries
+
     """
     # Calculate centred finite differences for theta (1D) and data on theta lvls (>=2D)
     dth = theta_in[2:] - theta_in[:-2]
@@ -898,6 +916,7 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
         Pressure on isentropic levels [Pa]
     u_th : array_like
         Zonal wind on isentropic levels [m/s]
+
     """
     # Calculate potential temperature on isobaric (pressure) levels
     thta = theta(tair, pres)
@@ -936,6 +955,7 @@ def ipv_theta(uwnd, vwnd, pres, lat, lon, th_levels):
     ipv : array_like
         3 or 4-D isentropic potential vorticity in units
         of m-2 s-1 K kg-1 (e.g. 10^6 PVU)
+
     """
     # Calculate relative vorticity on isentropic levels
     rel_v = rel_vort(uwnd, vwnd, lat, lon)

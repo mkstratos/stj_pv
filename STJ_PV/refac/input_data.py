@@ -22,6 +22,7 @@ class InputData(object):
     jet_find : `run_stj.JetFindRun`
         Object containing properties about the metric calculation to be done. Used to
         locate correct files, and variables within those files.
+
     """
 
     def __init__(self, props, year=None):
@@ -84,6 +85,7 @@ class InputData(object):
         ----------
         year_s, year_e : int
             Start and end years of period, respectively
+
         """
         cfg = self.data_cfg
         pv_file_fmt = os.path.join(cfg['wpath'], cfg['file_paths']['ipv'])
@@ -288,6 +290,7 @@ class InputData(object):
         ----------
         out_file : string, optional
             Output file path for pickle or netCDF4 file, will contain ipv data and coords
+
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
@@ -325,6 +328,7 @@ class InputData(object):
         ----------
         out_file : string, optional
             Output file path for pickle or netCDF4 file, will contain ipv data and coords
+
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['dyn_trop'].format(year=self.year)
@@ -354,6 +358,7 @@ class InputData(object):
         ----------
         out_file : string, optional
             Output file path for pickle or netCDF4 file, will contain ipv data and coords
+
         """
         if out_file is None:
             file_name = self.data_cfg['file_paths']['tpause'].format(year=self.year)
