@@ -9,10 +9,13 @@ __author__ = "Penelope Maher, Michael Kelleher"
 # Constants to be used within this file
 # specify the range and increment over which to calculate IPV
 TH_LEV = np.arange(300, 501, 5)
-RAD = np.pi / 180.0  # radians per degree
-OM = 7.292e-5  # Angular rotation rate of earth    [rad]
-GRV = 9.81      # Acceleration due to GRVity       [m/s^2]
-EARTH_R = 6.371e6
+RAD = np.pi / 180.0 # radians per degree
+OM = 7.292e-5       # Angular rotation rate of earth    [rad]
+GRV = 9.81          # Acceleration due to GRVity        [m/s^2]
+EARTH_R = 6.371e6   # Radius of earth                   [m]
+R_D = 287.0         # Dry gas constant                  [J kg^-1 K^-1]
+C_P= 1004.0         # Specific heat of dry air          [J kg^-1 K^-1]
+KPPA = R_D / C_P    # Ratio of gas constants
 
 
 class NDSlicer(object):
@@ -271,9 +274,6 @@ def theta(tair, pres):
         ND array of potential temperature in K, same shape as `tair` input
 
     """
-    r_d = 287.0
-    c_p = 1004.0
-    kppa = r_d / c_p
     p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
 
     if tair.ndim == pres.ndim:
@@ -292,7 +292,7 @@ def theta(tair, pres):
         # Create an array of pres so that its shape is (1, NPRES, 1, 1) if zaxis=1, ndim=4
         p_axis = pres[slice_idx]
 
-    return tair * (p_0 / p_axis) ** kppa
+    return tair * (p_0 / p_axis) ** KPPA
 
 
 def inv_theta(thta, pres):
@@ -313,9 +313,6 @@ def inv_theta(thta, pres):
         ND array of air temperature in K, same shape as `tair` input
 
     """
-    r_d = 287.0
-    c_p = 1004.0
-    kppa = r_d / c_p
     p_0 = 100000.0  # Don't be stupid, make sure pres and p_0 are in Pa!
 
     if thta.ndim == pres.ndim:
@@ -334,7 +331,7 @@ def inv_theta(thta, pres):
         # Create an array of pres so that its shape is (1, NPRES, 1, 1) if zaxis=1, ndim=4
         th_axis = thta[slice_idx]
 
-    return th_axis * (p_0 / pres) ** -kppa
+    return th_axis * (p_0 / pres) ** -KPPA
 
 
 def lapse_rate(t_air, pres, vaxis=None):
@@ -356,8 +353,6 @@ def lapse_rate(t_air, pres, vaxis=None):
         N-D array of height differences in km between levels, same shape as t_air
 
     """
-    r_d = 287.0         # J K^-1 kg^-1  gas constant of dry air
-
     # Common axis is vertical axis
     if pres.ndim == 1 or vaxis is None:
         ax_com = t_air.shape.index(pres.shape[0])
@@ -393,7 +388,7 @@ def lapse_rate(t_air, pres, vaxis=None):
     # rho = p / (Rd * T)
     # Hydrostatic approximation dz = -dp/(rho * g)
     d_z = -d_p[bcast_nd] / (((pres[bcast_nd] * pres_fac) /
-                             (r_d * t_air))[slc_t.slice(1, None)] * GRV) / 1000.0
+                             (R_D * t_air))[slc_t.slice(1, None)] * GRV) / 1000.0
 
     # Lapse rate [K/km] (-dt / dz)
     dtdz = -(t_air[slc_t.slice(1, None)] - t_air[slc_t.slice(None, -1)]) / d_z
