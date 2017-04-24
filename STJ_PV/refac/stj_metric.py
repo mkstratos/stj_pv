@@ -209,8 +209,8 @@ class STJPV(STJMetric):
             uwnd = np.nanmean(uwnd, axis=-1)
             ttrop = np.nanmean(ttrop, axis=-1)
 
+        self.log.info('COMPUTING JET POSITION FOR {} TIMES'.format(dims[0]))
         for tix in range(dims[0]):
-            self.log.info('COMPUTE JET POSITION FOR {}'.format(tix))
             # Get thermal tropopause intersection with dynamical tropopause within 45deg
             # of the equator
             y_s = np.abs(ttrop[tix, np.abs(lat) < 45] -
@@ -241,6 +241,7 @@ class STJPV(STJMetric):
             jet_loc = 0
 
         elif len(locs) == 1:
+            # This essentially converts a list of length 1 to a single int
             jet_loc = locs[0]
 
         elif len(locs) > 1:
