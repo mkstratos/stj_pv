@@ -127,6 +127,8 @@ class STJPV(STJMetric):
             self.jet_theta = np.zeros([2, dims[0], dims[-1]])
 
         self.time = self.data.time[:]
+        self.tix = None
+        self.xix = None
 
     def _poly_deriv(self, lat, data, y_s=None, y_e=None, deriv=1):
         """
@@ -211,33 +213,57 @@ class STJPV(STJMetric):
 
         self.log.info('COMPUTING JET POSITION FOR {} TIMES'.format(dims[0]))
         for tix in range(dims[0]):
-            # Get thermal tropopause intersection with dynamical tropopause within 45deg
-            # of the equator
-            y_s = np.abs(ttrop[tix, np.abs(lat) < 45] -
-                         theta_xpv[tix, np.abs(lat) < 45]).argmin()
-            y_e = None
-
-            # If latitude is in decreasing order, switch start/end
-            # This makes sure we're selecting the latitude nearest the equator
-            if lat[0] < lat[-1]:
-                y_s, y_e = y_e, y_s
-
-            # Find derivative of dynamical tropopause
-            dtheta = self._poly_deriv(lat, theta_xpv[tix, :], y_s=y_s, y_e=y_e)
-
-            jet_loc_all = extrema(dtheta)[0].astype(int)
-            if y_s is not None:
-                # If beginning of array is cut off rather than end, add cut-off to adjust
-                jet_loc_all += y_s
-
-            jet_loc = self.select_jet(jet_loc_all, tix, lat, uwnd[tix, ...])
+            self.tix = tix
+            jet_loc = self._find_single_jet(theta_xpv[tix, ...], ttrop[tix, ...],
+                                            lat, uwnd[tix, ...], extrema)
             self.jet_lat[hidx, tix] = lat[jet_loc]
             self.jet_theta[hidx, tix] = theta_xpv[tix, jet_loc]
 
-    def select_jet(self, locs, tix, lat, uwnd):
+    def _find_single_jet(self, theta_xpv, ttrop, lat, uwnd, extrema):
+        """
+        Find jet location for a 1D array of theta on latitude.
+
+        Parameters
+        ----------
+        theta_xpv : array_like
+            Theta on PV level as a function of latitude
+        ttrop : array_like
+            Thermal tropopause theta as a function of latitude
+        lat : array_like
+            1D array of latitude same shape as theta_xpv and ttrop
+        uwnd : array_like
+            2D array of wind (Height x Latitude) on theta levels
+
+        Returns
+        -------
+        jet_loc : int
+            Index of jet location on latitude axis
+
+        """
+        # Get thermal tropopause intersection with dynamical tropopause within 45deg
+        # of the equator
+        y_s = np.abs(ttrop[np.abs(lat) < 45] - theta_xpv[np.abs(lat) < 45]).argmin()
+        y_e = None
+
+        # If latitude is in decreasing order, switch start/end
+        # This makes sure we're selecting the latitude nearest the equator
+        if lat[0] < lat[-1]:
+            y_s, y_e = y_e, y_s
+
+        # Find derivative of dynamical tropopause
+        dtheta = self._poly_deriv(lat, theta_xpv, y_s=y_s, y_e=y_e)
+
+        jet_loc_all = extrema(dtheta)[0].astype(int)
+        if y_s is not None:
+            # If beginning of array is cut off rather than end, add cut-off to adjust
+            jet_loc_all += y_s
+
+        return self.select_jet(jet_loc_all, lat, uwnd)
+
+    def select_jet(self, locs, lat, uwnd):
         """Select correct jet latitude."""
         if len(locs) == 0:
-            self.log.info("NO JET LOC {}".format(tix))
+            self.log.info("NO JET LOC {}".format(self.time[self.tix]))
             jet_loc = 0
 
         elif len(locs) == 1:
