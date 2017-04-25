@@ -95,7 +95,7 @@ class NDSlicer(object):
 
 
 def vinterp(data, vcoord, vlevels):
-    """
+    r"""
     Perform linear vertical interpolation.
 
     Parameters
@@ -103,14 +103,48 @@ def vinterp(data, vcoord, vlevels):
     data : array_like (>= 2D)
         Array of data to be interpolated
     vcoord : array_like (>= 2D, where data.shape[1] == vcoord.shape[1])
-        Vertical coordinate to interpolate to
+        Array representing the vertical structure (height/pressure/PV/theta/etc.) of
+        `data`
     vlevels : array_like (1D)
         Levels, in same units as vcoord, to interpolate to
 
     Returns
     -------
-    out_data : array_like, (data.shape[0], vlevels.shape[0], *data.shape[2:])
+    out_data : array_like, (data.shape[0], vlevels.shape[0], \*data.shape[2:])
         Data on vlevels
+
+    Examples
+    --------
+    data and vcoord of the same shape:
+    Given some u-wind data `uwnd` that is on (time, pressure, lat, lon), a potential
+    temperature field `theta` on the same dimensions (t, p, lat, lon), and a few selected
+    potential temperature levels to interpolate to `th_levs = [275, 300, 325, 350, 375]`::
+    >>> print(uwnd.shape)
+    (365, 17, 73, 144)
+    >>> print(theta.shape)
+    (365, 17, 73, 144)
+    >>> print(th_levs)
+    [ 275.  300.  325.  350.  375.]
+    uwnd_theta = vinterp(uwnd, theta, th_levs)
+    >>> print(uwnd_theta.shape)
+    (365, 5, 73, 144)
+
+    This results in u-wind on the requested theta surfaces
+
+    data is 1D vcoord is 4D
+    Given some potential temperature levels `th_levs = [275, 300, 325, 350, 375]` and a
+    4D array of potential vorticity ipv on (time, theta, lat, lon), and selected PV levels
+    pv_levs = [1.0, 2.0, 3.0]::
+
+    >>> print(th_levs.shape)
+    (5, )
+    >>> print(ipv.shape)
+    (365, 5, 73, 144)
+    >>> theta_pv = vinterp(th_levs, ipv, pv_levs)
+    >>> print(theta_pv.shape)
+    (365, 3, 73, 144)
+
+    This gives potential temperature on potential vorticity surfaces
 
     """
     vcoord_shape = list(vcoord.shape)
@@ -776,7 +810,7 @@ def dlon_dlat(lon, lat, cyclic=True):
 
 
 def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
-    """
+    r"""
     Calculate the relative vorticity given zonal (uwnd) and meridional (vwnd) winds.
 
     Parameters
