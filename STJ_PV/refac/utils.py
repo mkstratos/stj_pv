@@ -115,34 +115,37 @@ def vinterp(data, vcoord, vlevels):
 
     Examples
     --------
-    data and vcoord of the same shape:
-    Given some u-wind data `uwnd` that is on (time, pressure, lat, lon), a potential
-    temperature field `theta` on the same dimensions (t, p, lat, lon), and a few selected
-    potential temperature levels to interpolate to `th_levs = [275, 300, 325, 350, 375]`::
-    >>> print(uwnd.shape)
-    (365, 17, 73, 144)
-    >>> print(theta.shape)
-    (365, 17, 73, 144)
-    >>> print(th_levs)
-    [ 275.  300.  325.  350.  375.]
-    uwnd_theta = vinterp(uwnd, theta, th_levs)
-    >>> print(uwnd_theta.shape)
-    (365, 5, 73, 144)
+    **data** and **vcoord** of the same shape
+
+    Given some u-wind data ``uwnd`` that is on (time, pressure, lat, lon), a potential
+    temperature field ``theta`` on the same dimensions (t, p, lat, lon), and a
+    few selected potential temperature levels to which u-wind will be interpolated
+
+        >>> th_levs = [275, 300, 325, 350, 375]
+        >>> print(uwnd.shape)
+        (365, 17, 73, 144)
+        >>> print(theta.shape)
+        (365, 17, 73, 144)
+        uwnd_theta = vinterp(uwnd, theta, th_levs)
+        >>> print(uwnd_theta.shape)
+        (365, 5, 73, 144)
 
     This results in u-wind on the requested theta surfaces
 
-    data is 1D vcoord is 4D
-    Given some potential temperature levels `th_levs = [275, 300, 325, 350, 375]` and a
-    4D array of potential vorticity ipv on (time, theta, lat, lon), and selected PV levels
-    pv_levs = [1.0, 2.0, 3.0]::
+    **data** is 1D **vcoord** is 4D
 
-    >>> print(th_levs.shape)
-    (5, )
-    >>> print(ipv.shape)
-    (365, 5, 73, 144)
-    >>> theta_pv = vinterp(th_levs, ipv, pv_levs)
-    >>> print(theta_pv.shape)
-    (365, 3, 73, 144)
+    Given some potential temperature levels ``th_levs = [275, 300, 325, 350, 375]``
+    and a 4D array of potential vorticity ipv on (time, theta, lat, lon), and
+    several selected PV levels
+
+        >>> pv_levs = [1.0, 2.0, 3.0]
+        >>> print(th_levs.shape)
+        (5, )
+        >>> print(ipv.shape)
+        (365, 5, 73, 144)
+        >>> theta_pv = vinterp(th_levs, ipv, pv_levs)
+        >>> print(theta_pv.shape)
+        (365, 3, 73, 144)
 
     This gives potential temperature on potential vorticity surfaces
 
@@ -831,7 +834,7 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
     rel_vort : array_like
         Relative vorticity V = U x V (cross product of U and V wind)
         If cyclic, returns same dimensions as uwnd & vwnd, if not it is
-        (*vwnd.shape[0:-1], vwnd.shape[-1] - 2)
+        ``(*vwnd.shape[0:-1], vwnd.shape[-1] - 2)``
 
     """
     # Check that lat/lon are in radians
