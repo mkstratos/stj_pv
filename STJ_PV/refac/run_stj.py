@@ -135,17 +135,23 @@ class JetFindRun(object):
         if year_e is None:
             year_e = self.config['year_e']
 
-        for year in range(year_s, year_e + 1):
-            data = self._get_data(year)
-            jet = self.metric(self, data)
+        if self.data_cfg['single_year_file']:
+            for year in range(year_s, year_e + 1):
+                data = self._get_data(year)
+                jet = self.metric(self, data)
 
+                for shemis in [True, False]:
+                    jet.find_jet(shemis)
+
+                if year == year_s:
+                    jet_all = jet
+                else:
+                    jet_all.append(jet)
+        else:
+            data = self._get_data(year_s)
+            jet_all = self.metric(self, data)
             for shemis in [True, False]:
-                jet.find_jet(shemis)
-
-            if year == year_s:
-                jet_all = jet
-            else:
-                jet_all.append(jet)
+                jet_all.find_jet(shemis)
 
         jet_all.save_jet()
 
@@ -269,7 +275,7 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     jf_run.run(1979, 2016)
 
 
