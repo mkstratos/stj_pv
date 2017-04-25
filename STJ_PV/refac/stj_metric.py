@@ -205,19 +205,27 @@ class STJPV(STJMetric):
         uwnd = self.data.uwnd[hem_slice]
         ttrop = self.data.trop_theta[hem_slice_3d]
 
-        if self.props['zonal_opt'].lower() == 'mean':
-            # Zonal mean stuff
-            theta_xpv = np.nanmean(theta_xpv, axis=-1)
-            uwnd = np.nanmean(uwnd, axis=-1)
-            ttrop = np.nanmean(ttrop, axis=-1)
-
         self.log.info('COMPUTING JET POSITION FOR {} TIMES'.format(dims[0]))
         for tix in range(dims[0]):
             self.tix = tix
-            jet_loc = self._find_single_jet(theta_xpv[tix, ...], ttrop[tix, ...],
-                                            lat, uwnd[tix, ...], extrema)
-            self.jet_lat[hidx, tix] = lat[jet_loc]
-            self.jet_theta[hidx, tix] = theta_xpv[tix, jet_loc]
+            jet_loc = np.zeros(dims[-1])
+            for xix in range(dims[-1]):
+                self.xix = xix
+                jet_loc[xix] = self._find_single_jet(theta_xpv[tix, :, xix],
+                                                     ttrop[tix, :, xix],
+                                                     lat, uwnd[tix, ..., xix], extrema)
+                if not self.props['zonal_opt'].lower() == 'mean':
+                    self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
+                    self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
+
+            if self.props['zonal_opt'].lower() == 'mean':
+                jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
+                jet_theta = np.nanmean(theta_xpv[tix, :, :], axis=-1)
+                jet_theta = np.ma.masked_where(jet_loc == 0,
+                                               jet_theta[jet_loc.astype(int)])
+
+                self.jet_lat[hidx, tix] = np.ma.mean(jet_lat)
+                self.jet_theta[hidx, tix] = np.ma.mean(jet_theta)
 
     def _find_single_jet(self, theta_xpv, ttrop, lat, uwnd, extrema):
         """
@@ -242,7 +250,8 @@ class STJPV(STJMetric):
         """
         # Get thermal tropopause intersection with dynamical tropopause within 45deg
         # of the equator
-        y_s = np.abs(ttrop[np.abs(lat) < 45] - theta_xpv[np.abs(lat) < 45]).argmin()
+        y_s = np.abs(np.ma.masked_invalid(ttrop[np.abs(lat) < 45] -
+                                          theta_xpv[np.abs(lat) < 45])).argmin()
         y_e = None
 
         # If latitude is in decreasing order, switch start/end
@@ -263,7 +272,7 @@ class STJPV(STJMetric):
     def select_jet(self, locs, lat, uwnd):
         """Select correct jet latitude."""
         if len(locs) == 0:
-            self.log.info("NO JET LOC {}".format(self.time[self.tix]))
+            self.log.info("NO JET LOC t:{} lon:{}".format(self.tix, self.xix))
             jet_loc = 0
 
         elif len(locs) == 1:
