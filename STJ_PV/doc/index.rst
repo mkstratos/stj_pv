@@ -13,7 +13,7 @@ Contents:
 .. toctree::
     :maxdepth: 2
 
-    refac
+    STJ_PV
 
 Indices and tables
 ==================
