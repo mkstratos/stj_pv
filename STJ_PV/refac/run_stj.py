@@ -7,10 +7,13 @@ Authors: Penelope Maher, Michael Kelleher
 import sys
 import logging
 import datetime as dt
+import warnings
 import numpy as np
 import yaml
 import stj_metric
 import input_data as inp
+np.seterr(all='ignore')
+warnings.simplefilter('ignore', np.RankWarning)
 
 
 class JetFindRun(object):
@@ -137,6 +140,7 @@ class JetFindRun(object):
 
         if self.data_cfg['single_year_file']:
             for year in range(year_s, year_e + 1):
+                self.log.info('FIND JET FOR %d', year)
                 data = self._get_data(year)
                 jet = self.metric(self, data)
 
@@ -235,7 +239,7 @@ def check_run_config(cfg_file):
 
         elif config['method'] == 'STJPV':
             opt_keys = {'poly': str, 'fit_deg': int, 'pv_value': float}
-            cfg, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
+            _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
             missing_optionals.append(missing_opt)
 
     return config, any([missing_req, all(missing_optionals)])
@@ -262,20 +266,22 @@ def check_data_config(cfg_file):
         if config['ztype'] == 'pres':
             # config must have pfac if it's pressure level data
             opt_reqs = {'pfac': float}
-            d_cfg, miss_opts = check_config_req(cfg_file, opt_reqs)
+            _, miss_opts = check_config_req(cfg_file, opt_reqs)
             missing_optionals.append(miss_opts)
 
         elif config['ztype'] not in ['pres', 'theta']:
             print('NO METHOD TO HANDLE {} level data'.format(config['ztype']))
+            missing_optionals.append(True)
+        else:
             missing_optionals.append(False)
-
     return config, any([missing_req, all(missing_optionals)])
 
 
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    # jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     jf_run.run(1979, 2016)
 
 
