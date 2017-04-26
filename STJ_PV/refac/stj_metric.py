@@ -2,7 +2,6 @@
 """STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
 import numpy as np
 import numpy.polynomial as poly
-from scipy import interpolate
 from scipy import signal as sig
 
 import utils
@@ -208,7 +207,7 @@ class STJPV(STJMetric):
         uwnd = self.data.uwnd[hem_slice]
         ttrop = self.data.trop_theta[hem_slice_3d]
 
-        self.log.info('COMPUTING JET POSITION FOR {} TIMES'.format(dims[0]))
+        self.log.info('COMPUTING JET POSITION FOR %d TIMES', dims[0])
         for tix in range(dims[0]):
             self.tix = tix
             jet_loc = np.zeros(dims[-1])
