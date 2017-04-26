@@ -147,7 +147,10 @@ class STJPV(STJMetric):
             1D array of 1st derivative of data w.r.t. latitude between indices y_s and y_e
 
         """
-        poly_fit = self.pfit(lat[y_s:y_e], data[y_s:y_e], self.fit_deg)
+        # Determine where data is valid...Intel's Lin Alg routines fail when trying to do
+        # a least squares fit on array with np.nan, use where it's valid to do the fit
+        valid = np.isfinite(data[y_s:y_e])
+        poly_fit = self.pfit(lat[y_s:y_e][valid], data[y_s:y_e][valid], self.fit_deg)
         poly_der = self.peval(lat[y_s:y_e], self.pder(poly_fit, deriv))
 
         return poly_der
