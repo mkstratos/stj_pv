@@ -53,7 +53,7 @@ class STJMetric(object):
         props_th['units'] = 'K'
         props_th['short_name'] = 'theta_sh'
 
-        self.log.info("CREATE VARIABLES")
+        self.log.info("CREATE OUTPUT VARIABLES")
         lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props_lat)
         theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords, props=props_th)
         props_lat_nh = dict(props_lat)
@@ -275,7 +275,6 @@ class STJPV(STJMetric):
     def select_jet(self, locs, lat, uwnd):
         """Select correct jet latitude."""
         if len(locs) == 0:
-            self.log.info("NO JET LOC t:{} lon:{}".format(self.tix, self.xix))
             jet_loc = 0
 
         elif len(locs) == 1:
