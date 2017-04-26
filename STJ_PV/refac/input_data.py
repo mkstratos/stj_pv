@@ -315,7 +315,7 @@ class InputData(object):
         u_th_out = dout.NCOutVar(self.uwnd, props=dict(props), coords=coords)
         u_th_out.set_props({'name': 'zonal_wind_component',
                             'descr': 'Zonal wind on isentropic levels',
-                            'units': 'm s-1', 'short_name': 'uwnd'})
+                            'units': 'm s-1', 'short_name': self.data_cfg['uwnd']})
 
         dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing')
@@ -382,8 +382,8 @@ class InputData(object):
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
-        self.ipv = ipv_in.variables['ipv'][:] * 1e6
-        self.uwnd = ipv_in.variables['uwnd'][:]
+        self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
+        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
 
         coord_names = ['time', 'lev', 'lat', 'lon']
         for cname in coord_names:
