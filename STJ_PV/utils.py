@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Utility functions not specific to subtropical jet finding."""
+from __future__ import division
 import numpy as np
 from scipy import interpolate as interp
-
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
