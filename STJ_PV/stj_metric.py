@@ -64,7 +64,7 @@ class STJMetric(object):
                                     props=props_th_nh)
 
         self.log.info("WRITE TO {output_file}".format(**self.props))
-        # Write jet/theta positions to file
+        # Write jet & theta positions to file
         dio.write_to_netcdf([lat_sh_out, theta_sh_out, lat_nh_out, theta_nh_out],
                             self.props['output_file'] + '.nc')
 
@@ -84,9 +84,9 @@ class STJPV(STJMetric):
 
         Parameters
         ----------
-        jet_run : JetFindRun
+        props : |run_stj.JetFindRun|
             Class containing properties about the current search for the STJ
-        data : InputData
+        data : |input_data.InputData|
             Input data class containing a year (or more) of required data
 
         """
@@ -116,7 +116,7 @@ class STJPV(STJMetric):
             self.pder = poly.polynomial.polyder
             self.peval = poly.polynomial.polyval
 
-        # Initialise latitude/theta output arrays with correct shape
+        # Initialise latitude & theta output arrays with correct shape
         dims = self.data.ipv.shape
         if self.props['zonal_opt'].lower() == 'mean':
             self.jet_lat = np.zeros([2, dims[0]])
