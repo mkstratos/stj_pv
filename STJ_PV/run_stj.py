@@ -13,7 +13,7 @@ import yaml
 import stj_metric
 import input_data as inp
 np.seterr(all='ignore')
-warnings.simplefilter('ignore', np.RankWarning)
+warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 
 
 class JetFindRun(object):
@@ -283,7 +283,7 @@ def main():
     # jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     jf_run.run(1979, 2016)
-
+    jf_run.log.info('JET FINDING COMPLETE')
 
 if __name__ == "__main__":
     main()
