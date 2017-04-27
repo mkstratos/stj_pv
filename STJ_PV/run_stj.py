@@ -20,6 +20,11 @@ class JetFindRun(object):
     """
     Class containing properties about an individual attempt to find the subtropical jet.
 
+    Parameters
+    ----------
+    config : string, optional
+        Location of YAML-formatted configuration file, default None
+
     Attributes
     ----------
     data_source : string
@@ -35,21 +40,13 @@ class JetFindRun(object):
 
     Methods
     -------
-    log_setup
-    run
+    :py:meth:`~log_setup`
+    :py:meth:`~run`
 
     """
 
     def __init__(self, config_file=None):
-        """
-        Initialise jet finding attempt.
-
-        Parameters
-        ----------
-        config : string, optional
-            Location of YAML-formatted configuration file, default None
-
-        """
+        """Initialise jet finding attempt."""
         now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         if config_file is None:
             # Use default parameters if none are specified

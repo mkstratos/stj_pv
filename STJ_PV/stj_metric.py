@@ -76,20 +76,19 @@ class STJMetric(object):
 
 
 class STJPV(STJMetric):
-    """Subtropical jet position metric using dynamic tropopause on isentropic levels."""
+    """
+    Subtropical jet position metric using dynamic tropopause on isentropic levels.
+
+    Parameters
+    ----------
+    props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
+        Class containing properties about the current search for the STJ
+    data : :py:meth:`~STJ_PV.input_data.InputData`
+        Input data class containing a year (or more) of required data
+    """
 
     def __init__(self, props, data):
-        """
-        Initialise Metric using PV Gradient Method.
-
-        Parameters
-        ----------
-        props : |run_stj.JetFindRun|
-            Class containing properties about the current search for the STJ
-        data : |input_data.InputData|
-            Input data class containing a year (or more) of required data
-
-        """
+        """Initialise Metric using PV Gradient Method."""
         name = 'PVGrad'
         super(STJPV, self).__init__(name=name, props=props, data=data)
 
