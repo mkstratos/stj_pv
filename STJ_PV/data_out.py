@@ -140,7 +140,7 @@ def write_to_netcdf(data_in, out_file):
 
     Parameters
     ----------
-    data_in : list of NCOutVar
+    data_in : list of :py:meth:`~NCOutVar`
         List of NCOutVars to write to file
     out_file : string
         Name of file to write output
