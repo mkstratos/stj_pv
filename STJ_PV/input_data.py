@@ -8,7 +8,6 @@ import utils
 import data_out as dout
 import psutil
 
-import thermal_tropopause as trp
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
@@ -246,12 +245,13 @@ class InputData(object):
             self.props.log.info('TROPOPAUSE FOR USUNG {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
                 trop_h_temp[ix_s:ix_e, ...], trop_h_pres[ix_s:ix_e, ...] =\
-                    trp.get_tropopause_pres(self.in_data['tair'][ix_s:ix_e, v_slice, ...],
-                                            self.lev[v_slice])
+                    utils.get_tropopause_pres(self.in_data['tair']
+                                              [ix_s:ix_e, v_slice, ...],
+                                              self.lev[v_slice])
 
         elif self.data_cfg['ztype'] == 'theta':
-            trop_h_temp, trop_h_pres = trp.get_tropopause_theta(self.lev,
-                                                                self.in_data['pres'])
+            trop_h_temp, trop_h_pres = utils.get_tropopause_theta(self.lev,
+                                                                  self.in_data['pres'])
 
         self.trop_theta = utils.theta(trop_h_temp, trop_h_pres)
         self.props.log.info('Finished calculating tropopause height')
