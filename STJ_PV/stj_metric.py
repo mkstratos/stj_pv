@@ -78,7 +78,7 @@ class STJMetric(object):
 class STJPV(STJMetric):
     """Subtropical jet position metric using dynamic tropopause on isentropic levels."""
 
-    def __init__(self, jet_run, data):
+    def __init__(self, props, data):
         """
         Initialise Metric using PV Gradient Method.
 
@@ -91,7 +91,7 @@ class STJPV(STJMetric):
 
         """
         name = 'PVGrad'
-        super().__init__(name=name, props=jet_run, data=data)
+        super(STJPV, self).__init__(name=name, props=props, data=data)
 
         if np.max(np.abs(self.data.ipv)) < 1.0:
             self.data.ipv *= 1e6    # Put PV into units of PVU from 1e-6 PVU
