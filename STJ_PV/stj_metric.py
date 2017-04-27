@@ -252,15 +252,15 @@ class STJPV(STJMetric):
         """
         # Get thermal tropopause intersection with dynamical tropopause within 45deg
         # of the equator
-        y_s = np.abs(np.ma.masked_invalid(ttrop[np.abs(lat) < 45] -
-                                          theta_xpv[np.abs(lat) < 45])).argmin()
+        # y_s = np.abs(np.ma.masked_invalid(ttrop[np.abs(lat) < 45] -
+        #                                   theta_xpv[np.abs(lat) < 45])).argmin()
+        y_s = np.abs(np.abs(lat) - self.props['min_lat']).argmin()
         y_e = None
 
-        # If latitude is in decreasing order, switch start/end
+        # If latitude is in decreasing order, switch start & end
         # This makes sure we're selecting the latitude nearest the equator
-        if lat[0] < lat[-1]:
+        if abs(lat[0]) > abs(lat[-1]):
             y_s, y_e = y_e, y_s
-
         # Find derivative of dynamical tropopause
         dtheta = self._poly_deriv(lat, theta_xpv, y_s=y_s, y_e=y_e)
 
