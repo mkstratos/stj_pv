@@ -18,9 +18,11 @@ class InputData(object):
 
     Parameters
     ----------
-    jet_find : `run_stj.JetFindRun`
+    jet_find : :py:meth:`~STJ_PV.run_stj.JetFindRun`
         Object containing properties about the metric calculation to be done. Used to
         locate correct files, and variables within those files.
+    year : int, optional
+        Year of data to load, not used when all years are in a single file
 
     """
 
