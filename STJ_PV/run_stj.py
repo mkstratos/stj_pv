@@ -90,7 +90,7 @@ class JetFindRun(object):
         if self.config['method'] == 'STJPV':
             self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
                                           'fit{fit_deg}_y0{min_lat}'
-                                          .format(**self.data_cfg, **self.config))
+                                          .format(**dict(self.data_cfg, **self.config)))
 
             self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
                                        350.0, 370.0, 395.0, 430.0])
@@ -98,7 +98,7 @@ class JetFindRun(object):
 
         else:
             self.config['output_file'] = ('{short_name}_{method}'
-                                          .format(**self.data_cfg, **self.config))
+                                          .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
 
         self.log_setup()
