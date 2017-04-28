@@ -166,9 +166,9 @@ class STJPV(STJMetric):
 
         """
         if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
-            pv_lev = self.pv_lev
+            pv_lev = np.array([self.pv_lev])
         else:
-            pv_lev = -self.pv_lev
+            pv_lev = -np.array([self.pv_lev])
 
         # Find axis
         lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
@@ -180,31 +180,32 @@ class STJPV(STJMetric):
             self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
                                                                 self.data.ipv.shape))
 
-        hem_slice = [slice(None)] * self.data.ipv.ndim
-        hem_slice_3d = [slice(None)] * self.data.trop_theta.ndim
+        hemis = [slice(None)] * self.data.ipv.ndim
+        hemis_3d = [slice(None)] * self.data.trop_theta.ndim
 
         if shemis:
-            hem_slice[lat_axis] = self.data.lat < 0
-            hem_slice_3d[lat_axis_3d] = self.data.lat < 0
+            hemis[lat_axis] = self.data.lat < 0
+            hemis_3d[lat_axis_3d] = self.data.lat < 0
             lat = self.data.lat[self.data.lat < 0]
             hidx = 0
             # Link `extrema` function to argrelmax for SH
             extrema = sig.argrelmax
         else:
-            hem_slice[lat_axis] = self.data.lat > 0
-            hem_slice_3d[lat_axis_3d] = self.data.lat > 0
+            hemis[lat_axis] = self.data.lat > 0
+            hemis_3d[lat_axis_3d] = self.data.lat > 0
             lat = self.data.lat[self.data.lat > 0]
             hidx = 1
             # Link `extrema` function to argrelmin for NH
             extrema = sig.argrelmin
 
         # Get theta on PV==pv_level
-        theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[hem_slice],
-                                  np.array([pv_lev]))
-        dims = theta_xpv.shape
+        theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[hemis], pv_lev)
 
-        uwnd = self.data.uwnd[hem_slice]
-        ttrop = self.data.trop_theta[hem_slice_3d]
+        # Find the difference between the u-wind at surface, and dynamical tropopause
+        ushear = (utils.vinterp(self.data.uwnd[hemis], self.data.ipv[hemis], pv_lev) -
+                  self.data.uwnd[hemis][:, 0, ...])
+        dims = theta_xpv.shape
+        ttrop = self.data.trop_theta[hemis_3d]
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES', dims[0])
         for tix in range(dims[0]):
@@ -214,7 +215,7 @@ class STJPV(STJMetric):
                 self.xix = xix
                 jet_loc[xix] = self._find_single_jet(theta_xpv[tix, :, xix],
                                                      ttrop[tix, :, xix],
-                                                     lat, uwnd[tix, ..., xix], extrema)
+                                                     lat, ushear[tix, ..., xix], extrema)
                 if not self.props['zonal_opt'].lower() == 'mean':
                     self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
                     self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
@@ -228,7 +229,7 @@ class STJPV(STJMetric):
                 self.jet_lat[hidx, tix] = np.ma.mean(jet_lat)
                 self.jet_theta[hidx, tix] = np.ma.mean(jet_theta)
 
-    def _find_single_jet(self, theta_xpv, ttrop, lat, uwnd, extrema):
+    def _find_single_jet(self, theta_xpv, ttrop, lat, ushear, extrema):
         """
         Find jet location for a 1D array of theta on latitude.
 
@@ -240,8 +241,9 @@ class STJPV(STJMetric):
             Thermal tropopause theta as a function of latitude
         lat : array_like
             1D array of latitude same shape as theta_xpv and ttrop
-        uwnd : array_like
-            2D array of wind (Height x Latitude) on theta levels
+        ushear : array_like
+            Shear between dynamical tropopause and lowest level of input data in
+            zonal wind component [m/s]
 
         Returns
         -------
@@ -268,9 +270,9 @@ class STJPV(STJMetric):
             # If beginning of array is cut off rather than end, add cut-off to adjust
             jet_loc_all += y_s
 
-        return self.select_jet(jet_loc_all, lat, uwnd)
+        return self.select_jet(jet_loc_all, lat, ushear)
 
-    def select_jet(self, locs, lat, uwnd):
+    def select_jet(self, locs, lat, ushear):
         """Select correct jet latitude."""
         if len(locs) == 0:
             jet_loc = 0
@@ -280,8 +282,6 @@ class STJPV(STJMetric):
             jet_loc = locs[0]
 
         elif len(locs) > 1:
-            # TODO: Decide on which (if multiple local mins) to be the location
-            # Should be based on wind shear at that location, for now, lowest latitude
-            jet_loc = locs[np.abs(lat[locs]).argmin()]
+            jet_loc = locs[ushear[locs].argmax()]
 
         return jet_loc
