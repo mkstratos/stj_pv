@@ -273,7 +273,35 @@ class STJPV(STJMetric):
         return self.select_jet(jet_loc_all, lat, ushear)
 
     def select_jet(self, locs, lat, ushear):
-        """Select correct jet latitude."""
+        """
+        Select correct jet latitude given list of possible jet locations.
+
+        Parameters
+        ----------
+        locs : list
+            List of indicies of jet locations
+        lat : array_like
+            1D array of hemispheric latitude
+        ushear : array_like
+            1D array of zonal wind shear between dynamical tropopause and lowest input
+            data layer. Should be the same shape as ``lat``.
+
+        Returns
+        -------
+        jet_loc : int
+            Index of the jet location. Between [`0`, `lat.shape[0] - 1`]
+
+        Notes
+        -----
+        * If the list of locations is empty, return ``0`` as the location, this is
+          interpreted by :py:meth:`~find_jet` as missing.
+
+        * If the list of locations is exactly one return that location.
+
+        * Otherwise use the location with maximum zonal wind shear between lowest
+          provided level and the dynamical tropopause.
+
+        """
         if len(locs) == 0:
             jet_loc = 0
 

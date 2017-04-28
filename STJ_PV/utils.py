@@ -9,13 +9,13 @@ __author__ = "Penelope Maher, Michael Kelleher"
 # Constants to be used within this file
 # specify the range and increment over which to calculate IPV
 TH_LEV = np.arange(300, 501, 5)
-RAD = np.pi / 180.0 # radians per degree
-OM = 7.292e-5       # Angular rotation rate of earth    [rad]
-GRV = 9.81          # Acceleration due to GRVity        [m/s^2]
-EARTH_R = 6.371e6   # Radius of earth                   [m]
-R_D = 287.0         # Dry gas constant                  [J kg^-1 K^-1]
-C_P= 1004.0         # Specific heat of dry air          [J kg^-1 K^-1]
-KPPA = R_D / C_P    # Ratio of gas constants
+RAD = np.pi / 180.0     # radians per degree
+OM = 7.292e-5           # Angular rotation rate of earth    [rad]
+GRV = 9.81              # Acceleration due to GRVity        [m/s^2]
+EARTH_R = 6.371e6       # Radius of earth                   [m]
+R_D = 287.0             # Dry gas constant                  [J kg^-1 K^-1]
+C_P = 1004.0            # Specific heat of dry air          [J kg^-1 K^-1]
+KPPA = R_D / C_P        # Ratio of gas constants
 
 
 class NDSlicer(object):
