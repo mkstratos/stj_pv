@@ -225,6 +225,12 @@ class InputData(object):
 
         self.props.log.info('Finished calculating IPV')
 
+    def _load_stream_func(self):
+        pdb.set_trace()
+
+    def _calc_stream_func(self):
+        pdb.set_trace()
+
     def _calc_trop(self):
         """Calculate the tropopause height using the WMO thermal definition."""
         if self.in_data is None:
