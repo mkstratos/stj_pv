@@ -1,0 +1,12 @@
+data_cfg: './conf/data_config_ncep.yml'
+freq: 'mon'
+zonal_opt: 'mean'
+method: 'STJPV'
+log_file: "stj_find_ncep_{}.log"
+pv_value: 2.0
+fit_deg: 12
+min_lat: 10.0
+update_pv: False
+year_s: 1979
+year_e: 2015
+poly: 'cheby'
