@@ -7,7 +7,7 @@ pv_value:   2.0
 fit_deg:    10
 min_lat:    10.0
 update_pv:  False
-update_psi: True
+update_psi: False
 year_s:     1979
 year_e:     2016
 poly:       'cheby'
