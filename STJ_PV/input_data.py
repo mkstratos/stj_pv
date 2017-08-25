@@ -7,6 +7,9 @@ import netCDF4 as nc
 import utils
 import data_out as dout
 import psutil
+#if stream function remains in technique then copy over. For now just read it in
+from StreamFunction import cal_stream_fn  #/home/pm366/Documents/ShareCode/Atmosphere/StreamFunction.py
+
 
 
 __author__ = "Penelope Maher, Michael Kelleher"
@@ -59,24 +62,28 @@ class InputData(object):
 
         pv_file = os.path.join(cfg['wpath'],
                                cfg['file_paths']['ipv'].format(year=self.year))
-        tp_file = os.path.join(cfg['wpath'],
-                               cfg['file_paths']['tpause'].format(year=self.year))
-        data_load = (self.config['update_pv'] or not os.path.exists(pv_file) or
-                     not os.path.exists(tp_file))
+        psi_file = os.path.join(cfg['wpath'],
+                                 cfg['file_paths']['psi'].format(year=self.year))
 
-        if data_load:
-            self._load_data()
-        if self.config['update_pv'] or not os.path.exists(pv_file):
+        pv_update = self.config['update_pv'] or not os.path.exists(pv_file)
+        psi_update = self.config['update_psi'] or not os.path.exists(psi_file)
+
+        if pv_update or psi_update:
+            self._load_data(pv_update, psi_update)
+
+        if pv_update:
             self._calc_ipv()
             self._write_ipv()
         else:
             self._load_ipv()
 
-        if self.config['update_pv'] or not os.path.exists(tp_file):
-            self._calc_trop()
-            self._write_trop()
+        if psi_update:
+            #Only need the stream function up to 100 hPa
+            troposphere_only = np.where(self.lev >= 10000.)[0] 
+            self._calc_stream_func(troposphere_only)
+            self._write_stream_func(troposphere_only)
         else:
-            self._load_trop()
+            self._load_stream_func()
 
     def check_input_range(self, year_s, year_e):
         """
@@ -90,37 +97,48 @@ class InputData(object):
         """
         cfg = self.data_cfg
         pv_file_fmt = os.path.join(cfg['wpath'], cfg['file_paths']['ipv'])
-        tp_file_fmt = os.path.join(cfg['wpath'], cfg['file_paths']['tpause'])
+        psi_file_fmt = os.path.join(cfg['wpath'], cfg['file_paths']['psi'])
 
         for year in range(year_s, year_e + 1):
             self.year = year
             self.props.log.info('CHECKING INPUT FOR {}'.format(year))
             pv_file = pv_file_fmt.format(year=self.year)
-            tp_file = tp_file_fmt.format(year=self.year)
+            psi_file = psi_file_fmt.format(year=self.year)
             self.props.log.info('CHECKING: {}'.format(pv_file))
-            self.props.log.info('CHECKING: {}'.format(tp_file))
+            self.props.log.info('CHECKING: {}'.format(psi_file))
 
-            data_load = (self.config['update_pv'] or not os.path.exists(pv_file) or
-                         not os.path.exists(tp_file))
+            pv_update = self.config['update_pv'] or not os.path.exists(pv_file)
+            psi_update = self.config['update_psi'] or not os.path.exists(psi_file)
 
-            if data_load:
-                self._load_data()
+            if pv_update or psi_update:
+                self._load_data(pv_update, psi_update)
 
-            if self.config['update_pv'] or not os.path.exists(pv_file):
+            if pv_update:
                 self._calc_ipv()
                 self._write_ipv()
 
-            if self.config['update_pv'] or not os.path.exists(tp_file):
-                self._calc_trop()
-                self._write_trop()
+            if psi_update:
+                #Only need the stream function up to 100 hPa
+                troposphere_only = np.where(self.lev >= 10000.)[0] 
+                self._calc_stream_func(troposphere_only)
+                self._write_stream_func(troposphere_only)
 
-    def _load_data(self):
+    def _load_data(self, pv_update=False, psi_update=False):
         cfg = self.data_cfg
         self.in_data = {}
-        data_vars = ['uwnd', 'vwnd', 'tair']
+
+        data_vars = []
+        if pv_update:
+            data_vars.extend(['uwnd', 'vwnd', 'tair'])
+
+        if psi_update:
+            psi_vars = set(['vwnd', 'omega'])
+            data_vars = list(set(data_vars).union(psi_vars))
+
         if cfg['ztype'] == 'theta':
             # If input data is isentropic already..need pressure on theta, not air temp
-            data_vars.remove('tair')
+            if pv_update:
+                data_vars.remove('tair')
             data_vars.append('pres')
 
         # This is how they're called in the configuration file, each should point to
@@ -225,11 +243,58 @@ class InputData(object):
 
         self.props.log.info('Finished calculating IPV')
 
-    def _load_stream_func(self):
-        pdb.set_trace()
+    def _calc_stream_func(self,troposphere_only):
 
-    def _calc_stream_func(self):
-        pdb.set_trace()
+        data = {'omega' : np.ma.asarray(np.mean(self.in_data['omega'][:,troposphere_only,:],axis=3)), 
+                'vcomp' : np.ma.asarray(np.mean(self.in_data['vwnd'][:,troposphere_only,:] ,axis=3)),
+                'pfull' : self.lev[troposphere_only], 'lat': self.lat, 'time' : self.time}
+ 
+        self.psi = cal_stream_fn(data)
+
+        self.props.log.info('Finished calculating stream function')
+        
+
+    def _write_stream_func(self,troposphere_only, out_file=None):
+        """
+        Save psi (i.e stream function) data generated to a file, either netCDF4 or pickle.
+
+        Parameters
+        ----------
+        out_file : string, optional
+            Output file path for pickle or netCDF4 file, will contain psi data and coords
+
+        """
+        if out_file is None:
+            file_name = self.data_cfg['file_paths']['psi'].format(year=self.year)
+            out_file = os.path.join(self.data_cfg['wpath'], file_name)
+
+        self.props.log.info('WRITE PSI: {}'.format(out_file))
+
+        coord_names = ['time', 'lev', 'lat']
+        coords = {cname: getattr(self, cname) for cname in coord_names}
+        coords['lev'] = self.lev[troposphere_only]
+
+        props = {'name': 'Mass weighted stream function psi',
+                 'descr': 'Stream function on pressure levels',
+                 'units': 'kg/s', 
+                 'short_name': 'psi',
+                 'levvar': self.data_cfg['lev'],
+                 'latvar': self.data_cfg['lat'],
+                 'lonvar': self.data_cfg['lon'],
+                 'timevar': self.data_cfg['time'],
+                 'time_units': self.time_units,
+                 'calendar': self.calendar, 
+                 'lat_units': 'degrees_north',
+                 'lon_units': 'degrees_east',
+                 'lev_units': 'Pa'}
+
+        psi_out = dout.NCOutVar(self.psi, props=props, coords=coords)
+        dout.write_to_netcdf([psi_out], '{}'.format(out_file))
+        self.props.log.info('Finished Writing stream function data')
+        import pdb;pdb.set_trace()        
+
+    def _load_stream_func(self):
+        """Load StreamFunction data from a file."""
 
     def _calc_trop(self):
         """Calculate the tropopause height using the WMO thermal definition."""
@@ -393,7 +458,7 @@ class InputData(object):
         self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
         self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
 
-        coord_names = ['time', 'lev', 'lat', 'lon']
+        coord_names = ['time', 'lat', 'lon']
         for cname in coord_names:
             setattr(self, cname, ipv_in.variables[self.data_cfg[cname]][:])
         if self.time_units is None:
@@ -401,7 +466,7 @@ class InputData(object):
         if self.calendar is None:
             self.calendar = ipv_in.variables[self.data_cfg['time']].calendar
 
-        self.th_lev = self.lev[:]
+        self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
         ipv_in.close()
 
     def _load_trop(self):

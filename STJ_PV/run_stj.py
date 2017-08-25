@@ -73,7 +73,7 @@ class JetFindRun(object):
             sys.exit(1)
 
         if self.data_cfg['single_var_file']:
-            for var in ['uwnd', 'vwnd', 'tair']:
+            for var in ['uwnd', 'vwnd', 'tair', 'omega']:
                 if var not in self.data_cfg['file_paths']:
                     # This replicates the path in 'all' so each variable points to it
                     # this allows for the same loop no matter if data is in multiple files
@@ -277,9 +277,9 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    # jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    jf_run.run(1979, 2016)
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    #jf_run.run(1979, 2016)
+    jf_run._get_data(1979)
     jf_run.log.info('JET FINDING COMPLETE')
 
 if __name__ == "__main__":
