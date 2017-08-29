@@ -11,7 +11,9 @@ file_paths:
             uwnd:   'uwnd.{year:04d}.nc'
             vwnd:   'vwnd.{year:04d}.nc'
             tair:   'air.{year:04d}.nc'
+            omega:  'omega.{year:04d}.nc'
             ipv:    'ipv.{year:04d}.nc'
+            psi:    'psi.{year:04d}.nc'
             tpause: 'tpause.{year:04d}.nc'
 
 lon:    'lon'   # Name within netCDF file of 'longitude' variable
@@ -25,4 +27,5 @@ pfac:   100.0   # Multiply pressure by this to get units of Pascals
 uwnd:   'uwnd'
 vwnd:   'vwnd'
 tair:   'air'
+omega:  'omega'
 ipv:    'ipv'

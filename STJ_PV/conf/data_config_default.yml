@@ -26,6 +26,7 @@ file_paths:
     'vwnd': 'vwind.nc'
     'tair': 'tair.nc'
     'ipv': 'ipv.nc'
+    'psi': 'psi.nc'
     'tpause': 'tpause.nc'
     'dyn_trop': 'dyn_trop.nc'
 

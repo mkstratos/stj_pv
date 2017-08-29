@@ -277,7 +277,8 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    jf_run = JetFindRun('./conf/stj_config_ncep.yml')
     #jf_run.run(1979, 2016)
     jf_run._get_data(1979)
     jf_run.log.info('JET FINDING COMPLETE')
