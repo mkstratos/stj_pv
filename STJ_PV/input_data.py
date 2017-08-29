@@ -55,8 +55,7 @@ class InputData(object):
         self.trop_theta = None
         self.dyn_trop = None
         self.in_data = None
-        self.nh_lat = None
-        self.sh_lat = None
+        self.strf_lat = None
 
     def get_data_input(self):
         """Get input data for metric calculation."""
@@ -269,30 +268,19 @@ class InputData(object):
         assert len(lev_500) == 1, 'Where is 500hPa level?'
         psi_500 = np.squeeze(psi[:, lev_500, :])
 
-        # find the equator
-        abs_lat = np.min(np.abs(self.lat))
-        lat_0_elem = FindClosestElem(abs_lat, self.lat)
-        assert len(lat_0_elem) == 1, 'More than 1 value at the equator'
-
         lat_arg_sort = np.argsort(self.lat)
-        if lat_arg_sort[0] == 0:
-            # lat is -90 to 90
-            nh_max_elem = np.argmax(np.abs(psi_500[:, lat_0_elem:]), axis=1)
-            sh_max_elem = np.argmax(np.abs(psi_500[:, 0:lat_0_elem]), axis=1)
-            self.nh_lat = self.lat[lat_0_elem:][nh_max_elem]
-            self.sh_lat = self.lat[0:lat_0_elem][sh_max_elem]
-        else:
-            # lat is 90 to -90
-            nh_max_elem = np.argmin(psi_500[:, 0:lat_0_elem], axis=1)
-            sh_max_elem = np.argmax(psi_500[:, lat_0_elem:], axis=1)
-            self.nh_lat = self.lat[0:lat_0_elem][nh_max_elem]
-            self.sh_lat = self.lat[lat_0_elem:][sh_max_elem]
+        nh_max_elem = np.argmax(np.abs(psi_500[:, self.lat > 0]), axis=1)
+        sh_max_elem = np.argmax(np.abs(psi_500[:, self.lat < 0]), axis=1)
+        nh_lat = self.lat[self.lat > 0][nh_max_elem]
+        sh_lat = self.lat[self.lat < 0][sh_max_elem]
+
+        self.strf_lat = np.array([sh_lat, nh_lat]).T
 
         plot_test = False
         if plot_test:
             plt.plot(self.lat, psi_500[0, :])
-            plt.plot([self.nh_lat[0], self.nh_lat[0]], [0, 0], c='r', marker='x')
-            plt.plot([self.sh_lat[0], self.sh_lat[0]], [0, 0], c='r', marker='x')
+            plt.plot([nh_lat[0], nh_lat[0]], [0, 0], c='r', marker='x')
+            plt.plot([sh_lat[0], sh_lat[0]], [0, 0], c='r', marker='x')
             plt.show()
 
     def _write_stream_func(self, out_file=None):
@@ -313,26 +301,21 @@ class InputData(object):
 
         coord_names = ['time']
         coords = {cname: getattr(self, cname) for cname in coord_names}
+        coords['lat'] = [0, 1]  # Use 'lat' as hemisphere coord to fake out data_out
 
         props = {'name': 'Latitude of maximum psi',
-                 'descr': ' Max stream function location in NH',
-                 'units': 'deg (lat)',
-                 'short_name': 'psi_max_nh',
+                 'descr': ' Max stream function location',
+                 'units': 'degrees_north',
+                 'short_name': 'psi_max',
                  'timevar': self.data_cfg['time'],
+                 'latvar': 'hemis',
+                 'lat_units': 'SH0_NH1',
                  'time_units': self.time_units,
                  'calendar': self.calendar}
 
-        psi_out_nh = dout.NCOutVar(self.nh_lat, props=props, coords=coords)
-        psi_out_sh = dout.NCOutVar(self.sh_lat, props=dict(props), coords=coords)
+        psi_out = dout.NCOutVar(self.strf_lat, props=props, coords=coords)
 
-        psi_out_sh.set_props({'name': 'Latitude of maximum psi',
-                              'descr': ' Max stream function location in SH',
-                              'units': 'deg (lat)',
-                              'short_name': 'psi_max_sh',
-                              'timevar': self.data_cfg['time'],
-                              'time_units': self.time_units,
-                              'calendar': self.calendar})
-        dout.write_to_netcdf([psi_out_nh, psi_out_sh], '{}'.format(out_file))
+        dout.write_to_netcdf([psi_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing stream function data')
 
     def _load_stream_func(self):
@@ -341,8 +324,7 @@ class InputData(object):
         file_name = self.data_cfg['file_paths']['psi'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         lat_in = nc.Dataset(in_file, 'r')
-        self.nh_lat = lat_in.variables['psi_max_nh'][:]
-        self.sh_lat = lat_in.variables['psi_max_sh'][:]
+        self.strf_lat = lat_in.variables['psi_max'][:]
 
         coord_names = ['time']
         for cname in coord_names:
