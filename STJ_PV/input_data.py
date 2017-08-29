@@ -57,8 +57,6 @@ class InputData(object):
         self.in_data = None
         self.nh_lat = None
         self.sh_lat = None
-        self.lat_max_nh = None
-        self.lat_max_sh = None
 
     def get_data_input(self):
         """Get input data for metric calculation."""
@@ -343,8 +341,8 @@ class InputData(object):
         file_name = self.data_cfg['file_paths']['psi'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         lat_in = nc.Dataset(in_file, 'r')
-        self.lat_max_nh = lat_in.variables['psi_max_nh'][:]
-        self.lat_max_sh = lat_in.variables['psi_max_sh'][:]
+        self.nh_lat = lat_in.variables['psi_max_nh'][:]
+        self.sh_lat = lat_in.variables['psi_max_sh'][:]
 
         coord_names = ['time']
         for cname in coord_names:
