@@ -7,11 +7,12 @@ import netCDF4 as nc
 import utils
 import data_out as dout
 import psutil
-#if stream function remains in technique then copy over. For now just read it in
-from StreamFunction import cal_stream_fn  #/home/pm366/Documents/ShareCode/Atmosphere/StreamFunction.py
-from numpy.polynomial import chebyshev as cby
+# if stream function remains in technique then copy over. For now just read it in
+# /home/pm366/Documents/ShareCode/Atmosphere/StreamFunction.py
+from StreamFunction import cal_stream_fn
+
 import matplotlib.pyplot as plt
-from CommonFunctions import FindClosest, FindClosestElem
+from CommonFunctions import FindClosestElem
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
@@ -54,6 +55,10 @@ class InputData(object):
         self.trop_theta = None
         self.dyn_trop = None
         self.in_data = None
+        self.nh_lat = None
+        self.sh_lat = None
+        self.lat_max_nh = None
+        self.lat_max_sh = None
 
     def get_data_input(self):
         """Get input data for metric calculation."""
@@ -64,7 +69,7 @@ class InputData(object):
         pv_file = os.path.join(cfg['wpath'],
                                cfg['file_paths']['ipv'].format(year=self.year))
         psi_file = os.path.join(cfg['wpath'],
-                                 cfg['file_paths']['psi'].format(year=self.year))
+                                cfg['file_paths']['psi'].format(year=self.year))
 
         pv_update = self.config['update_pv'] or not os.path.exists(pv_file)
         psi_update = self.config['update_psi'] or not os.path.exists(psi_file)
@@ -80,9 +85,9 @@ class InputData(object):
 
         if psi_update:
             #Only need the stream function up to 100 hPa
-            troposphere_only = np.where(self.lev >= 10000.)[0] 
+            troposphere_only = np.where(self.lev >= 10000.)[0]
             self._calc_stream_func(troposphere_only)
-            self._write_stream_func(troposphere_only)
+            self._write_stream_func()
         else:
             self._load_stream_func()
         import pdb;pdb.set_trace()
@@ -121,9 +126,9 @@ class InputData(object):
 
             if psi_update:
                 #Only need the stream function up to 100 hPa
-                troposphere_only = np.where(self.lev >= 10000.)[0] 
+                troposphere_only = np.where(self.lev >= 10000.)[0]
                 self._calc_stream_func(troposphere_only)
-                self._write_stream_func(troposphere_only)
+                self._write_stream_func()
 
     def _load_data(self, pv_update=False, psi_update=False):
         cfg = self.data_cfg
@@ -163,15 +168,16 @@ class InputData(object):
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
             self.props.log.info("\tLOAD: {}".format(var))
             self.in_data[var] = nc_file.variables[vname][:, ...].astype(np.float16)
+
             if first_file:
-                for var in dim_vars:
-                    v_in_name = cfg[var]
-                    if var == 'time':
-                        setattr(self, var, nc_file.variables[v_in_name][:])
-                    elif var == 'lev' and cfg['ztype'] == 'pres':
-                        setattr(self, var, nc_file.variables[v_in_name][:] * cfg['pfac'])
+                for dvar in dim_vars:
+                    v_in_name = cfg[dvar]
+                    if dvar == 'time':
+                        setattr(self, dvar, nc_file.variables[v_in_name][:])
+                    elif dvar == 'lev' and cfg['ztype'] == 'pres':
+                        setattr(self, dvar, nc_file.variables[v_in_name][:] * cfg['pfac'])
                     else:
-                        setattr(self, var, nc_file.variables[v_in_name][:])
+                        setattr(self, dvar, nc_file.variables[v_in_name][:])
 
                 # Set time units and calendar properties
                 self.time_units = nc_file.variables[cfg['time']].units
@@ -245,55 +251,53 @@ class InputData(object):
 
         self.props.log.info('Finished calculating IPV')
 
-    def _calc_stream_func(self,troposphere_only):
+    def _calc_stream_func(self, troposphere_only):
 
-        data = {'omega' : np.ma.asarray(np.mean(self.in_data['omega'][:,troposphere_only,:],axis=3)), 
-                'vcomp' : np.ma.asarray(np.mean(self.in_data['vwnd'][:,troposphere_only,:] ,axis=3)),
-                'pfull' : self.lev[troposphere_only], 'lat': self.lat, 'time' : self.time}
- 
-        self.psi = cal_stream_fn(data)
-        
+        data = {'omega': np.ma.mean(self.in_data['omega'][:, troposphere_only, :], axis=3),
+                'vcomp': np.ma.mean(self.in_data['vwnd'][:, troposphere_only, :], axis=3),
+                'pfull': self.lev[troposphere_only], 'lat': self.lat, 'time' : self.time}
+
+        psi = cal_stream_fn(data)
+
         self.props.log.info('Finished calculating stream function')
 
-        self._zero_crossing(troposphere_only)
-        
-    def _zero_crossing(self,troposphere_only):
-        """ At the 500 hPa level, find the absolute maximum in the stream
-            in each hemisphere. 
-        """
+        self._zero_crossing(psi, troposphere_only)
 
-        #select 500 level
+    def _zero_crossing(self, psi, troposphere_only):
+        """At the 500 hPa level, find the abs. max. stream function in each hemisphere."""
+
+        # select 500 level
         lev_500 = np.where(self.lev[troposphere_only] == 50000.)[0]
-        assert len(lev_500)  == 1 , 'Where is 500hPa level?' 
-        psi_500 = np.squeeze(self.psi[:,lev_500,:])
+        assert len(lev_500) == 1, 'Where is 500hPa level?'
+        psi_500 = np.squeeze(psi[:, lev_500, :])
 
-        #find the equator
+        # find the equator
         abs_lat = np.min(np.abs(self.lat))
         lat_0_elem = FindClosestElem(abs_lat, self.lat)
-        assert len(lat_0_elem)  == 1 , 'More than 1 value at the equator' 
+        assert len(lat_0_elem) == 1, 'More than 1 value at the equator'
 
         lat_arg_sort = np.argsort(self.lat)
         if lat_arg_sort[0] == 0:
-            #lat is -90 to 90 
+            # lat is -90 to 90
             nh_max_elem = np.argmax(np.abs(psi_500[:, lat_0_elem:]), axis=1)
-            sh_max_elem = np.argmax(np.abs(psi_500[:,0:lat_0_elem]), axis=1)
+            sh_max_elem = np.argmax(np.abs(psi_500[:, 0:lat_0_elem]), axis=1)
             self.nh_lat = self.lat[lat_0_elem:][nh_max_elem]
             self.sh_lat = self.lat[0:lat_0_elem][sh_max_elem]
         else:
-            #lat is 90 to -90 
-            nh_max_elem = np.argmin(psi_500[:,0:lat_0_elem], axis=1)
+            # lat is 90 to -90
+            nh_max_elem = np.argmin(psi_500[:, 0:lat_0_elem], axis=1)
             sh_max_elem = np.argmax(psi_500[:, lat_0_elem:], axis=1)
             self.nh_lat = self.lat[0:lat_0_elem][nh_max_elem]
             self.sh_lat = self.lat[lat_0_elem:][sh_max_elem]
 
         plot_test = False
         if plot_test:
-            plt.plot(self.lat,psi_500[0,:])
-            plt.plot([self.nh_lat[0],self.nh_lat[0]],[0,0], c='r', marker='x')
-            plt.plot([self.sh_lat[0],self.sh_lat[0]],[0,0], c='r', marker='x')
+            plt.plot(self.lat, psi_500[0, :])
+            plt.plot([self.nh_lat[0], self.nh_lat[0]], [0, 0], c='r', marker='x')
+            plt.plot([self.sh_lat[0], self.sh_lat[0]], [0, 0], c='r', marker='x')
             plt.show()
 
-    def _write_stream_func(self,troposphere_only, out_file=None):
+    def _write_stream_func(self, out_file=None):
         """
         Save psi (i.e stream function) data generated to a file, either netCDF4 or pickle.
 
@@ -314,24 +318,22 @@ class InputData(object):
 
         props = {'name': 'Latitude of maximum psi',
                  'descr': ' Max stream function location in NH',
-                 'units': 'deg (lat)', 
+                 'units': 'deg (lat)',
                  'short_name': 'psi_max_nh',
                  'timevar': self.data_cfg['time'],
                  'time_units': self.time_units,
-                 'calendar': self.calendar
-                 }
+                 'calendar': self.calendar}
 
         psi_out_nh = dout.NCOutVar(self.nh_lat, props=props, coords=coords)
         psi_out_sh = dout.NCOutVar(self.sh_lat, props=dict(props), coords=coords)
 
         psi_out_sh.set_props({'name': 'Latitude of maximum psi',
-                 'descr': ' Max stream function location in SH',
-                 'units': 'deg (lat)', 
-                 'short_name': 'psi_max_sh',
-                 'timevar': self.data_cfg['time'],
-                 'time_units': self.time_units,
-                 'calendar': self.calendar
-                 })
+                              'descr': ' Max stream function location in SH',
+                              'units': 'deg (lat)',
+                              'short_name': 'psi_max_sh',
+                              'timevar': self.data_cfg['time'],
+                              'time_units': self.time_units,
+                              'calendar': self.calendar})
         dout.write_to_netcdf([psi_out_nh, psi_out_sh], '{}'.format(out_file))
         self.props.log.info('Finished Writing stream function data')
 
@@ -352,7 +354,7 @@ class InputData(object):
         if self.calendar is None:
             self.calendar = lat_in.variables[self.data_cfg['time']].calendar
 
-        lat_in.close()     
+        lat_in.close()
 
     def _calc_trop(self):
         """Calculate the tropopause height using the WMO thermal definition."""
@@ -390,10 +392,7 @@ class InputData(object):
     def _calc_dyn_trop(self):
         """Calculate dynamical tropopause (pv==2PVU)."""
         pv_lev = self.config['pv_value']
-        if pv_lev < 0:
-            pv_lev = -np.array([pv_lev])
-        else:
-            pv_lev = np.array([pv_lev])
+        pv_lev = np.array([abs(pv_lev)])
 
         self.props.log.info('Start calculating dynamical tropopause')
         if self.ipv is None:
