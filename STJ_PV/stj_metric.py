@@ -3,10 +3,11 @@
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
+import matplotlib.pyplot as plt
 
 import utils
 import data_out as dio
-
+plt.style.use('ggplot')
 
 class STJMetric(object):
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
@@ -32,6 +33,8 @@ class STJMetric(object):
         self.jet_lat = None
         self.jet_theta = None
         self.time = None
+        self.hemis = None
+        self.plot_idx = 0
 
     def save_jet(self):
         """Save jet position to file."""
@@ -153,7 +156,7 @@ class STJPV(STJMetric):
         poly_fit = self.pfit(lat[y_s:y_e][valid], data[y_s:y_e][valid], self.fit_deg)
         poly_der = self.peval(lat[y_s:y_e], self.pder(poly_fit, deriv))
 
-        return poly_der
+        return poly_der, (poly_fit, lat[y_s:y_e][valid])
 
     def find_jet(self, shemis=True):
         """
@@ -172,7 +175,6 @@ class STJPV(STJMetric):
 
         # Find axis
         lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
-        lat_axis_3d = self.data.trop_theta.shape.index(self.data.lat.shape[0])
 
         if self.data.ipv.shape.count(self.data.lat.shape[0]) > 1:
             # Log a message about which matching dimension used since this
@@ -180,42 +182,40 @@ class STJPV(STJMetric):
             self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
                                                                 self.data.ipv.shape))
 
-        hemis = [slice(None)] * self.data.ipv.ndim
-        hemis_3d = [slice(None)] * self.data.trop_theta.ndim
+        self.hemis = [slice(None)] * self.data.ipv.ndim
 
         if shemis:
-            hemis[lat_axis] = self.data.lat < 0
-            hemis_3d[lat_axis_3d] = self.data.lat < 0
+            self.hemis[lat_axis] = self.data.lat < 0
             lat = self.data.lat[self.data.lat < 0]
             hidx = 0
             # Link `extrema` function to argrelmax for SH
             extrema = sig.argrelmax
         else:
-            hemis[lat_axis] = self.data.lat > 0
-            hemis_3d[lat_axis_3d] = self.data.lat > 0
+            self.hemis[lat_axis] = self.data.lat > 0
             lat = self.data.lat[self.data.lat > 0]
             hidx = 1
             # Link `extrema` function to argrelmin for NH
             extrema = sig.argrelmin
 
         # Get theta on PV==pv_level
-        theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[hemis], pv_lev)
+        theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[self.hemis], pv_lev)
 
-        # Find the difference between the u-wind at surface, and dynamical tropopause
-        ushear = (utils.vinterp(self.data.uwnd[hemis], self.data.ipv[hemis], pv_lev) -
-                  self.data.uwnd[hemis][:, 0, ...])
+        ushear = self._get_max_shear()
+
         dims = theta_xpv.shape
-        ttrop = self.data.trop_theta[hemis_3d]
+        # ttrop = self.data.trop_theta[hemis_3d]
+        psi_lat = self.data.strf_lat[:, hidx]
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES', dims[0])
         for tix in range(dims[0]):
+            if tix % 50 == 0:
+                self.log.info('COMPUTING JET POSITION FOR %d', tix)
             self.tix = tix
             jet_loc = np.zeros(dims[-1])
             for xix in range(dims[-1]):
                 self.xix = xix
-                jet_loc[xix] = self._find_single_jet(theta_xpv[tix, :, xix],
-                                                     ttrop[tix, :, xix],
-                                                     lat, ushear[tix, ..., xix], extrema)
+                jet_loc[xix] = self._find_single_jet(theta_xpv[tix, :, xix], psi_lat[tix],
+                                                     lat, ushear[tix, :, xix], extrema)
                 if not self.props['zonal_opt'].lower() == 'mean':
                     self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
                     self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
@@ -229,7 +229,25 @@ class STJPV(STJMetric):
                 self.jet_lat[hidx, tix] = np.ma.mean(jet_lat)
                 self.jet_theta[hidx, tix] = np.ma.mean(jet_theta)
 
-    def _find_single_jet(self, theta_xpv, ttrop, lat, ushear, extrema):
+    def _get_max_shear(self):
+        if self.data.data_cfg['ztype'] == 'pres':
+            if self.data.lev[0] > self.data.lev[-1]:
+                sfc_ix = 0
+            else:
+                sfc_ix = -1
+            levs = self.data.lev >= 20000.
+
+        elif self.data.data_cfg['ztype'] == 'theta':
+            if self.data.lev[0] > self.data.lev[-1]:
+                sfc_ix = -1
+            else:
+                sfc_ix = 0
+            levs = self.data.lev <= 400.
+        uwnd_hemis = self.data.uwnd[self.hemis]
+        uwnd_sfc = uwnd_hemis[:, sfc_ix, :, :]
+        return np.max(uwnd_hemis[:, levs, :, :], axis=1) - uwnd_sfc
+
+    def _find_single_jet(self, theta_xpv, psi_lat, lat, ushear, extrema):
         """
         Find jet location for a 1D array of theta on latitude.
 
@@ -237,13 +255,12 @@ class STJPV(STJMetric):
         ----------
         theta_xpv : array_like
             Theta on PV level as a function of latitude
-        ttrop : array_like
-            Thermal tropopause theta as a function of latitude
+        psi_lat : array_like
+            Latitude of maximum streamfunction in this hemisphere
         lat : array_like
             1D array of latitude same shape as theta_xpv and ttrop
         ushear : array_like
-            Shear between dynamical tropopause and lowest level of input data in
-            zonal wind component [m/s]
+            1D array along latitude axis of maximum surface - troposphere u-wind shear
 
         Returns
         -------
@@ -256,6 +273,7 @@ class STJPV(STJMetric):
         # y_s = np.abs(np.ma.masked_invalid(ttrop[np.abs(lat) < 45] -
         #                                   theta_xpv[np.abs(lat) < 45])).argmin()
         y_s = np.abs(np.abs(lat) - self.props['min_lat']).argmin()
+        # y_s = np.abs(np.abs(lat) - np.abs(psi_lat)).argmin()
         y_e = None
 
         # If latitude is in decreasing order, switch start & end
@@ -263,14 +281,19 @@ class STJPV(STJMetric):
         if abs(lat[0]) > abs(lat[-1]):
             y_s, y_e = y_e, y_s
         # Find derivative of dynamical tropopause
-        dtheta = self._poly_deriv(lat, theta_xpv, y_s=y_s, y_e=y_e)
+        dtheta, theta_fit = self._poly_deriv(lat, theta_xpv, y_s=y_s, y_e=y_e)
 
         jet_loc_all = extrema(dtheta)[0].astype(int)
         if y_s is not None:
             # If beginning of array is cut off rather than end, add cut-off to adjust
             jet_loc_all += y_s
+        select = self.select_jet(jet_loc_all, lat, ushear)
 
-        return self.select_jet(jet_loc_all, lat, ushear)
+        if self.plot_idx <= 17:
+            self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
+                             y_s, y_e, select)
+
+        return select
 
     def select_jet(self, locs, lat, ushear):
         """
@@ -283,8 +306,7 @@ class STJPV(STJMetric):
         lat : array_like
             1D array of hemispheric latitude
         ushear : array_like
-            1D array of zonal wind shear between dynamical tropopause and lowest input
-            data layer. Should be the same shape as ``lat``.
+            1D array along latitude axis of maximum surface - troposphere u-wind shear
 
         Returns
         -------
@@ -310,6 +332,51 @@ class STJPV(STJMetric):
             jet_loc = locs[0]
 
         elif len(locs) > 1:
-            jet_loc = locs[ushear[locs].argmax()]
+
+            ushear_max = np.argmax(ushear[locs])
+            jet_loc = locs[ushear_max]
+
+            if np.abs(lat[jet_loc]) > 60:
+                try:
+                    plt.contourf(lat, self.data.lev,
+                                 uwnd_hemis[self.tix, :, :, self.xix],
+                                 np.linspace(-40, 40, 14), cmap='RdBu_r', extend='both')
+                    ylims = plt.gca().get_ylim()
+                    for loc in locs:
+                        plt.plot([lat[loc]] * 2, ylims, '--')
+                    plt.gca().set_yscale('log')
+                    plt.savefig('plots/plt_uwnd_t{:03d}_x{:03d}_{:05d}.png'
+                                .format(self.tix, self.xix, self.plot_idx))
+                    self.plot_idx += 1
+                except Exception as err:
+                    print("TRIED TO PLOT, COULDN'T")
+                    print(err)
 
         return jet_loc
+
+    def _debug_plot(self, lat, theta_xpv, theta_fit, dtheta,
+                    jet_loc_all, y_s, y_e, select):
+        if np.max(lat) < 0 and self.xix > 10 and self.xix < 30 and self.tix == 0:
+            if y_s is None:
+                y_si = 0
+            else:
+                y_si = y_s
+
+            poly_fit = self.peval(theta_fit[1], theta_fit[0])
+
+            fig, axis = plt.subplots(1, 1)
+            ax1 = axis.twinx()
+
+            axis.plot(lat, theta_xpv, label='D. Trop.')
+            axis.plot(theta_fit[1], poly_fit, label='TH(fit)')
+
+            axis.plot(lat[jet_loc_all], poly_fit[jet_loc_all - y_si], 'C3o')
+            axis.plot(lat[select], poly_fit[select - y_si], 'C4x', ms=3.)
+
+            ax1.plot(lat[y_s:y_e], dtheta, 'C2', label='D(th)/d(lat)')
+
+            axis.legend()
+            plt.savefig('plots/plt_jet_{:05d}_t{:03d}_x{:03d}.png'.format(self.plot_idx,
+                                                                    self.tix, self.xix))
+            self.plot_idx += 1
+            plt.close()

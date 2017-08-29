@@ -87,7 +87,6 @@ class InputData(object):
             self._write_stream_func()
         else:
             self._load_stream_func()
-        import pdb;pdb.set_trace()
 
     def check_input_range(self, year_s, year_e):
         """
@@ -221,6 +220,7 @@ class InputData(object):
             self._load_data()
         self.props.log.info('Starting IPV calculation')
 
+        self.uwnd = self.in_data['uwnd']
         # calculate IPV
         if cfg['ztype'] == 'pres':
             th_shape = list(self.in_data['uwnd'].shape)
@@ -228,7 +228,6 @@ class InputData(object):
 
             # Pre-allocate memory for PV and Wind fields
             self.ipv = np.zeros(th_shape)
-            self.uwnd = np.zeros(th_shape)
             chunks = self._gen_chunks()
             self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
@@ -241,7 +240,6 @@ class InputData(object):
             self.th_lev = self.props.th_levels
 
         elif cfg['ztype'] == 'theta':
-            self.uwnd = self.in_data['uwnd']
             self.ipv = utils.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
                                        self.in_data['pres'], self.lat, self.lon,
                                        self.lev)
@@ -493,7 +491,13 @@ class InputData(object):
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
         self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
-        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
+
+        file_name_u = self.data_cfg['file_paths']['uwnd'].format(year=self.year)
+        in_file_u = os.path.join(self.data_cfg['path'], file_name_u)
+        uwnd_in = nc.Dataset(in_file_u, 'r')
+        self.uwnd = uwnd_in.variables[self.data_cfg['uwnd']][:]
+        self.lev = (uwnd_in.variables[self.data_cfg['lev']][:] *
+                    self.props.data_cfg['pfac'])
 
         coord_names = ['time', 'lat', 'lon']
         for cname in coord_names:
@@ -505,6 +509,7 @@ class InputData(object):
 
         self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
         ipv_in.close()
+        uwnd_in.close()
 
     def _load_trop(self):
         """Open IPV file, load into self.ipv."""
