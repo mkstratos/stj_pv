@@ -1,5 +1,6 @@
 path: '/scratch/pm366/Data/ERA_INT_1979-2016/monthly/'
-wpath: '/scratch/mk450/Data/ERA_INT/monthly/'
+wpath: '/scratch/pm366/Data/ERA_INT_1979-2016/monthly/'
+#wpath: '/scratch/mk450/Data/ERA_INT/monthly/'
 short_name: 'ERAI_PRES'
 
 # Input file possibilities:
@@ -14,9 +15,10 @@ single_year_file: False
 file_paths:
     uwnd: 'ERA-INT_197901_201612_u.nc'
     vwnd: 'ERA-INT_197901_201612_v.nc'
+    omega: 'ERA-INT_197901_201612_w.nc'
     tair: 'ERA-INT_197901_201612_t.nc'
     ipv: 'ERA-INT_197901_201612_ipv.nc'
-    tpause: 'ERA-INT_197901_201612_tpause.nc'
+    psi: 'ERA-INT_197901_201612_psi.nc'
 
 lon: 'lon'      # Name within netCDF file of 'longitude' variable
 lat: 'lat'      # Name within netCDF file of 'latitude' variable
@@ -29,4 +31,5 @@ pfac: 1.0     # Multiply pressure by this to get units of Pascals
 tair: 'var130'
 uwnd: 'var131'
 vwnd: 'var132'
+omega: 'var135'
 ipv: 'ipv'
