@@ -187,12 +187,12 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
     for key in required_keys_all:
         if key not in keys_in:
             missing.append(key)
-            check_str = '[MISSING]'
+            check_str = u'[\U0001F630  MISSING]'
         elif not isinstance(config[key], required_keys_all[key]):
             wrong_type.append(key)
-            check_str = '[WRONG TYPE]'
+            check_str = u'[\U0001F621  WRONG TYPE]'
         else:
-            check_str = '[OKAY]'
+            check_str = u'[\U0001F60E  OKAY]'
         print('{:30s} {:30s}'.format(key, check_str))
 
     if len(missing) > 0 or len(wrong_type) > 0:
@@ -278,9 +278,8 @@ def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
     #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_ncep.yml')
-    #jf_run.run(1979, 2016)
-    jf_run._get_data(1979)
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    jf_run.run(1979, 2016)
     jf_run.log.info('JET FINDING COMPLETE')
 
 if __name__ == "__main__":
