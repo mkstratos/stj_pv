@@ -203,8 +203,6 @@ class STJPV(STJMetric):
         ushear = self._get_max_shear()
 
         dims = theta_xpv.shape
-        # ttrop = self.data.trop_theta[hemis_3d]
-        psi_lat = self.data.strf_lat[:, hidx]
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
         for tix in range(dims[0]):
@@ -214,7 +212,7 @@ class STJPV(STJMetric):
             jet_loc = np.zeros(dims[-1])
             for xix in range(dims[-1]):
                 self.xix = xix
-                jet_loc[xix] = self._find_single_jet(theta_xpv[tix, :, xix], psi_lat[tix],
+                jet_loc[xix] = self._find_single_jet(theta_xpv[tix, :, xix],
                                                      lat, ushear[tix, :, xix], extrema)
                 if not self.props['zonal_opt'].lower() == 'mean':
                     self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
@@ -247,7 +245,7 @@ class STJPV(STJMetric):
         uwnd_sfc = uwnd_hemis[:, sfc_ix, :, :]
         return np.max(uwnd_hemis[:, levs, :, :], axis=1) - uwnd_sfc
 
-    def _find_single_jet(self, theta_xpv, psi_lat, lat, ushear, extrema):
+    def _find_single_jet(self, theta_xpv, lat, ushear, extrema):
         """
         Find jet location for a 1D array of theta on latitude.
 
@@ -255,8 +253,6 @@ class STJPV(STJMetric):
         ----------
         theta_xpv : array_like
             Theta on PV level as a function of latitude
-        psi_lat : array_like
-            Latitude of maximum streamfunction in this hemisphere
         lat : array_like
             1D array of latitude same shape as theta_xpv and ttrop
         ushear : array_like
@@ -268,12 +264,8 @@ class STJPV(STJMetric):
             Index of jet location on latitude axis
 
         """
-        # Get thermal tropopause intersection with dynamical tropopause within 45deg
-        # of the equator
-        # y_s = np.abs(np.ma.masked_invalid(ttrop[np.abs(lat) < 45] -
-        #                                   theta_xpv[np.abs(lat) < 45])).argmin()
+        # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
         y_s = np.abs(np.abs(lat) - self.props['min_lat']).argmin()
-        # y_s = np.abs(np.abs(lat) - np.abs(psi_lat)).argmin()
         y_e = None
 
         # If latitude is in decreasing order, switch start & end
