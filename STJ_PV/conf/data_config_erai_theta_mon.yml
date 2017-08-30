@@ -17,7 +17,7 @@ lat:        'latitude'  # Name within netCDF file of 'latitude' variable
 lev:        'level'     # Name within netCDF file of 'level' variable
 time:       'time'      # Name within netCDF file of 'time' variable
 ztype:      'theta'     # Type of levels (pressure, potential temperature, etc.)
-
+pfac:       1.0
 # Variable names for u/v wind, air temperature and pv
 uwnd:       'u'
 vwnd:       'v'
