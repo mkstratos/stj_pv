@@ -206,7 +206,7 @@ class STJPV(STJMetric):
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
         for tix in range(dims[0]):
-            if tix % 50 == 0:
+            if tix % 50 == 0 and dims[0] > 50:
                 self.log.info('COMPUTING JET POSITION FOR %d', tix)
             self.tix = tix
             jet_loc = np.zeros(dims[-1])
