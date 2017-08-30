@@ -253,7 +253,7 @@ def check_data_config(cfg_file):
 
     """
     required_keys_all = {'path': str, 'short_name': str, 'single_var_file': bool,
-                         'single_year_file': bool, 'file_paths': dict,
+                         'single_year_file': bool, 'file_paths': dict, 'pfac': float,
                          'lon': str, 'lat': str, 'lev': str, 'time': str, 'ztype': str}
 
     config, missing_req = check_config_req(cfg_file, required_keys_all)
@@ -278,7 +278,7 @@ def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
     #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     jf_run.run(1979, 2016)
     jf_run.log.info('JET FINDING COMPLETE')
 
