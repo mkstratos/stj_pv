@@ -206,7 +206,7 @@ class STJPV(STJMetric):
         # ttrop = self.data.trop_theta[hemis_3d]
         psi_lat = self.data.strf_lat[:, hidx]
 
-        self.log.info('COMPUTING JET POSITION FOR %d TIMES', dims[0])
+        self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
         for tix in range(dims[0]):
             if tix % 50 == 0:
                 self.log.info('COMPUTING JET POSITION FOR %d', tix)
@@ -222,12 +222,12 @@ class STJPV(STJMetric):
 
             if self.props['zonal_opt'].lower() == 'mean':
                 jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
-                jet_theta = np.nanmean(theta_xpv[tix, :, :], axis=-1)
+                jet_theta = np.nanmedian(theta_xpv[tix, :, :], axis=-1)
                 jet_theta = np.ma.masked_where(jet_loc == 0,
                                                jet_theta[jet_loc.astype(int)])
 
-                self.jet_lat[hidx, tix] = np.ma.mean(jet_lat)
-                self.jet_theta[hidx, tix] = np.ma.mean(jet_theta)
+                self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
+                self.jet_theta[hidx, tix] = np.ma.median(jet_theta)
 
     def _get_max_shear(self):
         if self.data.data_cfg['ztype'] == 'pres':
@@ -336,21 +336,30 @@ class STJPV(STJMetric):
             ushear_max = np.argmax(ushear[locs])
             jet_loc = locs[ushear_max]
 
-            if np.abs(lat[jet_loc]) > 60:
+            if False: #np.abs(lat[jet_loc]) > 60:
                 try:
-                    plt.contourf(lat, self.data.lev,
-                                 uwnd_hemis[self.tix, :, :, self.xix],
+                    if np.min(lat) > 0:
+                        uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat > 0, self.xix]
+                    else:
+                        uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
+                    plt.contourf(lat, self.data.lev, uwnd_plt.T,
                                  np.linspace(-40, 40, 14), cmap='RdBu_r', extend='both')
+                    plt.gca().invert_yaxis()
                     ylims = plt.gca().get_ylim()
                     for loc in locs:
                         plt.plot([lat[loc]] * 2, ylims, '--')
+                    plt.plot([lat[jet_loc]] * 2, ylims, '-', lw=3.)
                     plt.gca().set_yscale('log')
                     plt.savefig('plots/plt_uwnd_t{:03d}_x{:03d}_{:05d}.png'
                                 .format(self.tix, self.xix, self.plot_idx))
                     self.plot_idx += 1
                 except Exception as err:
                     print("TRIED TO PLOT, COULDN'T")
+                    print(uwnd_plt.shape, lat.shape, self.data.lev.shape)
                     print(err)
+
+                plt.clf()
+                plt.close()
 
         return jet_loc
 
