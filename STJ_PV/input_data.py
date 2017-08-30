@@ -307,7 +307,11 @@ class InputData(object):
         ipv_in = nc.Dataset(in_file, 'r')
         self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
 
-        file_name_u = self.data_cfg['file_paths']['uwnd'].format(year=self.year)
+        try:
+            file_name_u = self.data_cfg['file_paths']['uwnd'].format(year=self.year)
+        except KeyError:
+            file_name_u = self.data_cfg['file_paths']['all'].format(year=self.year)
+
         in_file_u = os.path.join(self.data_cfg['path'], file_name_u)
         uwnd_in = nc.Dataset(in_file_u, 'r')
         self.uwnd = uwnd_in.variables[self.data_cfg['uwnd']][:]
