@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
-plt.style.use('ggplot')
+#plt.style.use('ggplot')
 
 
 def main(param_name, param_vals):
@@ -24,7 +24,7 @@ def main(param_name, param_vals):
     opts_var = [{param_name: p_val} for p_val in param_vals]
     file_fmt = '{run_type}_pv{pv_lev:.1f}_fit{fit:.0f}_y0{y0:03.1f}.nc'
     files_in  = [file_fmt.format(**var, **opts) for var in opts_var]
-    print(files_in)
+
     d_in = xr.concat([xr.open_dataset(in_f) for in_f in files_in], dim=param_name)
     d_in[param_name] = param_vals
 
@@ -57,18 +57,27 @@ def main(param_name, param_vals):
         axis[0].plot(param_vals, nh_sm[:, snx], 'o-', label=str(season.data))
         axis[1].plot(param_vals, sh_sm[:, snx], 'o-', label=str(season.data))
 
-    axis[0].set_xlabel('PV Level [PVU]')
+    axis[0].set_xlabel(PARAMS[param_name])
     axis[0].set_ylabel('Mean Jet Latitude')
     axis[0].legend()
     axis[0].set_title('Northern Hemisphere')
-    axis[1].set_xlabel('PV Level [PVU]')
+    axis[0].set_ylim([25, 45])
+    axis[0].grid(b=True, ls='--')
+
+    axis[1].set_xlabel(PARAMS[param_name])
     axis[1].legend()
     axis[1].set_title('Southern Hemisphere')
+    axis[1].invert_yaxis()
+    axis[1].set_ylim([-45, -25])
+    axis[1].grid(b=True, ls='--')
     plt.suptitle('Seasonal Mean Jet Latitude')
-    plt.tight_layout()
+    #plt.tight_layout()
     plt.savefig('plt_season_mean_{}.png'.format(param_name))
-
+    plt.show()
 
 if __name__ == "__main__":
-    main('pv_lev', np.arange(1.0, 5.5, 0.5))
+    PARAMS = {'fit': 'Polynomial Fit [deg]', 'y0': 'Minimum Latitude',
+              'pv_lev': 'PV Level [PVU]'}
     main('fit', np.arange(4, 12))
+    main('y0', np.arange(1, 11))
+    main('pv_lev', np.arange(1.0, 5.5, 0.5))
