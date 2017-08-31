@@ -32,6 +32,7 @@ class STJMetric(object):
         self.log = props.log
         self.jet_lat = None
         self.jet_theta = None
+        self.jet_intens = None
         self.time = None
         self.hemis = None
         self.plot_idx = 0
@@ -55,26 +56,42 @@ class STJMetric(object):
         props_th['units'] = 'K'
         props_th['short_name'] = 'theta_sh'
 
+        props_int = dict(props_lat)
+        props_int['name'] = 'jet_intensity'
+        props_int['descr'] = 'Intensity of subtropical jet'
+        props_int['units'] = 'm s-1'
+        props_int['short_name'] = 'intens_sh'
+
         self.log.info("CREATE OUTPUT VARIABLES")
         lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props_lat)
         theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords, props=props_th)
+        intens_sh_out= dio.NCOutVar(self.jet_intens[0, ...], coords=coords,
+                                    props=props_int)
+
         props_lat_nh = dict(props_lat)
         props_th_nh = dict(props_th)
+        props_int_nh = dict(props_int)
         props_lat_nh['short_name'] = 'lat_nh'
         props_th_nh['short_name'] = 'theta_nh'
+        props_int_nh['short_name'] = 'intens_nh'
+
         lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props_lat_nh)
         theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords,
                                     props=props_th_nh)
+        intens_nh_out= dio.NCOutVar(self.jet_intens[1, ...], coords=coords,
+                                    props=props_int_nh)
 
         self.log.info("WRITE TO {output_file}".format(**self.props))
         # Write jet & theta positions to file
-        dio.write_to_netcdf([lat_sh_out, theta_sh_out, lat_nh_out, theta_nh_out],
+        dio.write_to_netcdf([lat_sh_out, theta_sh_out, intens_sh_out,
+                             lat_nh_out, theta_nh_out, intens_nh_out],
                             self.props['output_file'] + '.nc')
 
     def append(self, other):
         """Append another metric's latitude and theta positon to this one."""
         self.jet_lat = np.append(self.jet_lat, other.jet_lat, axis=1)
         self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
+        self.jet_intens = np.append(self.jet_intens, other.jet_intens, axis=1)
         self.time = np.append(self.time, other.time, axis=0)
 
 
@@ -123,9 +140,11 @@ class STJPV(STJMetric):
         if self.props['zonal_opt'].lower() == 'mean':
             self.jet_lat = np.zeros([2, dims[0]])
             self.jet_theta = np.zeros([2, dims[0]])
+            self.jet_intens = np.zeros([2, dims[0]])
         else:
             self.jet_lat = np.zeros([2, dims[0], dims[-1]])
             self.jet_theta = np.zeros([2, dims[0], dims[-1]])
+            self.jet_intens = np.zeros([2, dims[0], dims[-1]])
 
         self.time = self.data.time[:]
         self.tix = None
@@ -199,8 +218,9 @@ class STJPV(STJMetric):
 
         # Get theta on PV==pv_level
         theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[self.hemis], pv_lev)
-
-        ushear = self._get_max_shear()
+        uwnd_xpv = utils.vinterp(self.data.uwnd[self.hemis], self.data.ipv[self.hemis],
+                                 pv_lev)
+        ushear = self._get_max_shear(uwnd_xpv)
 
         dims = theta_xpv.shape
 
@@ -217,33 +237,38 @@ class STJPV(STJMetric):
                 if not self.props['zonal_opt'].lower() == 'mean':
                     self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
                     self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
+                    self.jet_intens[hidx, tix, xix] = uwnd_xpv[tix, jet_loc[xix], xix]
 
             if self.props['zonal_opt'].lower() == 'mean':
+
                 jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
+                self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
+
+                # First take the zonal median of Theta on dyn. tropopause
                 jet_theta = np.nanmedian(theta_xpv[tix, :, :], axis=-1)
+                # Mask wherever jet_loc is undefined, jet_loc is a func. of longitude here
                 jet_theta = np.ma.masked_where(jet_loc == 0,
                                                jet_theta[jet_loc.astype(int)])
-
-                self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
+                # Then save the zonal median of this to the correct position in output
                 self.jet_theta[hidx, tix] = np.ma.median(jet_theta)
 
-    def _get_max_shear(self):
-        if self.data.data_cfg['ztype'] == 'pres':
-            if self.data.lev[0] > self.data.lev[-1]:
-                sfc_ix = 0
-            else:
-                sfc_ix = -1
-            levs = self.data.lev >= 20000.
+                # Now do the same for jet intensity
+                jet_intens = np.nanmedian(uwnd_xpv[tix, :, :], axis=-1)
+                jet_intens = np.ma.masked_where(jet_loc == 0,
+                                                jet_intens[jet_loc.astype(int)])
+                self.jet_intens[hidx, tix] = np.ma.median(jet_intens)
 
-        elif self.data.data_cfg['ztype'] == 'theta':
-            if self.data.lev[0] > self.data.lev[-1]:
-                sfc_ix = -1
-            else:
-                sfc_ix = 0
-            levs = self.data.lev <= 400.
-        uwnd_hemis = self.data.uwnd[self.hemis]
-        uwnd_sfc = uwnd_hemis[:, sfc_ix, :, :]
-        return np.max(uwnd_hemis[:, levs, :, :], axis=1) - uwnd_sfc
+
+    def _get_max_shear(self, uwnd_xpv):
+        dec_levs = self.data.lev[0] > self.data.lev[-1]
+        if (self.data.data_cfg['ztype'] == 'pres' and dec_levs or
+            self.data.data_cfg['ztype'] == 'theta' and not dec_levs):
+            sfc_ix = 0
+        else:
+            sfc_ix = -1
+
+        uwnd_sfc = self.data.uwnd[self.hemis][:, sfc_ix, :, :]
+        return uwnd_xpv - uwnd_sfc
 
     def _find_single_jet(self, theta_xpv, lat, ushear, extrema):
         """
