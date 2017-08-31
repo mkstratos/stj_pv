@@ -281,7 +281,7 @@ class STJPV(STJMetric):
             jet_loc_all += y_s
         select = self.select_jet(jet_loc_all, lat, ushear)
 
-        if self.plot_idx <= 17:
+        if self.plot_idx <= 30:
             self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
                              y_s, y_e, select)
 
@@ -357,7 +357,7 @@ class STJPV(STJMetric):
 
     def _debug_plot(self, lat, theta_xpv, theta_fit, dtheta,
                     jet_loc_all, y_s, y_e, select):
-        if np.max(lat) < 0 and self.xix > 10 and self.xix < 30 and self.tix == 0:
+        if self.xix > 10 and self.xix < 30:
             if y_s is None:
                 y_si = 0
             else:
@@ -371,8 +371,8 @@ class STJPV(STJMetric):
             axis.plot(lat, theta_xpv, label='D. Trop.')
             axis.plot(theta_fit[1], poly_fit, label='TH(fit)')
 
-            axis.plot(lat[jet_loc_all], poly_fit[jet_loc_all - y_si], 'C3o')
-            axis.plot(lat[select], poly_fit[select - y_si], 'C4x', ms=3.)
+            axis.plot(lat[jet_loc_all], theta_xpv[jet_loc_all - y_si], 'C3o', ms=2.)
+            axis.plot(lat[select], theta_xpv[select - y_si], 'C4x', ms=3.)
 
             ax1.plot(lat[y_s:y_e], dtheta, 'C2', label='D(th)/d(lat)')
 
