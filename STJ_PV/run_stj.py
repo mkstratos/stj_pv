@@ -12,6 +12,8 @@ import numpy as np
 import yaml
 import stj_metric
 import input_data as inp
+
+
 np.seterr(all='ignore')
 warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 
@@ -193,17 +195,18 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
             check_str = u'[\U0001F621  WRONG TYPE]'
         else:
             check_str = u'[\U0001F60E  OKAY]'
-        print('{:30s} {:30s}'.format(key, check_str))
+
+        print(u'{:30s} {:30s}'.format(key, check_str))
 
     if len(missing) > 0 or len(wrong_type) > 0:
-        print('{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
-                                           'KEYS MISSING OR WRONG TYPE', 12 * '<'))
+        print(u'{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
+                                            'KEYS MISSING OR WRONG TYPE', 12 * '<'))
 
         for key in missing:
-            print('    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
+            print(u'    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
         for key in wrong_type:
-            print('    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
-                                                                  required_keys_all[key]))
+            print(u'    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
+                                                                   required_keys_all[key]))
         mkeys = True
     else:
         mkeys = False
@@ -277,8 +280,8 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    #jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     jf_run.run(1979, 2016)
     jf_run.log.info('JET FINDING COMPLETE')
 

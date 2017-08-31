@@ -281,9 +281,9 @@ class STJPV(STJMetric):
             jet_loc_all += y_s
         select = self.select_jet(jet_loc_all, lat, ushear)
 
-        if self.plot_idx <= 17:
-            self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
-                             y_s, y_e, select)
+        #if self.plot_idx <= 17:
+        #    self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
+        #                     y_s, y_e, select)
 
         return select
 
