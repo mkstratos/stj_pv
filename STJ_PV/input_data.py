@@ -194,7 +194,7 @@ class InputData(object):
             chunks = self._gen_chunks()
             self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
-                self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
+                self.ipv[ix_s:ix_e, ...], _, _ =\
                     utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
                               self.in_data['vwnd'][ix_s:ix_e, ...],
                               self.in_data['tair'][ix_s:ix_e, ...],
@@ -262,12 +262,8 @@ class InputData(object):
 
         # IPV in the file should be in 1e-6 PVU
         ipv_out = dout.NCOutVar(self.ipv * 1e-6, props=props, coords=coords)
-        u_th_out = dout.NCOutVar(self.uwnd, props=dict(props), coords=coords)
-        u_th_out.set_props({'name': 'zonal_wind_component',
-                            'descr': 'Zonal wind on isentropic levels',
-                            'units': 'm s-1', 'short_name': self.data_cfg['uwnd']})
 
-        dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
+        dout.write_to_netcdf([ipv_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing')
 
     def _write_dyn_trop(self, out_file=None):
