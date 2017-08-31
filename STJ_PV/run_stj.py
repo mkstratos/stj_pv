@@ -303,9 +303,9 @@ def main():
     # Generate an STJProperties, allows easy access to these properties across methods.
     #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    #jf_run.run(1979, 2016)
-    jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(1.0, 15.0),
-                           year_s=1979, year_e=2016)
+    jf_run.run(1979, 1980)#2016)
+    #jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(1.0, 15.0),
+    #                       year_s=1979, year_e=2016)
     jf_run.log.info('JET FINDING COMPLETE')
 
 if __name__ == "__main__":
