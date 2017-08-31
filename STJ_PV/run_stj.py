@@ -84,6 +84,11 @@ class JetFindRun(object):
             # if it isn't, then wpath == path is fine, set that here
             self.data_cfg['wpath'] = self.data_cfg['path']
 
+        self._set_output()
+        self.log_setup()
+
+    def _set_output(self):
+
         if self.config['method'] == 'STJPV':
             self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
                                           'fit{fit_deg}_y0{min_lat}'
@@ -97,8 +102,6 @@ class JetFindRun(object):
             self.config['output_file'] = ('{short_name}_{method}'
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
-
-        self.log_setup()
 
     def log_setup(self):
         """Create a logger object with file location from `self.config`."""
@@ -155,6 +158,27 @@ class JetFindRun(object):
                 jet_all.find_jet(shemis)
 
         jet_all.save_jet()
+
+    def run_sensitivity(self, sens_param, sens_range, year_s=None, year_e=None):
+        """
+        Perform a parameter sweep on a particular parameter of the JetFindRun.
+
+        Parameters
+        ----------
+        sens_param : string
+            Configuration parameter of :py:meth:`~STJ_PV.run_stj.JetFindRun`
+        sens_range : iterable
+            Range of values of `sens_param` over which to iterate
+        year_s, year_e : integer, optional
+            Start and end years, respectively. Optional, defualts to config file defaults
+
+        """
+        for param_val in sens_range:
+            self.log.info('----- RUNNING WITH %s = %f -----', sens_param, param_val)
+            self.config[sens_param] = param_val
+            self._set_output()
+            self.log.info('OUTPUT TO: %s', self.config['output_file'])
+            self.run(year_s, year_e)
 
 
 def check_config_req(cfg_file, required_keys_all, id_file=True):
@@ -279,7 +303,9 @@ def main():
     # Generate an STJProperties, allows easy access to these properties across methods.
     #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    jf_run.run(1979, 2016)
+    #jf_run.run(1979, 2016)
+    jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(1.0, 15.0),
+                           year_s=1979, year_e=2016)
     jf_run.log.info('JET FINDING COMPLETE')
 
 if __name__ == "__main__":
