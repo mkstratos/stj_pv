@@ -260,7 +260,7 @@ class STJPV(STJMetric):
 
     def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""
-        if self.data.lev[0] < self.data.lev[-1]:
+        if self.data.th_lev[0] < self.data.th_lev[-1]:
             sfc_ix = 0
         else:
             sfc_ix = -1
