@@ -190,6 +190,7 @@ class InputData(object):
 
             # Pre-allocate memory for PV and Wind fields
             self.ipv = np.zeros(th_shape)
+            self.uwnd = np.zeros(th_shape)
             chunks = self._gen_chunks()
             self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
