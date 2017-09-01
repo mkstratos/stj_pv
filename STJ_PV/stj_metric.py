@@ -220,8 +220,7 @@ class STJPV(STJMetric):
         theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[self.hemis], pv_lev)
         uwnd_xpv = utils.vinterp(self.data.uwnd[self.hemis], self.data.ipv[self.hemis],
                                  pv_lev)
-        uwnd_valid = np.isfinite(self.data.uwnd[self.hemis])
-        ushear = self._get_max_shear(uwnd_xpv, uwnd_valid)
+        ushear = self._get_max_shear(uwnd_xpv)
 
         dims = theta_xpv.shape
 
@@ -259,7 +258,7 @@ class STJPV(STJMetric):
                                                 jet_intens[jet_loc.astype(int)])
                 self.jet_intens[hidx, tix] = np.ma.median(jet_intens)
 
-    def _get_max_shear(self, uwnd_xpv, uwnd_valid):
+    def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""
         shape = list(self.data.uwnd[self.hemis].shape)
         n_z = shape.pop(1)
@@ -275,16 +274,6 @@ class STJPV(STJMetric):
 
         column_data = np.ma.masked_array(wind_flat, np.logical_not(wind_flat_mask))
         uwnd_sfc = np.max(column_data, axis=0).reshape(*shape)
-
-        # This is awful. Trying to get a valid surface to compare winds across
-        # Not quite sure how or why this works
-        #import pdb;pdb.set_trace()
-        #u_valid = np.argmax(uwnd_valid, axis=1)[self.tix, :, self.xix]
-        # This step creates a N_Y x N_Y array, then indexes its diagonal
-        #uwnd_sfc = self.data.uwnd[self.hemis][self.tix, :, :,
-        #                                      self.xix][u_valid][np.diag_indices(n_y, 2)]
-        # We need to do this every time/lon step since doing the step above runs into
-        # an out-of-memory error (because it attempts to create a super-massive array)
 
         return uwnd_xpv - uwnd_sfc
 
