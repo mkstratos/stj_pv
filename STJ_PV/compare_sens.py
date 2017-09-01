@@ -7,7 +7,7 @@ import xarray as xr
 #plt.style.use('ggplot')
 
 
-def main(param_name, param_vals):
+def main(param_name, param_vals, var_name='lat'):
     """
     Compare jet latitudes of results from sensitivity runs of stj_run.
 
@@ -19,12 +19,11 @@ def main(param_name, param_vals):
         Array or list of values that `param_name` takes
 
     """
-    opts = {'run_type': 'ERAI_MONTHLY_THETA_STJPV', 'fit': 12, 'y0': 10, 'pv_lev': 2.0}
+    opts = {'run_type': 'ERAI_MONTHLY_THETA_STJPV', 'fit': 8, 'y0': 10, 'pv_lev': 2.0}
     opts.pop(param_name)
     opts_var = [{param_name: p_val} for p_val in param_vals]
     file_fmt = '{run_type}_pv{pv_lev:.1f}_fit{fit:.0f}_y0{y0:03.1f}.nc'
     files_in  = [file_fmt.format(**var, **opts) for var in opts_var]
-
     d_in = xr.concat([xr.open_dataset(in_f) for in_f in files_in], dim=param_name)
     d_in[param_name] = param_vals
 
@@ -34,8 +33,10 @@ def main(param_name, param_vals):
     axes = axes.ravel()
 
     for idx, param in enumerate(d_in[param_name]):
-        axes[0].plot(time, d_in.lat_nh[idx, :], label='{:.1f}'.format(float(param)))
-        axes[1].plot(time, d_in.lat_sh[idx, :], label='{:.1f}'.format(float(param)))
+        axes[0].plot(time, d_in['{}_nh'.format(var_name)][idx, :],
+                     label='{:.1f}'.format(float(param)))
+        axes[1].plot(time, d_in['{}_sh'.format(var_name)][idx, :],
+                     label='{:.1f}'.format(float(param)))
 
     axes[0].set_title('NH')
     axes[0].legend()
@@ -49,13 +50,22 @@ def main(param_name, param_vals):
     plt.savefig('plt_compare_{}.png'.format(param_name))
     plt.close()
 
-    nh_sm = d_in.lat_nh.groupby('time.season').mean(axis=1)
-    sh_sm = d_in.lat_sh.groupby('time.season').mean(axis=1)
+    nh_seas = d_in['{}_nh'.format(var_name)].groupby('time.season')
+    sh_seas = d_in['{}_sh'.format(var_name)].groupby('time.season')
+    nh_sm = nh_seas.mean(axis=1)
+    sh_sm = sh_seas.mean(axis=1)
+    nh_svar = nh_seas.std(axis=1)
+    sh_svar = sh_seas.std(axis=1)
 
     fig, axis = plt.subplots(1, 2, figsize=(12, 5))
     for snx, season in enumerate(nh_sm.season):
-        axis[0].plot(param_vals, nh_sm[:, snx], 'o-', label=str(season.data))
-        axis[1].plot(param_vals, sh_sm[:, snx], 'o-', label=str(season.data))
+        axis[0].plot(param_vals, nh_sm[:, snx], 'C{}o-'.format(snx),
+                     label=str(season.data))
+
+        axis[1].plot(param_vals, sh_sm[:, snx], 'C{}o-'.format(snx),
+                     label=str(season.data))
+        axis[1].plot(param_vals, sh_sm[:, snx] + sh_svar[:, snx], 'C{}--'.format(snx))
+        axis[1].plot(param_vals, sh_sm[:, snx] - sh_svar[:, snx], 'C{}--'.format(snx))
 
     axis[0].set_xlabel(PARAMS[param_name])
     axis[0].set_ylabel('Mean Jet Latitude')
@@ -73,11 +83,11 @@ def main(param_name, param_vals):
     plt.suptitle('Seasonal Mean Jet Latitude')
     #plt.tight_layout()
     plt.savefig('plt_season_mean_{}.png'.format(param_name))
-    plt.show()
+    #plt.show()
 
 if __name__ == "__main__":
     PARAMS = {'fit': 'Polynomial Fit [deg]', 'y0': 'Minimum Latitude',
               'pv_lev': 'PV Level [PVU]'}
-    main('fit', np.arange(4, 12))
-    main('y0', np.arange(1, 11))
-    main('pv_lev', np.arange(1.0, 5.5, 0.5))
+    #main('fit', np.arange(4, 12))
+    #main('y0', np.arange(1, 11))
+    main('pv_lev', np.arange(1.0, 4.5, 0.5))
