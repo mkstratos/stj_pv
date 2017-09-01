@@ -173,6 +173,14 @@ class JetFindRun(object):
             Start and end years, respectively. Optional, defualts to config file defaults
 
         """
+        params_avail = ['fit_deg', 'pv_value', 'min_lat']
+        if sens_param not in params_avail:
+            print('SENSITIVITY FOR {} NOT AVAILABLE'.format(sens_param))
+            print('POSSIBLE PARAMS:')
+            for param in params_avail:
+                print(param)
+            sys.exit(1)
+
         for param_val in sens_range:
             self.log.info('----- RUNNING WITH %s = %f -----', sens_param, param_val)
             self.config[sens_param] = param_val
@@ -303,9 +311,9 @@ def main():
     # Generate an STJProperties, allows easy access to these properties across methods.
     #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    jf_run.run(1979, 2016)
-    #jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(1.0, 15.0),
-    #                       year_s=1979, year_e=2016)
+    #jf_run.run(1979, 2016)
+    jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
+                           year_s=1979, year_e=2016)
     jf_run.log.info('JET FINDING COMPLETE')
 
 if __name__ == "__main__":
