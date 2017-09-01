@@ -183,7 +183,6 @@ class InputData(object):
             self._load_data()
         self.props.log.info('Starting IPV calculation')
 
-        self.uwnd = self.in_data['uwnd']
         # calculate IPV
         if cfg['ztype'] == 'pres':
             th_shape = list(self.in_data['uwnd'].shape)
@@ -191,10 +190,11 @@ class InputData(object):
 
             # Pre-allocate memory for PV and Wind fields
             self.ipv = np.zeros(th_shape)
+            self.uwnd = np.zeros(th_shape)
             chunks = self._gen_chunks()
             self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
-                self.ipv[ix_s:ix_e, ...], _, _ =\
+                self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
                     utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
                               self.in_data['vwnd'][ix_s:ix_e, ...],
                               self.in_data['tair'][ix_s:ix_e, ...],
@@ -262,8 +262,12 @@ class InputData(object):
 
         # IPV in the file should be in 1e-6 PVU
         ipv_out = dout.NCOutVar(self.ipv * 1e-6, props=props, coords=coords)
+        u_th_out = dout.NCOutVar(self.uwnd, props=dict(props), coords=coords)
+        u_th_out.set_props({'name': 'zonal_wind_component',
+                            'descr': 'Zonal wind on isentropic levels',
+                            'units': 'm s-1', 'short_name': self.data_cfg['uwnd']})
 
-        dout.write_to_netcdf([ipv_out], '{}'.format(out_file))
+        dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
         self.props.log.info('Finished Writing')
 
     def _write_dyn_trop(self, out_file=None):
@@ -302,17 +306,7 @@ class InputData(object):
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
         self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
-
-        try:
-            file_name_u = self.data_cfg['file_paths']['uwnd'].format(year=self.year)
-        except KeyError:
-            file_name_u = self.data_cfg['file_paths']['all'].format(year=self.year)
-
-        in_file_u = os.path.join(self.data_cfg['path'], file_name_u)
-        uwnd_in = nc.Dataset(in_file_u, 'r')
-        self.uwnd = uwnd_in.variables[self.data_cfg['uwnd']][:]
-        self.lev = (uwnd_in.variables[self.data_cfg['lev']][:] *
-                    self.props.data_cfg['pfac'])
+        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
 
         coord_names = ['time', 'lat', 'lon']
         for cname in coord_names:
@@ -324,4 +318,3 @@ class InputData(object):
 
         self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
         ipv_in.close()
-        uwnd_in.close()

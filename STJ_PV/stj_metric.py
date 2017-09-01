@@ -258,11 +258,9 @@ class STJPV(STJMetric):
                                                 jet_intens[jet_loc.astype(int)])
                 self.jet_intens[hidx, tix] = np.ma.median(jet_intens)
 
-
     def _get_max_shear(self, uwnd_xpv):
-        dec_levs = self.data.lev[0] > self.data.lev[-1]
-        if (self.data.data_cfg['ztype'] == 'pres' and dec_levs or
-            self.data.data_cfg['ztype'] == 'theta' and not dec_levs):
+        """Get maximum wind-shear between surface and PV surface."""
+        if self.data.th_lev[0] < self.data.th_lev[-1]:
             sfc_ix = 0
         else:
             sfc_ix = -1
