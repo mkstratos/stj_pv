@@ -32,6 +32,8 @@ def main():
     date = pd.DatetimeIndex(nc.num2date(time[:], time.units))
     lat_nh = {in_f: d_in[in_f].variables['lat_nh'][:] for in_f in d_in}['Theta']
     lat_sh = {in_f: d_in[in_f].variables['lat_sh'][:] for in_f in d_in}['Theta']
+    int_nh = {in_f: d_in[in_f].variables['intens_nh'][:] for in_f in d_in}['Theta']
+    int_sh = {in_f: d_in[in_f].variables['intens_sh'][:] for in_f in d_in}['Theta']
 
     lat_nh = xr.DataArray(lat_nh, coords=(date,), dims=('time'))
     lat_sh = xr.DataArray(lat_sh, coords=(date,), dims=('time'))
