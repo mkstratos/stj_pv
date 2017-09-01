@@ -260,12 +260,22 @@ class STJPV(STJMetric):
 
     def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""
-        if self.data.th_lev[0] < self.data.th_lev[-1]:
-            sfc_ix = 0
-        else:
-            sfc_ix = -1
+        shape = list(self.data.uwnd[self.hemis].shape)
+        n_z = shape.pop(1)
 
-        uwnd_sfc = self.data.uwnd[self.hemis][:, sfc_ix, :, :]
+        mask = np.isfinite(self.data.uwnd[self.hemis])
+
+        wind_flat = np.zeros([n_z, np.prod(shape)])
+        wind_flat_mask = np.zeros([n_z, np.prod(shape)])
+
+        for i in np.arange(n_z):
+            wind_flat[i, :] = self.data.uwnd[self.hemis][:, i, ...].flatten()
+            wind_flat_mask[i, :] = (i == np.argmax(mask, axis=1).flatten())
+        wind_flat_mask = np.logical_not(wind_flat_mask.astype(bool))
+
+        column_data = np.ma.masked_array(wind_flat, wind_flat_mask)
+        uwnd_sfc = np.max(column_data, axis=0).reshape(*shape)
+
         return uwnd_xpv - uwnd_sfc
 
     def _find_single_jet(self, theta_xpv, lat, ushear, extrema):

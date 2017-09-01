@@ -67,6 +67,11 @@ class InputData(object):
         else:
             self._load_ipv()
 
+        if self.th_lev[0] > self.th_lev[-1]:
+            self.ipv = self.ipv[:, ::-1, ...]
+            self.uwnd = self.uwnd[:, ::-1, ...]
+            self.th_lev = self.th_lev[::-1]
+
     def check_input_range(self, year_s, year_e):
         """
         Create/check input data for a range of years.
