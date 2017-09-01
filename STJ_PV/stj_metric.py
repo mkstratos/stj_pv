@@ -263,16 +263,17 @@ class STJPV(STJMetric):
         shape = list(self.data.uwnd[self.hemis].shape)
         n_z = shape.pop(1)
 
-        mask = np.isnan(self.data.uwnd[self.hemis])
+        mask = np.isfinite(self.data.uwnd[self.hemis])
 
-        wind_flat = self.data.uwnd[self.hemis].reshape([n_z, np.prod(shape)])
-
+        wind_flat = np.zeros([n_z, np.prod(shape)])
         wind_flat_mask = np.zeros([n_z, np.prod(shape)])
-        for i in np.arange(n_z):
-            wind_flat_mask[i,:] = (i == np.argmax(mask, axis=1).flatten())
-        wind_flat_mask = wind_flat_mask.astype(bool)
 
-        column_data = np.ma.masked_array(wind_flat, np.logical_not(wind_flat_mask))
+        for i in np.arange(n_z):
+            wind_flat[i, :] = self.data.uwnd[self.hemis][:, i, ...].flatten()
+            wind_flat_mask[i, :] = (i == np.argmax(mask, axis=1).flatten())
+        wind_flat_mask = np.logical_not(wind_flat_mask.astype(bool))
+
+        column_data = np.ma.masked_array(wind_flat, wind_flat_mask)
         uwnd_sfc = np.max(column_data, axis=0).reshape(*shape)
 
         return uwnd_xpv - uwnd_sfc
