@@ -47,7 +47,7 @@ def main(param_name, param_vals, var_name='lat'):
     axes[1].grid(b=True)
 
     plt.tight_layout()
-    plt.savefig('plt_compare_{}.png'.format(param_name))
+    plt.savefig('plt_compare_{}_{}.png'.format(var_name, param_name))
     plt.close()
 
     nh_seas = d_in['{}_nh'.format(var_name)].groupby('time.season')
@@ -64,25 +64,25 @@ def main(param_name, param_vals, var_name='lat'):
 
         axis[1].plot(param_vals, sh_sm[:, snx], 'C{}o-'.format(snx),
                      label=str(season.data))
-        axis[1].plot(param_vals, sh_sm[:, snx] + sh_svar[:, snx], 'C{}--'.format(snx))
-        axis[1].plot(param_vals, sh_sm[:, snx] - sh_svar[:, snx], 'C{}--'.format(snx))
 
     axis[0].set_xlabel(PARAMS[param_name])
     axis[0].set_ylabel('Mean Jet Latitude')
     axis[0].legend()
     axis[0].set_title('Northern Hemisphere')
-    axis[0].set_ylim([25, 45])
     axis[0].grid(b=True, ls='--')
 
     axis[1].set_xlabel(PARAMS[param_name])
     axis[1].legend()
     axis[1].set_title('Southern Hemisphere')
-    axis[1].invert_yaxis()
-    axis[1].set_ylim([-45, -25])
     axis[1].grid(b=True, ls='--')
+
+    if var_name == 'lat':
+        axis[0].set_ylim([25, 45])
+        axis[1].invert_yaxis()
+        axis[1].set_ylim([-45, -25])
     plt.suptitle('Seasonal Mean Jet Latitude')
     #plt.tight_layout()
-    plt.savefig('plt_season_mean_{}.png'.format(param_name))
+    plt.savefig('plt_season_mean_{}_{}.png'.format(var_name, param_name))
     #plt.show()
 
 if __name__ == "__main__":
@@ -90,4 +90,4 @@ if __name__ == "__main__":
               'pv_lev': 'PV Level [PVU]'}
     #main('fit', np.arange(4, 12))
     #main('y0', np.arange(1, 11))
-    main('pv_lev', np.arange(1.0, 4.5, 0.5))
+    main('pv_lev', np.arange(1.0, 4.5, 0.5), var_name='lat')
