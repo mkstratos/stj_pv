@@ -260,21 +260,21 @@ class STJPV(STJMetric):
 
     def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""
-        shape = list(self.data.uwnd[self.hemis].shape)
-        n_z = shape.pop(1)
+        # Our zonal wind data is on isentropic levels. Lower levels are bound to be below
+        # the surface in some places, so we need to use the lowest valid wind level as
+        # the surface, so do some magic to make that happen.
 
-        mask = np.isfinite(self.data.uwnd[self.hemis])
+        # Put our vertical dimension as the last dim
+        u_hem = np.swapaxes(self.data.uwnd[self.hemis], 1, -1)
+        # Get the first valid index on the vertical dim
+        valid_idx = np.isfinite(u_hem).argmax(axis=-1)
+        # Get the shape of our swapped data
+        shape = list(u_hem.shape)
+        n_z = shape.pop(-1)
+        uwnd_sfc = u_hem.reshape(-1, n_z)[np.arange(np.prod(shape)),
+                                          valid_idx.ravel()].reshape(shape)
 
-        wind_flat = np.zeros([n_z, np.prod(shape)])
-        wind_flat_mask = np.zeros([n_z, np.prod(shape)])
-
-        for i in np.arange(n_z):
-            wind_flat[i, :] = self.data.uwnd[self.hemis][:, i, ...].flatten()
-            wind_flat_mask[i, :] = (i == np.argmax(mask, axis=1).flatten())
-        wind_flat_mask = np.logical_not(wind_flat_mask.astype(bool))
-
-        column_data = np.ma.masked_array(wind_flat, wind_flat_mask)
-        uwnd_sfc = np.max(column_data, axis=0).reshape(*shape)
+        uwnd_sfc = np.swapaxes(uwnd_sfc, 1, -1)
 
         return uwnd_xpv - uwnd_sfc
 
