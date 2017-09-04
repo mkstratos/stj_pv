@@ -58,15 +58,17 @@ def main(param_name, param_vals, var_name='lat'):
     sh_svar = sh_seas.std(axis=1)
 
     fig, axis = plt.subplots(1, 2, figsize=(12, 5))
+    cols_nh = [0, 3, 2, 1]
+    cols_sh = [3, 0, 1, 2]
     for snx, season in enumerate(nh_sm.season):
-        axis[0].plot(param_vals, nh_sm[:, snx], 'C{}o-'.format(snx),
+        axis[0].plot(param_vals, nh_sm[:, snx], 'C{}o-'.format(cols_nh[snx]),
                      label=str(season.data))
 
-        axis[1].plot(param_vals, sh_sm[:, snx], 'C{}o-'.format(snx),
+        axis[1].plot(param_vals, sh_sm[:, snx], 'C{}o-'.format(cols_sh[snx]),
                      label=str(season.data))
 
     axis[0].set_xlabel(PARAMS[param_name])
-    axis[0].set_ylabel('Mean Jet Latitude')
+    axis[0].set_ylabel('Mean Jet {name} [{units}]'.format(**VARS[var_name]))
     axis[0].legend()
     axis[0].set_title('Northern Hemisphere')
     axis[0].grid(b=True, ls='--')
@@ -80,7 +82,7 @@ def main(param_name, param_vals, var_name='lat'):
         axis[0].set_ylim([25, 45])
         axis[1].invert_yaxis()
         axis[1].set_ylim([-45, -25])
-    plt.suptitle('Seasonal Mean Jet Latitude')
+    plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var_name]['name']))
     #plt.tight_layout()
     plt.savefig('plt_season_mean_{}_{}.png'.format(var_name, param_name))
     #plt.show()
@@ -88,6 +90,10 @@ def main(param_name, param_vals, var_name='lat'):
 if __name__ == "__main__":
     PARAMS = {'fit': 'Polynomial Fit [deg]', 'y0': 'Minimum Latitude',
               'pv_lev': 'PV Level [PVU]'}
-    #main('fit', np.arange(4, 12))
+    VARS = {'lat': {'name': 'Latitude Position', 'units': 'deg'},
+            'theta': {'name': 'Theta Position', 'units': 'K'},
+            'intens': {'name': 'Intensity', 'units': 'm/s'}}
+    for var_name in VARS:
+        main('pv_lev', np.arange(1.0, 4.5, 0.5), var_name)
+        #main('fit', np.arange(4, 9), var_name)
     #main('y0', np.arange(1, 11))
-    main('pv_lev', np.arange(1.0, 4.5, 0.5), var_name='lat')
