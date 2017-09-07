@@ -9,6 +9,7 @@ import utils
 import data_out as dio
 plt.style.use('ggplot')
 
+
 class STJMetric(object):
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
 
@@ -69,7 +70,6 @@ class STJMetric(object):
         props_int_nh = dict(props_int)
         props_int_nh['short_name'] = 'intens_nh'
 
-
         intens_sh_out = dio.NCOutVar(self.jet_intens[0, ...], coords=coords,
                                      props=props_int)
         intens_nh_out = dio.NCOutVar(self.jet_intens[1, ...], coords=coords,
@@ -88,7 +88,6 @@ class STJMetric(object):
             props_th_nh['short_name'] = 'theta_nh'
             theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords,
                                         props=props_th_nh)
-
 
         self.log.info("WRITE TO {output_file}".format(**self.props))
 
@@ -362,6 +361,8 @@ class STJPV(STJMetric):
 
         """
         if len(locs) == 0:
+            # A jet has not been identified at this time/location, set the position
+            # to zero so it can be masked out when the zonal median is performed
             jet_loc = 0
 
         elif len(locs) == 1:
@@ -369,38 +370,41 @@ class STJPV(STJMetric):
             jet_loc = locs[0]
 
         elif len(locs) > 1:
-
+            # The jet location, if multiple peaks are identified, should be the one
+            # with maximum wind shear between the jet level and the surface
             ushear_max = np.argmax(ushear[locs])
             jet_loc = locs[ushear_max]
 
-            if False: #np.abs(lat[jet_loc]) > 60:
+            if np.abs(lat[jet_loc]) > 60:
                 try:
-                    if np.min(lat) > 0:
-                        uwnd_plt = self.data.uwnd[self.tix, :,
-                                                  self.data.lat > 0, self.xix]
-                    else:
-                        uwnd_plt = self.data.uwnd[self.tix, :,
-                                                  self.data.lat < 0, self.xix]
-                    plt.contourf(lat, self.data.lev, uwnd_plt.T,
-                                 np.linspace(-40, 40, 14), cmap='RdBu_r', extend='both')
-                    plt.gca().invert_yaxis()
-                    ylims = plt.gca().get_ylim()
-                    for loc in locs:
-                        plt.plot([lat[loc]] * 2, ylims, '--')
-                    plt.plot([lat[jet_loc]] * 2, ylims, '-', lw=3.)
-                    plt.gca().set_yscale('log')
-                    plt.savefig('plots/plt_uwnd_t{:03d}_x{:03d}_{:05d}.png'
-                                .format(self.tix, self.xix, self.plot_idx))
-                    self.plot_idx += 1
-                except Exception as err:
+                    self._debug_plot_1d(lat, locs, jet_loc)
+                except (ValueError, IndexError) as err:
                     print("TRIED TO PLOT, COULDN'T")
-                    print(uwnd_plt.shape, lat.shape, self.data.lev.shape)
                     print(err)
 
-                plt.clf()
-                plt.close()
-
         return jet_loc
+
+    def _debug_plot_1d(self, lat, locs, jet_loc):
+
+        if np.min(lat) > 0:
+            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat > 0, self.xix]
+        else:
+            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
+
+        plt.contourf(lat, self.data.lev, uwnd_plt.T,
+                     np.linspace(-40, 40, 14), cmap='RdBu_r', extend='both')
+        plt.gca().invert_yaxis()
+        ylims = plt.gca().get_ylim()
+        for loc in locs:
+            plt.plot([lat[loc]] * 2, ylims, '--')
+        plt.plot([lat[jet_loc]] * 2, ylims, '-', lw=3.)
+        plt.gca().set_yscale('log')
+        plt.savefig('plots/plt_uwnd_t{:03d}_x{:03d}_{:05d}.png'
+                    .format(self.tix, self.xix, self.plot_idx))
+        self.plot_idx += 1
+
+        plt.clf()
+        plt.close()
 
     def _debug_plot(self, lat, theta_xpv, theta_fit, dtheta,
                     jet_loc_all, y_s, y_e, select):
@@ -412,7 +416,7 @@ class STJPV(STJMetric):
 
             poly_fit = self.peval(theta_fit[1], theta_fit[0])
 
-            fig, axis = plt.subplots(1, 1)
+            _, axis = plt.subplots(1, 1)
             ax1 = axis.twinx()
 
             axis.plot(lat, theta_xpv, label='D. Trop.')
@@ -487,14 +491,10 @@ class STJMaxWind(STJMetric):
             self.hemis[lat_axis] = self.data.lat < 0
             lat = self.data.lat[self.data.lat < 0]
             hidx = 0
-            # Link `extrema` function to argrelmax for SH
-            extrema = sig.argrelmax
         else:
             self.hemis[lat_axis] = self.data.lat > 0
             lat = self.data.lat[self.data.lat > 0]
             hidx = 1
-            # Link `extrema` function to argrelmin for NH
-            extrema = sig.argrelmin
 
         # Get uwnd on pressure level
         uwnd_p = self.data.uwnd[self.hemis][:, self.data.lev == self.pres_lev, ...]
@@ -510,7 +510,6 @@ class STJMaxWind(STJMetric):
             for xix in range(dims[-1]):
                 self.xix = xix
                 jet_loc[xix] = self._find_single_jet(uwnd_p[tix, :, xix])
-
 
             jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
             self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
