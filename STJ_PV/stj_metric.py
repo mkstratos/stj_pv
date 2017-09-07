@@ -45,53 +45,65 @@ class STJMetric(object):
                      'calendar': self.data.calendar, 'time_units': self.data.time_units}
         coords = {'time': self.time}
 
+        self.log.info("CREATE OUTPUT VARIABLES")
+
+        # Latitude
         if self.props['zonal_opt'].lower() != 'mean':
             props_lat['lonvar'] = 'lon'
             props_lat['lon_units'] = 'degrees_east'
             coords['lon'] = self.data.lon
 
-        props_th = dict(props_lat)
-        props_th['name'] = 'jet_theta'
-        props_th['descr'] = 'Theta level of subtropical jet'
-        props_th['units'] = 'K'
-        props_th['short_name'] = 'theta_sh'
+        props_lat_nh = dict(props_lat)
+        props_lat_nh['short_name'] = 'lat_nh'
 
+        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props_lat)
+        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props_lat_nh)
+
+        # Intensity
         props_int = dict(props_lat)
         props_int['name'] = 'jet_intensity'
         props_int['descr'] = 'Intensity of subtropical jet'
         props_int['units'] = 'm s-1'
         props_int['short_name'] = 'intens_sh'
 
-        self.log.info("CREATE OUTPUT VARIABLES")
-        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props_lat)
-        theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords, props=props_th)
-        intens_sh_out= dio.NCOutVar(self.jet_intens[0, ...], coords=coords,
-                                    props=props_int)
-
-        props_lat_nh = dict(props_lat)
-        props_th_nh = dict(props_th)
         props_int_nh = dict(props_int)
-        props_lat_nh['short_name'] = 'lat_nh'
-        props_th_nh['short_name'] = 'theta_nh'
         props_int_nh['short_name'] = 'intens_nh'
 
-        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props_lat_nh)
-        theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords,
-                                    props=props_th_nh)
-        intens_nh_out= dio.NCOutVar(self.jet_intens[1, ...], coords=coords,
-                                    props=props_int_nh)
+
+        intens_sh_out = dio.NCOutVar(self.jet_intens[0, ...], coords=coords,
+                                     props=props_int)
+        intens_nh_out = dio.NCOutVar(self.jet_intens[1, ...], coords=coords,
+                                     props=props_int_nh)
+
+        # Theta (only if Theta is valid)
+        if self.jet_theta is not None:
+            props_th = dict(props_lat)
+            props_th['name'] = 'jet_theta'
+            props_th['descr'] = 'Theta level of subtropical jet'
+            props_th['units'] = 'K'
+            props_th['short_name'] = 'theta_sh'
+            theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords,
+                                        props=props_th)
+            props_th_nh = dict(props_th)
+            props_th_nh['short_name'] = 'theta_nh'
+            theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords,
+                                        props=props_th_nh)
+
 
         self.log.info("WRITE TO {output_file}".format(**self.props))
+
         # Write jet & theta positions to file
-        dio.write_to_netcdf([lat_sh_out, theta_sh_out, intens_sh_out,
-                             lat_nh_out, theta_nh_out, intens_nh_out],
-                            self.props['output_file'] + '.nc')
+        out_vars = [lat_sh_out, lat_nh_out, intens_sh_out, intens_nh_out]
+        if self.jet_theta is not None:
+            out_vars.extend([theta_sh_out, theta_nh_out])
+        dio.write_to_netcdf(out_vars, self.props['output_file'] + '.nc')
 
     def append(self, other):
         """Append another metric's latitude and theta positon to this one."""
         self.jet_lat = np.append(self.jet_lat, other.jet_lat, axis=1)
-        self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
         self.jet_intens = np.append(self.jet_intens, other.jet_intens, axis=1)
+        if self.jet_theta is not None:
+            self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
         self.time = np.append(self.time, other.time, axis=0)
 
 
@@ -364,9 +376,11 @@ class STJPV(STJMetric):
             if False: #np.abs(lat[jet_loc]) > 60:
                 try:
                     if np.min(lat) > 0:
-                        uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat > 0, self.xix]
+                        uwnd_plt = self.data.uwnd[self.tix, :,
+                                                  self.data.lat > 0, self.xix]
                     else:
-                        uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
+                        uwnd_plt = self.data.uwnd[self.tix, :,
+                                                  self.data.lat < 0, self.xix]
                     plt.contourf(lat, self.data.lev, uwnd_plt.T,
                                  np.linspace(-40, 40, 14), cmap='RdBu_r', extend='both')
                     plt.gca().invert_yaxis()
@@ -410,7 +424,117 @@ class STJPV(STJMetric):
             ax1.plot(lat[y_s:y_e], dtheta, 'C2', label='D(th)/d(lat)')
 
             axis.legend()
-            plt.savefig('plots/plt_jet_{:05d}_t{:03d}_x{:03d}.png'.format(self.plot_idx,
-                                                                    self.tix, self.xix))
+            plt.savefig('plots/plt_jet_{:05d}_t{:03d}_x{:03d}.png'
+                        .format(self.plot_idx, self.tix, self.xix))
             self.plot_idx += 1
             plt.close()
+
+
+class STJMaxWind(STJMetric):
+    """
+    Subtropical jet position metric: maximum zonal mean zonal wind on a pressure level.
+
+    Parameters
+    ----------
+    props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
+        Class containing properties about the current search for the STJ
+    data : :py:meth:`~STJ_PV.input_data.InputData`
+        Input data class containing a year (or more) of required data
+    """
+
+    def __init__(self, props, data):
+        """Initialise Metric using PV Gradient Method."""
+        name = 'UMax'
+        super(STJMaxWind, self).__init__(name=name, props=props, data=data)
+
+        # Some config options should be properties for ease of access
+        self.pres_lev = self.props['pres_level']
+        self.min_lat = self.props['min_lat']
+
+        # Initialise latitude & theta output arrays with correct shape
+        dims = self.data.uwnd.shape
+
+        self.jet_lat = np.zeros([2, dims[0]])
+        self.jet_intens = np.zeros([2, dims[0]])
+
+        self.time = self.data.time[:]
+        self.tix = None
+        self.xix = None
+
+    def find_jet(self, shemis=True):
+        """
+        Find the subtropical jet using input parameters.
+
+        Parameters
+        ----------
+        shemis : logical, optional
+            If True, find jet position in Southern Hemisphere, if False, find N.H. jet
+
+        """
+
+        # Find axis
+        lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
+
+        if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
+            # Log a message about which matching dimension used since this
+            # could be time or lev or lon if ntimes, nlevs or nlons == nlats
+            self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
+                                                                self.data.uwnd.shape))
+
+        self.hemis = [slice(None)] * self.data.uwnd.ndim
+
+        if shemis:
+            self.hemis[lat_axis] = self.data.lat < 0
+            lat = self.data.lat[self.data.lat < 0]
+            hidx = 0
+            # Link `extrema` function to argrelmax for SH
+            extrema = sig.argrelmax
+        else:
+            self.hemis[lat_axis] = self.data.lat > 0
+            lat = self.data.lat[self.data.lat > 0]
+            hidx = 1
+            # Link `extrema` function to argrelmin for NH
+            extrema = sig.argrelmin
+
+        # Get uwnd on pressure level
+        uwnd_p = self.data.uwnd[self.hemis][:, self.data.lev == self.pres_lev, ...]
+        uwnd_p = np.squeeze(uwnd_p)
+        dims = uwnd_p.shape
+
+        self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
+        for tix in range(dims[0]):
+            if tix % 50 == 0 and dims[0] > 50:
+                self.log.info('COMPUTING JET POSITION FOR %d', tix)
+            self.tix = tix
+            jet_loc = np.zeros(dims[-1])
+            for xix in range(dims[-1]):
+                self.xix = xix
+                jet_loc[xix] = self._find_single_jet(uwnd_p[tix, :, xix])
+
+
+            jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
+            self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
+
+            jet_intens = np.nanmedian(uwnd_p[tix, :, :], axis=-1)
+            jet_intens = np.ma.masked_where(jet_loc == 0,
+                                            jet_intens[jet_loc.astype(int)])
+            self.jet_intens[hidx, tix] = np.ma.median(jet_intens)
+
+    def _find_single_jet(self, uwnd):
+        """
+        Find the position of the maximum zonal wind of a 1D array of zonal wind.
+
+        Parameters
+        ----------
+        uwnd : array_like
+            1D array of zonal wind of the same shape as input latitude.
+
+        Returns
+        -------
+        u_max_loc : integer
+            Integer position of maximum wind (argmax)
+
+        """
+        # Yeah, this is really simple, so what? Maybe someday this function grows
+        # up to do more than just the argmax, you don't know!
+        return np.argmax(uwnd)
