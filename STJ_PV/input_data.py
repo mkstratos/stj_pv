@@ -323,3 +323,118 @@ class InputData(object):
 
         self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
         ipv_in.close()
+
+
+class InputDataUMax(object):
+    """
+    Contains the relevant input data and routines for an JetFindRun.
+
+    Parameters
+    ----------
+    jet_find : :py:meth:`~STJ_PV.run_stj.JetFindRun`
+        Object containing properties about the metric calculation to be done. Used to
+        locate correct files, and variables within those files.
+    year : int, optional
+        Year of data to load, not used when all years are in a single file
+
+    """
+
+    def __init__(self, props, year=None):
+        """Initialize InputData object, using JetFindRun class."""
+        self.props = props
+        self.config = props.config
+        self.data_cfg = props.data_cfg
+        self.year = year
+
+        # Initialize attributes defined in open_files or open_ipv_data
+        self.time = None
+        self.time_units = None
+        self.calendar = None
+
+        self.lon = None
+        self.lat = None
+        self.lev = None
+        self.th_lev = None
+
+        # Each input data _must_ have u-wind, isentropic pv, and thermal tropopause,
+        # but _might_ need the v-wind and air temperature to calculate PV/thermal-trop
+        self.uwnd = None
+        self.in_data = None
+
+    def get_data_input(self):
+        """Get input data for metric calculation."""
+        # First, check if we want to update data, or need to create from scratch
+        # if not, then we can load existing data
+        cfg = self.data_cfg
+
+        self._load_data()
+        if cfg['ztype'] == 'theta':
+            self._calc_uwnd()
+        else:
+            self.uwnd = self.in_data['uwnd']
+
+        if self.lev[0] > self.lev[-1]:
+            self.uwnd = self.uwnd[:, ::-1, ...]
+            self.lev = self.lev[::-1]
+
+    def _load_data(self):
+        cfg = self.data_cfg
+        self.in_data = {}
+
+        data_vars = []
+        data_vars.extend(['uwnd'])
+
+        if cfg['ztype'] == 'theta':
+            # If input data is isentropic already..need pressure on theta, not air temp
+            data_vars.append('pres')
+
+        # This is how they're called in the configuration file, each should point to
+        # how the variable is called in the actual netCDF file
+        dim_vars = ['time', 'lev', 'lat', 'lon']
+
+        # Load u/v/t; create pv file that has ipv, tpause file with tropopause lev
+        first_file = True
+        nc_file = None
+        for var in data_vars:
+            vname = cfg[var]
+            if nc_file is None:
+                # Format the name of the file, join it with the path, open it
+                try:
+                    file_name = cfg['file_paths'][var].format(year=self.year)
+                except KeyError:
+                    file_name = cfg['file_paths']['all'].format(year=self.year)
+                self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
+                                                                   file_name)))
+                nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
+            self.props.log.info("\tLOAD: {}".format(var))
+            self.in_data[var] = nc_file.variables[vname][:, ...].astype(np.float16)
+
+            if first_file:
+                for dvar in dim_vars:
+                    v_in_name = cfg[dvar]
+                    if dvar == 'time':
+                        setattr(self, dvar, nc_file.variables[v_in_name][:])
+                    elif dvar == 'lev' and cfg['ztype'] == 'pres':
+                        setattr(self, dvar, nc_file.variables[v_in_name][:] * cfg['pfac'])
+                    else:
+                        setattr(self, dvar, nc_file.variables[v_in_name][:])
+
+                # Set time units and calendar properties
+                self.time_units = nc_file.variables[cfg['time']].units
+                try:
+                    self.calendar = nc_file.variables[cfg['time']].calendar
+                except (KeyError, AttributeError):
+                    self.calendar = 'standard'
+
+                first_file = False
+
+            if cfg['single_var_file']:
+                nc_file.close()
+                nc_file = None
+
+        if not cfg['single_var_file']:
+            nc_file.close()
+
+    def _calc_uwnd(self):
+        self.lev = self.props.p_levels
+        self.uwnd = utils.vinterp(self.in_data['uwnd'], self.in_data['pres'], self.lev)

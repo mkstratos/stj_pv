@@ -44,7 +44,6 @@ class JetFindRun(object):
     :py:meth:`~run`
 
     """
-
     def __init__(self, config_file=None):
         """Initialise jet finding attempt."""
         now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -98,6 +97,15 @@ class JetFindRun(object):
                                        350.0, 370.0, 395.0, 430.0])
             self.metric = stj_metric.STJPV
 
+        elif self.config['method'] == 'STJUMax':
+            self.config['output_file'] = ('{short_name}_{method}_pres{pres_level}'
+                                          '_y0{min_lat}'
+                                          .format(**dict(self.data_cfg, **self.config)))
+
+            self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
+                                      250., 200., 150., 100., 70., 50., 30., 20., 10.])
+            self.metric = stj_metric.STJMaxWind
+
         else:
             self.config['output_file'] = ('{short_name}_{method}'
                                           .format(**dict(self.data_cfg, **self.config)))
@@ -118,7 +126,10 @@ class JetFindRun(object):
 
     def _get_data(self, curr_year=None):
         """Retrieve data stored according to `self.data_cfg`."""
-        data = inp.InputData(self, curr_year)
+        if self.config['method'] == 'STJPV':
+            data = inp.InputData(self, curr_year)
+        elif self.config['method'] == 'STJUMax':
+            data = inp.InputDataUMax(self, curr_year)
         data.get_data_input()
         return data
 
@@ -227,7 +238,8 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
             check_str = u'[\U0001F60E  OKAY]'
         print('{:30s} {:30s}'.format(key, check_str))
 
-    if len(missing) > 0 or len(wrong_type) > 0:
+    # When either `missing` or `wrong_type` have values, this will evaluate `True`
+    if missing or wrong_type:
         print('{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
                                            'KEYS MISSING OR WRONG TYPE', 12 * '<'))
 
@@ -261,13 +273,18 @@ def check_run_config(cfg_file):
     # Optional checks
     missing_optionals = []
     if not missing_req:
-        if config['method'] not in ['STJPV']:
+        if config['method'] not in ['STJPV', 'STJUMax']:
             # config must have pfac if it's pressure level data
             missing_optionals.append(False)
             print('NO METHOD FOR HANDLING: {}'.format(config['method']))
 
         elif config['method'] == 'STJPV':
             opt_keys = {'poly': str, 'fit_deg': int, 'pv_value': float}
+            _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
+            missing_optionals.append(missing_opt)
+
+        elif config['method'] == 'STJUMax':
+            opt_keys = {'pres_level': float, 'min_lat': float}
             _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
             missing_optionals.append(missing_opt)
 
@@ -309,11 +326,11 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    #jf_run.run(1979, 2016)
-    jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
-                           year_s=1979, year_e=2016)
+    # jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    jf_run = JetFindRun('./conf/stj_umax_ncep_monthly.yml')
+    jf_run.run(1979, 2016)
+    # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
+    #                        year_s=1979, year_e=2016)
     jf_run.log.info('JET FINDING COMPLETE')
 
 if __name__ == "__main__":
