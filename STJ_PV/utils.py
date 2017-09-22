@@ -149,7 +149,36 @@ def vinterp(data, vcoord, vlevels):
 
     This gives potential temperature on potential vorticity surfaces
 
+    **data** is 4D **vcoord** is 1D
+
+    Given some pressure levels ``levs = [1000., 900., 850., 500.]``
+    and a 4D array of potential vorticity epv on (time, pressure, lat, lon), and
+    several selected pressure levels
+
+        >>> pres_new = [950.0, 800.0, 700.0]
+        >>> print(levs.shape)
+        (4, )
+        >>> print(epv.shape)
+        (365, 4, 73, 144)
+        >>> epv_intrp = vinterp(epv, levs, pres_new)
+        >>> print(epv_interp.shape)
+        (365, 3, 73, 144)
+
+    This gives potential vorticity on new pressure surfaces.
+
     """
+    if vcoord.ndim == 1 and data.ndim > 1:
+        # This handles the case where vcoord is 1D and data is N-D
+        v_dim = int(np.where(np.array(data.shape) == vcoord.shape[0])[0])
+        # numpy.broadcast_to only works for the last axis of an array, swap our shape
+        # around so that vertical dimension is last, broadcast vcoord to it, then swap
+        # the axes back so vcoord.shape == data.shape
+        data_shape = list(data.shape)
+        data_shape[-1], data_shape[v_dim] = data_shape[v_dim], data_shape[-1]
+
+        vcoord = np.broadcast_to(vcoord, data_shape)
+        vcoord = np.swapaxes(vcoord, -1, v_dim)
+
     vcoord_shape = list(vcoord.shape)
     vcoord_shape.pop(1)
     valid = np.min([np.prod(vcoord_shape) - np.sum(np.isnan(vcoord[:, 0, ...])),
