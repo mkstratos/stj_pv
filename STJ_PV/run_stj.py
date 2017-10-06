@@ -44,6 +44,7 @@ class JetFindRun(object):
     :py:meth:`~run`
 
     """
+
     def __init__(self, config_file=None):
         """Initialise jet finding attempt."""
         now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -220,7 +221,7 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
 
     """
     with open(cfg_file) as cfg:
-        config = yaml.load(cfg.read())
+        config = yaml.safe_load(cfg.read())
 
     if id_file:
         print('{0} {1:^40s} {0}'.format(7 * '#', cfg_file))
@@ -332,6 +333,7 @@ def main():
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
     #                        year_s=1979, year_e=2016)
     jf_run.log.info('JET FINDING COMPLETE')
+
 
 if __name__ == "__main__":
     main()

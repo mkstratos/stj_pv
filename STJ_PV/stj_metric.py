@@ -424,7 +424,6 @@ class STJPV(STJMetric):
             else:
                 uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
 
-
             poly_fit = self.peval(theta_fit[1], theta_fit[0])
             width = 11.5 / 2.54     # AGU figure sizes for 1/4 page is 95 x 115 mm,
             height = 9.5 / 2.54     # for full page is 190 x 230 mm
@@ -437,8 +436,8 @@ class STJPV(STJMetric):
             axis.plot(lat, theta_xpv, lw=3.0, label='Dyn trop.')
             axis.plot(theta_fit[1], poly_fit, lw=3.0, label='Dyn trop. fit')
 
-            axis.plot(lat[jet_loc_all], theta_xpv[jet_loc_all], 'C0x')#, ms=2.)
-            axis.plot(lat[select], theta_xpv[select], 'C0o')#, ms=3.)
+            axis.plot(lat[jet_loc_all], theta_xpv[jet_loc_all], 'C0x')
+            axis.plot(lat[select], theta_xpv[select], 'C0o')
             ax1.plot(lat[y_si:y_e], dtheta, 'C2', lw=3.0,
                      label=r'$\partial\Theta/\partial\phi$')
 
@@ -450,7 +449,7 @@ class STJPV(STJMetric):
 
             h_1, l_1 = axis.get_legend_handles_labels()
             h_2, l_2 = ax1.get_legend_handles_labels()
-            ax1.legend(h_1 + h_2, l_1 + l_2, fontsize=font_size)#, loc=2)
+            ax1.legend(h_1 + h_2, l_1 + l_2, fontsize=font_size)
 
             plt.title('Jet Latitude Metric Details', fontsize=font_size)
             plt.tight_layout()
@@ -501,7 +500,6 @@ class STJMaxWind(STJMetric):
             If True, find jet position in Southern Hemisphere, if False, find N.H. jet
 
         """
-
         # Find axis
         lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
 
