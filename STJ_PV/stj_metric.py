@@ -35,6 +35,7 @@ class STJMetric(object):
         self.jet_intens = None
         self.time = None
         self.hemis = None
+        self.debug_data = {}
         self.plot_idx = 0
 
     def save_jet(self):
@@ -200,7 +201,7 @@ class STJPV(STJMetric):
         if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
             pv_lev = np.array([self.pv_lev])
         else:
-            pv_lev = -np.array([self.pv_lev])
+            pv_lev = -1 * np.array([self.pv_lev])
 
         # Find axis
         lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
@@ -324,12 +325,12 @@ class STJPV(STJMetric):
             jet_loc_all += y_s
         select = self.select_jet(jet_loc_all, lat, ushear)
 
-# Eventually this moves somewhere else to do diagnostic plots
-#        if self.plot_idx <= 30:
-#            if np.min(lat) > 0:
-#                self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
-#                                 y_s, y_e, select)
-#
+        # Eventually this moves somewhere else to do diagnostic plots
+        if self.plot_idx <= 30:
+            if np.min(lat) < 0 and self.xix < 2:
+                self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
+                                 y_s, y_e, select)
+
         return select
 
     def select_jet(self, locs, lat, ushear):
@@ -402,7 +403,6 @@ class STJPV(STJMetric):
         plt.savefig('plots/plt_uwnd_t{:03d}_x{:03d}_{:05d}.png'
                     .format(self.tix, self.xix, self.plot_idx))
         self.plot_idx += 1
-
         plt.clf()
         plt.close()
 
@@ -413,50 +413,51 @@ class STJPV(STJMetric):
         size_fact = 2.0
         font_size = 8.0 * size_fact
 
-        if self.tix == 0:
-            if y_s is None:
-                y_si = 0
-            else:
-                y_si = y_s
+        if y_s is None:
+            y_si = 0
+        else:
+            y_si = y_s
 
-            if np.min(lat) > 0:
-                uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat > 0, self.xix]
-            else:
-                uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
+        if np.min(lat) > 0:
+            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat > 0, self.xix]
+        else:
+            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
 
-            poly_fit = self.peval(theta_fit[1], theta_fit[0])
-            width = 11.5 / 2.54     # AGU figure sizes for 1/4 page is 95 x 115 mm,
-            height = 9.5 / 2.54     # for full page is 190 x 230 mm
-            _, axis = plt.subplots(1, 1, figsize=(width * size_fact, height * size_fact))
-            ax1 = axis.twinx()
+        poly_fit = self.peval(theta_fit[1], theta_fit[0])
+        width = 11.5 / 2.54     # AGU figure sizes for 1/4 page is 95 x 115 mm,
+        height = 9.5 / 2.54     # for full page is 190 x 230 mm
+        _, axis = plt.subplots(1, 1, figsize=(width * size_fact, height * size_fact))
+        ax1 = axis.twinx()
 
-            axis.contourf(lat, self.data.th_lev, uwnd_plt.T, np.linspace(-40, 40, 14),
-                          cmap='RdBu_r', extend='both')
+        axis.contourf(lat, self.data.th_lev, uwnd_plt.T, np.linspace(-40, 40, 14),
+                      cmap='RdBu_r', extend='both')
 
-            axis.plot(lat, theta_xpv, lw=3.0, label='Dyn trop.')
-            axis.plot(theta_fit[1], poly_fit, lw=3.0, label='Dyn trop. fit')
+        axis.plot(lat, theta_xpv, 'k-', lw=2.0, label='Dyn trop.')
+        axis.plot(theta_fit[1], poly_fit, 'C0-', lw=2.0, label='Dyn trop. fit')
 
-            axis.plot(lat[jet_loc_all], theta_xpv[jet_loc_all], 'C0x')
-            axis.plot(lat[select], theta_xpv[select], 'C0o')
-            ax1.plot(lat[y_si:y_e], dtheta, 'C2', lw=3.0,
-                     label=r'$\partial\Theta/\partial\phi$')
+        axis.plot(lat[jet_loc_all], theta_xpv[jet_loc_all], 'kx', ms=6.)
+        axis.plot(lat[select], theta_xpv[select], 'ko', ms=8.)
+        ax1.plot(lat[y_si:y_e], dtheta, 'C1', lw=2.0,
+                 label=r'$\partial\Theta_{%iPVU}/\partial\phi$' % self.pv_lev)
 
-            axis.set_ylabel('Potential Temperature [K]', fontsize=font_size)
-            axis.set_xlabel('Latitude', fontsize=font_size)
-            ax1.set_ylabel(r'$\partial\Theta/\partial\phi$ [K/rad]', fontsize=font_size)
-            axis.tick_params(axis='both', which='major', labelsize=font_size)
-            ax1.tick_params(axis='both', which='major', labelsize=font_size)
+        axis.set_ylabel('Potential Temperature [K]', fontsize=font_size)
+        axis.set_xlabel('Latitude', fontsize=font_size)
+        ax1.set_ylabel(r'$\partial\Theta/\partial\phi$ [K/rad]', fontsize=font_size)
+        axis.tick_params(axis='both', which='major', labelsize=font_size)
+        ax1.tick_params(axis='both', which='major', labelsize=font_size)
 
-            h_1, l_1 = axis.get_legend_handles_labels()
-            h_2, l_2 = ax1.get_legend_handles_labels()
-            ax1.legend(h_1 + h_2, l_1 + l_2, fontsize=font_size)
+        h_1, l_1 = axis.get_legend_handles_labels()
+        h_2, l_2 = ax1.get_legend_handles_labels()
+        ax1.legend(h_1 + h_2, l_1 + l_2, fontsize=font_size)
 
-            plt.title('Jet Latitude Metric Details', fontsize=font_size)
-            plt.tight_layout()
-            plt.savefig('plots/plt_jet_{:05d}_t{:03d}_x{:03d}.pdf'
-                        .format(self.plot_idx, self.tix, self.xix))
-            self.plot_idx += 1
-            plt.close()
+        date = dio.nc.num2date(self.data.time[self.tix], self.data.time_units,
+                               self.data.calendar).strftime('%b %Y')
+        plt.title('Jet Latitude Metric Details {}'.format(date), fontsize=font_size)
+        plt.tight_layout()
+        plt.savefig('plots/plt_jet_{:05d}_t{:010.0f}_x{:03d}.eps'
+                    .format(self.plot_idx, self.data.time[self.tix], self.xix))
+        self.plot_idx += 1
+        plt.close()
 
 
 class STJMaxWind(STJMetric):
