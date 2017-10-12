@@ -117,7 +117,8 @@ class DiagPlots(object):
         date : A :py:meth:`~datetime.datetime` instance to select and plot
 
         """
-        data = input_data.InputData(stj_props, date_s=date, date_e=date)
+        data = input_data.InputData(self.props, date_s=date, date_e=date)
+        data.get_data_input()
 
     def compare_fd_cby(self):
         """
@@ -138,3 +139,7 @@ class DiagPlots(object):
         """
         Plot matrix of partial correlations.
         """
+
+if __name__ == "__main__":
+    jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    diags = DiagPlots(jf_run, stj_metric.STJPV)
