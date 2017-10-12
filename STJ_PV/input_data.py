@@ -25,12 +25,15 @@ class InputData(object):
 
     """
 
-    def __init__(self, props, year=None):
+    def __init__(self, props, date_s=None, date_e=None):
         """Initialize InputData object, using JetFindRun class."""
         self.props = props
         self.config = props.config
         self.data_cfg = props.data_cfg
-        self.year = year
+        if date_s is not None:
+            self.year = date_s.year
+        else:
+            self.year = None
 
         # Initialize attributes defined in open_files or open_ipv_data
         self.time = None
@@ -49,21 +52,58 @@ class InputData(object):
         self.dyn_trop = None
         self.in_data = None
 
+        if date_s is not None or date_e is not None:
+            self._select(date_s, date_e)
+        else:
+            self.d_select = slice(None)
+
+    def _select(self, date_s=None, date_e=None):
+        """
+        Return a subset of the data between two times.
+
+        Parameters
+        ----------
+        date_s, date_e : :py:meth:`datetime.datetime` for start and end of selection,
+            optional. Default: None
+
+        """
+        if self.time is None:
+            self._load_time(self._find_pv_update())
+
+        dates = nc.num2date(self.time, self.time_units, self.calendar)
+        if date_s is not None and date_e is not None:
+            # We have both start and end
+            self.d_select = np.logical_and(dates >= date_s, dates <= date_e)
+
+        elif date_s is None and date_e is not None:
+            # Beginning of data to an endpoint
+            self.d_select = dates <= date_e
+
+        elif date_s is not None and date_e is None:
+            # Start time to end of data
+            self.d_select = dates >= date_s
+
+        self.time = self.time[self.d_select]
+
+    def _find_pv_update(self):
+
+        pv_file = os.path.join(self.data_cfg['wpath'],
+                               self.data_cfg['file_paths']['ipv'].format(year=self.year))
+        return self.config['update_pv'] or not os.path.exists(pv_file)
+
     def get_data_input(self):
         """Get input data for metric calculation."""
         # First, check if we want to update data, or need to create from scratch
         # if not, then we can load existing data
         cfg = self.data_cfg
 
-        pv_file = os.path.join(cfg['wpath'],
-                               cfg['file_paths']['ipv'].format(year=self.year))
-
-        pv_update = self.config['update_pv'] or not os.path.exists(pv_file)
-
+        pv_update = self._find_pv_update()
         if pv_update:
             self._load_data(pv_update)
             self._calc_ipv()
-            self._write_ipv()
+            if self.time.shape[0] >= self.d_select.shape[0]:
+                # Only write output if it's the entire file
+                self._write_ipv()
         else:
             self._load_ipv()
 
@@ -91,12 +131,36 @@ class InputData(object):
             pv_file = pv_file_fmt.format(year=self.year)
             self.props.log.info('CHECKING: {}'.format(pv_file))
 
-            pv_update = self.config['update_pv'] or not os.path.exists(pv_file)
+            pv_update = self._find_pv_update()
 
             if pv_update:
                 self._load_data(pv_update)
                 self._calc_ipv()
                 self._write_ipv()
+
+    def _load_time(self, pv_update=False):
+        if pv_update:
+            var = 'uwnd'
+        else:
+            var = 'ipv'
+
+        # Load an example file
+        try:
+            file_name = self.data_cfg['file_paths'][var].format(year=self.year)
+        except KeyError:
+            file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
+
+        nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
+
+        self.time = nc_file.variables[self.data_cfg['time']][:]
+
+        # Set time units and calendar properties
+        self.time_units = nc_file.variables[self.data_cfg['time']].units
+        try:
+            self.calendar = nc_file.variables[self.data_cfg['time']].calendar
+        except (KeyError, AttributeError):
+            self.calendar = 'standard'
+        nc_file.close()
 
     def _load_data(self, pv_update=False):
         cfg = self.data_cfg
@@ -114,7 +178,7 @@ class InputData(object):
 
         # This is how they're called in the configuration file, each should point to
         # how the variable is called in the actual netCDF file
-        dim_vars = ['time', 'lev', 'lat', 'lon']
+        dim_vars = ['lev', 'lat', 'lon']
 
         # Load u/v/t; create pv file that has ipv, tpause file with tropopause lev
         first_file = True
@@ -131,24 +195,18 @@ class InputData(object):
                                                                    file_name)))
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
             self.props.log.info("\tLOAD: {}".format(var))
-            self.in_data[var] = nc_file.variables[vname][:, ...].astype(np.float16)
+            self.in_data[var] = (nc_file.variables[vname][self.d_select, ...]
+                                 .astype(np.float16))
 
             if first_file:
+                if self.time is None:
+                    self._load_time(pv_update)
                 for dvar in dim_vars:
                     v_in_name = cfg[dvar]
-                    if dvar == 'time':
-                        setattr(self, dvar, nc_file.variables[v_in_name][:])
-                    elif dvar == 'lev' and cfg['ztype'] == 'pres':
+                    if dvar == 'lev' and cfg['ztype'] == 'pres':
                         setattr(self, dvar, nc_file.variables[v_in_name][:] * cfg['pfac'])
                     else:
                         setattr(self, dvar, nc_file.variables[v_in_name][:])
-
-                # Set time units and calendar properties
-                self.time_units = nc_file.variables[cfg['time']].units
-                try:
-                    self.calendar = nc_file.variables[cfg['time']].calendar
-                except (KeyError, AttributeError):
-                    self.calendar = 'standard'
 
                 first_file = False
 
@@ -229,7 +287,7 @@ class InputData(object):
         _sh = [slice(None), slice(None), self.lat < 0, slice(None)]
 
         dyn_trop_nh = utils.vinterp(self.th_lev, self.ipv[_nh] * 1e6, pv_lev)
-        dyn_trop_sh = utils.vinterp(self.th_lev, self.ipv[_sh] * 1e6, -pv_lev)
+        dyn_trop_sh = utils.vinterp(self.th_lev, self.ipv[_sh] * 1e6, -1 * pv_lev)
         if self.lat[0] > self.lat[-1]:
             self.dyn_trop = np.append(dyn_trop_nh, dyn_trop_sh, axis=1)
         else:
@@ -307,20 +365,17 @@ class InputData(object):
 
     def _load_ipv(self):
         """Open IPV file, load into self.ipv."""
+        if self.time is None:
+            self._load_time(pv_update=False)
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
-        self.ipv = ipv_in.variables[self.data_cfg['ipv']][:] * 1e6
-        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][:]
+        self.ipv = ipv_in.variables[self.data_cfg['ipv']][self.d_select, ...] * 1e6
+        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][self.d_select, ...]
 
-        coord_names = ['time', 'lat', 'lon']
+        coord_names = ['lat', 'lon']
         for cname in coord_names:
             setattr(self, cname, ipv_in.variables[self.data_cfg[cname]][:])
-        if self.time_units is None:
-            self.time_units = ipv_in.variables[self.data_cfg['time']].units
-        if self.calendar is None:
-            self.calendar = ipv_in.variables[self.data_cfg['time']].calendar
-
         self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
         ipv_in.close()
 

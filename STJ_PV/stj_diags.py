@@ -1,18 +1,22 @@
+#-*- coding: utf-8 -*-
 """
 Module containing classes for diagnoistic variable calculation and diagnoistic plotting.
 """
+import input_data
+import stj_metric
+import run_stj
 
 class DiagMetrics(object):
     """
     Calculate diagnostic metrics about subtropical jet properties.
     """
 
-    def __init__(self, stj_props, stj_metric):
+    def __init__(self, stj_props, metric):
         """
         Setup DiagMetrics, input from a STJMetric and STJProperties classes.
         """
         self.props = stj_props
-        self.metric = stj_metric
+        self.metric = metric
 
     def jet_intensity(self):
         """
@@ -97,17 +101,23 @@ class DiagPlots(object):
     Plot diagnostic metrics about subtropical jet properties.
     """
 
-    def __init__(self, stj_props, stj_metric):
+    def __init__(self, stj_props, metric):
         """
         Setup DiagMetrics, input from STJIPVMetric and STJProperties classes.
         """
         self.props = stj_props
-        self.metric = stj_metric
+        self.metric = metric
 
-    def test_method_plot(self):
+    def test_method_plot(self, date):
         """
         Plot individual components of the metric to ensure it is working properly.
+
+        Parmaeters
+        ----------
+        date : A :py:meth:`~datetime.datetime` instance to select and plot
+
         """
+        data = input_data.InputData(stj_props, date_s=date, date_e=date)
 
     def compare_fd_cby(self):
         """

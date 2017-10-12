@@ -125,16 +125,16 @@ class JetFindRun(object):
         logger.addHandler(log_file_handle)
         self.log = logger
 
-    def _get_data(self, curr_year=None):
+    def _get_data(self, date_s=None, date_e=None):
         """Retrieve data stored according to `self.data_cfg`."""
         if self.config['method'] == 'STJPV':
-            data = inp.InputData(self, curr_year)
+            data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
-            data = inp.InputDataUMax(self, curr_year)
+            data = inp.InputDataUMax(self, date_s.year)
         data.get_data_input()
         return data
 
-    def run(self, year_s=None, year_e=None):
+    def run(self, date_s=None, date_e=None):
         """
         Find the jet, save location to a file.
 
@@ -145,26 +145,25 @@ class JetFindRun(object):
             use self.year_s and/or self.year_e
 
         """
-        if year_s is None:
-            year_s = self.config['year_s']
-        if year_e is None:
-            year_e = self.config['year_e']
-
+        if date_s is None:
+            date_s = dt.datetime(self.config['year_s'], 1, 1)
+        if date_e is None:
+            date_e = dt.datetime(self.config['year_e'], 12, 31)
         if self.data_cfg['single_year_file']:
-            for year in range(year_s, year_e + 1):
+            for year in range(date_s.year, date_e.year + 1):
                 self.log.info('FIND JET FOR %d', year)
-                data = self._get_data(year)
+                data = self._get_data(date_s, date_e)
                 jet = self.metric(self, data)
 
                 for shemis in [True, False]:
                     jet.find_jet(shemis)
 
-                if year == year_s:
+                if year == date_s.year:
                     jet_all = jet
                 else:
                     jet_all.append(jet)
         else:
-            data = self._get_data(year_s)
+            data = self._get_data(date_s, date_e)
             jet_all = self.metric(self, data)
             for shemis in [True, False]:
                 jet_all.find_jet(shemis)
@@ -329,7 +328,9 @@ def main():
     # Generate an STJProperties, allows easy access to these properties across methods.
     # jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-    jf_run.run(1979, 2016)
+    date_s = dt.datetime(2015, 2, 1)
+    date_e = dt.datetime(2015, 3, 1)
+    jf_run.run(date_s, date_e)
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
     #                        year_s=1979, year_e=2016)
     jf_run.log.info('JET FINDING COMPLETE')
