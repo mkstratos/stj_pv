@@ -84,10 +84,9 @@ class JetFindRun(object):
             # if it isn't, then wpath == path is fine, set that here
             self.data_cfg['wpath'] = self.data_cfg['path']
 
-        self._set_output()
         self.log_setup()
 
-    def _set_output(self):
+    def _set_output(self, date_s=None, date_e=None):
 
         if self.config['method'] == 'STJPV':
             self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
@@ -111,6 +110,12 @@ class JetFindRun(object):
             self.config['output_file'] = ('{short_name}_{method}'
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
+
+        if date_s is not None and isinstance(date_s, dt.datetime):
+            self.config['output_file'] += '_{}'.format(date_s.strftime('%Y-%m-%d'))
+
+        if date_e is not None and isinstance(date_e, dt.datetime):
+            self.config['output_file'] += '_{}'.format(date_e.strftime('%Y-%m-%d'))
 
     def log_setup(self):
         """Create a logger object with file location from `self.config`."""
@@ -140,15 +145,18 @@ class JetFindRun(object):
 
         Parameters
         ----------
-        year_s, year_e : int
-            Beginning and end years, optional. If not included,
-            use self.year_s and/or self.year_e
+        date_s, date_e: :py:meth:`~datetime.datetime`
+            Beginning and end dates, optional. If not included,
+            use (Jan 1, self.year_s) and/or (Dec 31, self.year_e)
 
         """
         if date_s is None:
             date_s = dt.datetime(self.config['year_s'], 1, 1)
         if date_e is None:
             date_e = dt.datetime(self.config['year_e'], 12, 31)
+
+        self._set_output(date_s, date_e)
+
         if self.data_cfg['single_year_file']:
             for year in range(date_s.year, date_e.year + 1):
                 self.log.info('FIND JET FOR %d', year)
@@ -170,7 +178,7 @@ class JetFindRun(object):
 
         jet_all.save_jet()
 
-    def run_sensitivity(self, sens_param, sens_range, year_s=None, year_e=None):
+    def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
         """
         Perform a parameter sweep on a particular parameter of the JetFindRun.
 
@@ -180,7 +188,7 @@ class JetFindRun(object):
             Configuration parameter of :py:meth:`~STJ_PV.run_stj.JetFindRun`
         sens_range : iterable
             Range of values of `sens_param` over which to iterate
-        year_s, year_e : integer, optional
+        date_s, date_e: integer, optional
             Start and end years, respectively. Optional, defualts to config file defaults
 
         """
@@ -195,9 +203,9 @@ class JetFindRun(object):
         for param_val in sens_range:
             self.log.info('----- RUNNING WITH %s = %f -----', sens_param, param_val)
             self.config[sens_param] = param_val
-            self._set_output()
+            self._set_output(date_s, date_e)
             self.log.info('OUTPUT TO: %s', self.config['output_file'])
-            self.run(year_s, year_e)
+            self.run(date_s, date_e)
 
 
 def check_config_req(cfg_file, required_keys_all, id_file=True):
