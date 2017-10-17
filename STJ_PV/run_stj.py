@@ -84,7 +84,21 @@ class JetFindRun(object):
             # if it isn't, then wpath == path is fine, set that here
             self.data_cfg['wpath'] = self.data_cfg['path']
 
+        self._set_metric()
         self.log_setup()
+
+    def _set_metric(self):
+        """Set metric and associated levels."""
+        if self.config['method'] == 'STJPV':
+            self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
+                                       350.0, 370.0, 395.0, 430.0])
+            self.metric = stj_metric.STJPV
+        elif self.config['method'] == 'STJUMax':
+            self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
+                                      250., 200., 150., 100., 70., 50., 30., 20., 10.])
+            self.metric = stj_metric.STJMaxWind
+        else:
+            self.metric = None
 
     def _set_output(self, date_s=None, date_e=None):
 
