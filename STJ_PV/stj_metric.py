@@ -188,20 +188,7 @@ class STJPV(STJMetric):
 
         return poly_der, (poly_fit, lat[y_s:y_e][valid])
 
-    def find_jet(self, shemis=True):
-        """
-        Find the subtropical jet using input parameters.
-
-        Parameters
-        ----------
-        shemis : logical, optional
-            If True, find jet position in Southern Hemisphere, if False, find N.H. jet
-
-        """
-        if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
-            pv_lev = np.array([self.pv_lev])
-        else:
-            pv_lev = -1 * np.array([self.pv_lev])
+    def _set_hemis(self, shemis):
 
         # Find axis
         lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
@@ -227,12 +214,34 @@ class STJPV(STJMetric):
             # Link `extrema` function to argrelmin for NH
             extrema = sig.argrelmin
 
-        # Get theta on PV==pv_level
+        return lat, hidx, extrema
+
+    def _isolate_pv(self, pv_lev):
         theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[self.hemis], pv_lev)
         uwnd_xpv = utils.vinterp(self.data.uwnd[self.hemis], self.data.ipv[self.hemis],
                                  pv_lev)
         ushear = self._get_max_shear(uwnd_xpv)
+        return theta_xpv, uwnd_xpv, ushear
 
+    def find_jet(self, shemis=True):
+        """
+        Find the subtropical jet using input parameters.
+
+        Parameters
+        ----------
+        shemis : logical, optional
+            If True, find jet position in Southern Hemisphere, if False, find N.H. jet
+
+        """
+        if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
+            pv_lev = np.array([self.pv_lev])
+        else:
+            pv_lev = -1 * np.array([self.pv_lev])
+
+        lat, hidx, extrema = self._set_hemis(shemis)
+
+        # Get theta on PV==pv_level
+        theta_xpv, uwnd_xpv, ushear = self._isolate_pv(pv_lev)
         dims = theta_xpv.shape
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
@@ -289,7 +298,7 @@ class STJPV(STJMetric):
 
         return uwnd_xpv - uwnd_sfc
 
-    def _find_single_jet(self, theta_xpv, lat, ushear, extrema):
+    def _find_single_jet(self, theta_xpv, lat, ushear, extrema, debug=False):
         """
         Find jet location for a 1D array of theta on latitude.
 
@@ -301,11 +310,17 @@ class STJPV(STJMetric):
             1D array of latitude same shape as theta_xpv and ttrop
         ushear : array_like
             1D array along latitude axis of maximum surface - troposphere u-wind shear
+        debug : boolean
+            If True, returns debugging information about how jet position is found,
+            if False (default) returns only jet location
 
         Returns
         -------
         jet_loc : int
-            Index of jet location on latitude axis
+            If debug is False, Index of jet location on latitude axis
+        jet_loc, jet_loc_all, dtheta, theta_fit, lat, y_s, y_e  : tuple
+            If debug is True, return lots of stuff
+            TODO: document this better!!
 
         """
         # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
@@ -326,12 +341,16 @@ class STJPV(STJMetric):
         select = self.select_jet(jet_loc_all, lat, ushear)
 
         # Eventually this moves somewhere else to do diagnostic plots
-        if self.plot_idx <= 30:
-            if np.min(lat) < 0 and self.xix < 2:
-                self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
-                                 y_s, y_e, select)
+        # if self.plot_idx <= 30:
+        #     if np.min(lat) < 0 and self.xix < 2:
+        #         self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
+        #                          y_s, y_e, select)
+        if debug:
+            output = select, jet_loc_all, dtheta, theta_fit, lat, y_s, y_e
+        else:
+            output = select
 
-        return select
+        return output
 
     def select_jet(self, locs, lat, ushear):
         """
