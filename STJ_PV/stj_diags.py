@@ -100,7 +100,7 @@ class DiagPlots(object):
             if shem:
                 lat_labels = np.arange(-90, 30, 30)
             else:
-                lat_labels= np.arange(0, 90 + 30, 30)
+                lat_labels = np.arange(0, 90 + 30, 30)
 
             axes[hidx].set_xticks(lat_labels)
             axes[hidx].set_xticklabels([u'{}\u00B0'.format(lati) for lati in lat_labels],
@@ -116,7 +116,6 @@ class DiagPlots(object):
         axes[0].set_ylabel(r'$\theta$ [K]')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
 
-
         # Combine legends from axes[1] and its twin
         h_1, l_1 = axes[1].get_legend_handles_labels()
         h_2, l_2 = ax2.get_legend_handles_labels()
@@ -127,18 +126,19 @@ class DiagPlots(object):
         for lati in jet_lat:
             axes[3].axhline(lati, color='k', lw=0.5)
 
+        axes[0].text(-90, 399, '(a)', verticalalignment='top', horizontalalignment='left')
+        axes[1].text(90, 399, '(b)', verticalalignment='top', horizontalalignment='right')
         axes[2].set_title('(c)')
         axes[3].set_title('(d)')
 
-        cbar_ax = fig.add_axes([0.15, 0.06, .7, .01])
+        cbar_ax = fig.add_axes([0.15, 0.07, .7, .01])
         fig.colorbar(cfill, cax=cbar_ax, orientation='horizontal', format='%3.1f',
                      label=r'U-Wind [$m\,s^{-1}$]')
 
-        fig.subplots_adjust(left=0.09, bottom=0.11, right=0.92, top=0.96,
-                           wspace=0.03, hspace=0.27)
-        axes[2].set_position([0.0, 0.11, 0.7, .23])
-        #plt.show()
-        plt.savefig('plt_jet_props_{}.eps'.format(date.strftime('%Y-%m')))
+        fig.subplots_adjust(left=0.09, bottom=0.12, right=0.92, top=0.96,
+                            wspace=0.03, hspace=0.27)
+        axes[2].set_position([0.0, 0.12, 0.7, .23])
+        plt.savefig('plt_jet_props_{}.pdf'.format(date.strftime('%Y-%m')))
 
     def plot_uwnd(self, data, axis, index, jet_lat):
         """
@@ -167,19 +167,19 @@ class DiagPlots(object):
         else:
             # Otherwise use 0 and hope for the best
             lon_0 = 0.0
-        print(jet_lat)
+
         tix, zix = index
         pmap = basemap.Basemap(projection='eck4', lon_0=lon_0, resolution='c')
         # pmap = basemap.Basemap(projection='kav7', lon_0=lon_0, resolution='c')
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
+        uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
+        map_x, map_y = pmap(*np.meshgrid(lon, data.lat))
 
-        map_x, map_y = pmap(*np.meshgrid(data.lon, data.lat))
-
-        cfill = pmap.contourf(map_x, map_y, data.uwnd[tix, zix, ...], self.contours,
+        cfill = pmap.contourf(map_x, map_y, uwnd, self.contours,
                               cmap='RdBu_r', ax=axis, extend='both')
 
-        pmap.drawcoastlines(ax=axis)
+        pmap.drawcoastlines(ax=axis, linewidth=0.5)
         lat_spc = 15.
         lon_spc = 30.
         line_props = {'ax': axis, 'linewidth': 0.5, 'dashes': [1, 3]}
@@ -204,8 +204,8 @@ class DiagPlots(object):
         else:
             pv_lev = -1 * np.array([self.stj.pv_lev])
 
-        lat, hidx, extrema = self.stj._set_hemis(shemis)
-        theta_xpv, uwnd_xpv, ushear = self.stj._isolate_pv(pv_lev)
+        lat, _, extrema = self.stj._set_hemis(shemis)
+        theta_xpv, _, ushear = self.stj._isolate_pv(pv_lev)
         dims = theta_xpv.shape
 
 
@@ -240,7 +240,8 @@ class DiagPlots(object):
 
         return dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e
 
-if __name__ == "__main__":
+def main():
+    """Set rc  parameters for plotting, generate jet finder, make diagnostic plots."""
     plt.rc('text', usetex=True)
     plt.rc('text.latex', unicode=True)
     plt.rc('font', family='sans-serif', size=16)
@@ -252,3 +253,7 @@ if __name__ == "__main__":
         os.remove(jf_run.config['log_file'])
     except OSError:
         pass
+
+
+if __name__ == "__main__":
+    main()
