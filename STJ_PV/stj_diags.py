@@ -2,6 +2,7 @@
 """
 Module containing classes for diagnoistic variable calculation and diagnoistic plotting.
 """
+import os
 import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,95 +12,6 @@ import input_data
 import stj_metric
 import run_stj
 
-class DiagMetrics(object):
-    """
-    Calculate diagnostic metrics about subtropical jet properties.
-    """
-
-    def __init__(self, stj_props, metric):
-        """
-        Setup DiagMetrics, input from a STJMetric and STJProperties classes.
-        """
-        self.props = stj_props
-        self.metric = metric
-
-    def jet_intensity(self):
-        """
-        Calculate jet intensity at identified points.
-        """
-
-    def annual_correlations(self):
-        """
-        Calculate annual correlations.
-        """
-
-    def monthly_correlations(self):
-        """
-        Calculate monthly correlations.
-        """
-
-    def seasonal_correlations(self):
-        """
-        Calculate seasonal correlations.
-        """
-
-    def polyfit_near_mean(self):
-        """
-        Perform a polynomial fit of pv contour near "expected" jet location mean.
-        """
-
-    def validate_near_mean(self):
-        """
-        Check that identified STJ position is near "expected" jet location mean.
-        """
-
-    def get_uwind_strength(self):
-        """
-        Calculate zonal wind profile.
-        """
-        # created named tuples to manage storage of index
-        metric = collections.namedtuple('metric', 'name hemisphere intensity position')
-        time_len = self.ipv_data['ipv'].shape[0]
-        STJ_int = np.zeros(time_len)
-        STJ_pos = np.zeros(time_len)
-        pdb.set_trace()
-
-        for hemi in ['NH', 'SH']:
-            for time_loop in range(time_len):
-                # for time_loop in xrange(1):
-
-                if hemi == 'NH':
-                    lat = self.lat_NH
-                    STJ_phi = self.NH_STJ_phi[time_loop]
-                    STJ_th = self.NH_STJ_theta[time_loop]
-                else:
-                    lat = self.lat_SH
-                    STJ_phi = self.SH_STJ_phi[time_loop]
-                    STJ_th = self.SH_STJ_theta[time_loop]
-
-                # step 8. interpolate u wind
-                u_zonal = MeanOverDim(data=self.u_th[time_loop, :, :, :], dim=2)
-                u_zonal_function = interpolate.interp2d(
-                    self.lat, self.theta_lev, u_zonal, kind='cubic')
-                u_zonal_interp = u_zonal_function(lat, self.theta_interp)
-
-                # step 9: for the 2.0 max derivative latitude find the uwind strength
-                # get element closest to phi and theta points
-
-                elem_phi = FindClosestElem(STJ_phi, lat)[0]
-                elem_theta = FindClosestElem(STJ_th, self.theta_interp)[0]
-
-                STJ_int[time_loop] = u_zonal_interp[elem_theta, elem_phi]
-                STJ_pos[time_loop] = STJ_phi
-
-            if hemi == 'NH':
-                Metric_NH = metric(name='STJ', hemisphere=hemi,
-                                   intensity=STJ_int, position=STJ_pos)
-            else:
-                Metric_SH = metric(name='STJ', hemisphere=hemi,
-                                   intensity=STJ_int, position=STJ_pos)
-
-        return Metric_NH, Metric_SH
 
 class DiagPlots(object):
     """
@@ -130,7 +42,7 @@ class DiagPlots(object):
         data.get_data_input()
         self.stj = self.metric(self.props, data)
         tix = 0
-        zix = 4
+        zix = 6
         fig = plt.figure(figsize=(9, 10))
         axes = [plt.subplot2grid((3, 4), (0, 0), rowspan=2, colspan=2),
                 plt.subplot2grid((3, 4), (0, 2), rowspan=2, colspan=2),
@@ -138,7 +50,8 @@ class DiagPlots(object):
                 plt.subplot2grid((3, 4), (2, 3), rowspan=1, colspan=1)]
 
         uwnd_max = np.max(np.abs(data.uwnd[tix, zix, ...]))
-        self.contours = np.linspace(-np.ceil(uwnd_max), np.ceil(uwnd_max), 15)
+        spc = uwnd_max // 13
+        self.contours = np.arange(-np.ceil(uwnd_max), np.ceil(uwnd_max) + spc, spc)
         jet_lat = []
 
         for hidx, shem in enumerate([True, False]):
@@ -158,7 +71,7 @@ class DiagPlots(object):
                             label=r'$\theta_{%iPVU}$ Fit' % pv_lev, lw=2.0)
 
             # Plot mean theta profile
-            axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1),
+            axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'C1',
                             label=r'$\theta_{%iPVU}$' % pv_lev, lw=2.0)
             axes[hidx].plot(lat[jet_pos], np.mean(theta_xpv[tix, ...], axis=-1)[jet_pos],
                             'C0o', ms=5, label='Jet Location')
@@ -182,14 +95,24 @@ class DiagPlots(object):
                 ax2.tick_params(right='off', labelright='off')
             else:
                 axes[hidx].tick_params(left='off', labelleft='off')
+            axes[hidx].tick_params(bottom='off', labelbottom='off',
+                                   top='on', labeltop='on')
+            if shem:
+                lat_labels = np.arange(-90, 30, 30)
+            else:
+                lat_labels= np.arange(0, 90 + 30, 30)
+
+            axes[hidx].set_xticks(lat_labels)
+            axes[hidx].set_xticklabels([u'{}\u00B0'.format(lati) for lati in lat_labels],
+                                       fontdict={'usetex': False})
+
+            axes[hidx].set_xlabel(r'$\phi$')
             axes[hidx].grid(b=False)
             ax2.grid(b=False)
 
         # Plot wind map
         cfill = self.plot_uwnd(data, axes[2], (tix, zix), jet_lat)
 
-        axes[0].set_title('(a) Southern Hemisphere')
-        axes[1].set_title('(b) Northern Hemisphere')
         axes[0].set_ylabel(r'$\theta$ [K]')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
 
@@ -202,11 +125,8 @@ class DiagPlots(object):
         # Add plot of zmzw as function of latitude
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), data.lat)
         for lati in jet_lat:
-            axes[3].plot(axes[3].get_xlim(), [lati] * 2, 'k-', lw=0.5)
+            axes[3].axhline(lati, color='k', lw=0.5)
 
-        # Get the left / upper axis locations, put text there
-        #axes[2].text(axes[2].get_xlim()[0], axes[2].get_ylim()[1], '(c)', weight='bold')
-        #axes[3].text(axes[3].get_xlim()[0], axes[3].get_ylim()[1], '(d)', weight='bold')
         axes[2].set_title('(c)')
         axes[3].set_title('(d)')
 
@@ -215,12 +135,32 @@ class DiagPlots(object):
                      label=r'U-Wind [$m\,s^{-1}$]')
 
         fig.subplots_adjust(left=0.09, bottom=0.11, right=0.92, top=0.96,
-                           wspace=0.02, hspace=0.27)
+                           wspace=0.03, hspace=0.27)
         axes[2].set_position([0.0, 0.11, 0.7, .23])
         #plt.show()
-        plt.savefig('plt_jet_props.png')
+        plt.savefig('plt_jet_props_{}.eps'.format(date.strftime('%Y-%m')))
 
     def plot_uwnd(self, data, axis, index, jet_lat):
+        """
+        Plot zonal wind for a specific time/level on a map.
+
+        Parameters
+        ----------
+        data : :py:meth:`~STJ_PV.input_data.InputData`
+            InputData object, contains u-wind, and PV field and coordinates
+        axis : :py:meth:`matplotlib.pyplot.Axis`
+            Axis on which to plot
+        index : tuple
+            Tuple of (time, level) indicies, respectively
+        jet_lat : list
+            Length 2 list of jet latitudes [NH, SH] or [SH, NH]
+
+        Returns
+        -------
+        cfill : :py:meth:`~matplotlib.pyplot.contourf`
+            Contour fill object from map
+
+        """
         if data.lon[0] == 0 or data.lon[0] == 360.0:
             # If longitude is 0 - 360 then centre longitude is 180
             lon_0 = 180.0
@@ -255,6 +195,8 @@ class DiagPlots(object):
 
 
     def _jet_details(self, shemis=True):
+        """Get Jet details using :py:meth:`~STJ_PV.stj_metric.STJPV` API for a hemisphere.
+        """
 
         # --------------------- Code from STJMetric.find_jet() --------------------- #
         if shemis and self.stj.pv_lev < 0 or not shemis and self.stj.pv_lev > 0:
@@ -298,29 +240,15 @@ class DiagPlots(object):
 
         return dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e
 
-    def compare_fd_cby(self):
-        """
-        Plot comparison of finite difference and Chebyshev polynomial derivative jet pos.
-        """
-
-    def test_second_derr(self):
-        """
-        Plot test of second derivative of PV contour.
-        """
-
-    def jet_lat_timeseries(self):
-        """
-        Plot jet location over time for both NH and SH.
-        """
-
-    def partial_correlation_matrix(self):
-        """
-        Plot matrix of partial correlations.
-        """
-
 if __name__ == "__main__":
     plt.rc('text', usetex=True)
-    plt.rc('font', family='serif', size=16)
+    plt.rc('text.latex', unicode=True)
+    plt.rc('font', family='sans-serif', size=16)
     jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
     diags = DiagPlots(jf_run, stj_metric.STJPV)
-    diags.test_method_plot(dt.datetime(2012, 6, 1))
+    diags.test_method_plot(dt.datetime(2015, 1, 1))
+    try:
+        # Remove log file created by JF_RUN, comment this out if there's a problem
+        os.remove(jf_run.config['log_file'])
+    except OSError:
+        pass
