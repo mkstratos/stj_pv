@@ -12,7 +12,6 @@ import input_data
 import stj_metric
 import run_stj
 
-
 class DiagPlots(object):
     """
     Plot diagnostic metrics about subtropical jet properties.
@@ -80,8 +79,8 @@ class DiagPlots(object):
                                 cmap='RdBu_r', extend='both')
 
             # Plot mean theta profile
-            axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'kx',
-                            label=r'$\theta_{%iPVU}$' % pv_lev, lw=2.0)
+            axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'k.', ms=1.0,
+                            label=r'$\theta_{%iPVU}$' % pv_lev)
 
             # Plot Mean theta fit
             axes[hidx].plot(lat[y_s:y_e], np.mean(theta_fit_eval[tix, ...], axis=0),
@@ -139,6 +138,7 @@ class DiagPlots(object):
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), data.lat)
         for lati in jet_lat:
             axes[3].axhline(lati, color='k', lw=0.5)
+        axes[3].set_ylim([-90, 90])
 
         axes[0].text(-90, 399, '(a)', verticalalignment='top', horizontalalignment='left')
         axes[1].text(0, 399, '(b)', verticalalignment='top', horizontalalignment='left')
@@ -207,7 +207,7 @@ class DiagPlots(object):
         # Draw horizontal lines for jet location in each hemisphere
         # Dashes list is [pixels on, pixels off], higher numbers are better
         # when using eps and trying to draw a solid line
-        pmap.drawparallels(jet_lat, dashes=[55, 0], linewidth=1.5, ax=axis)
+        pmap.drawparallels(jet_lat, dashes=[5, 0], linewidth=1.5, ax=axis)
 
         return cfill
 
@@ -259,15 +259,17 @@ class DiagPlots(object):
         return dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e
 
 def main():
-    """Set rc  parameters for plotting, generate jet finder, make diagnostic plots."""
+    """Generate jet finder, make diagnostic plots."""
 
     jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
     diags = DiagPlots(jf_run, stj_metric.STJPV)
     diags.test_method_plot(dt.datetime(2015, 1, 1))
+
     try:
         # Remove log file created by JF_RUN, comment this out if there's a problem
         os.remove(jf_run.config['log_file'])
     except OSError:
+        print('Log file not found: {}'.format(jf_run.config['log_file']))
         pass
 
 
