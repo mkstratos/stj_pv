@@ -25,16 +25,16 @@ class DiagPlots(object):
         self.metric = metric
         self.stj = None
         self.contours = None
-        self.extn = 'eps'
+        self.extn = 'png'
 
         # Figure size set to 129 mm wide, 152 mm tall
-        fig_mult = 1.0
-        fig_width = 129 * fig_mult
+        self.fig_mult = 2.0
+        fig_width = 129 * self.fig_mult
         self.fig_size = (fig_width / 25.4, (fig_width / 0.9) / 25.4)
 
         plt.rc('text', usetex=True)
         plt.rc('text.latex', unicode=True)
-        plt.rc('font', family='serif', size=8 * fig_mult)
+        plt.rc('font', family='serif', size=8 * self.fig_mult)
 
     def test_method_plot(self, date):
         """
@@ -64,6 +64,7 @@ class DiagPlots(object):
         spc = 5.
         self.contours = np.arange(-np.ceil(uwnd_max), np.ceil(uwnd_max) + spc, spc)
         jet_lat = []
+        lwid = 2.0 * self.fig_mult
 
         for hidx, shem in enumerate([True, False]):
             dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
@@ -79,15 +80,15 @@ class DiagPlots(object):
                                 cmap='RdBu_r', extend='both')
 
             # Plot mean theta profile
-            axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'k.', ms=1.0,
-                            label=r'$\theta_{%iPVU}$' % pv_lev)
+            axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'k.',
+                            ms=1.0 * self.fig_mult, label=r'$\theta_{%iPVU}$' % pv_lev)
 
             # Plot Mean theta fit
             axes[hidx].plot(lat[y_s:y_e], np.mean(theta_fit_eval[tix, ...], axis=0),
-                            label=r'$\theta_{%iPVU}$ Fit' % pv_lev, lw=2.0)
+                            label=r'$\theta_{%iPVU}$ Fit' % pv_lev, lw=lwid)
 
             axes[hidx].plot(lat[jet_pos], np.mean(theta_xpv[tix, ...], axis=-1)[jet_pos],
-                            'C0o', ms=5, label='Jet Location')
+                            'C0o', ms=5 * self.fig_mult, label='Jet Location')
 
             # Restrict axis to only between 280 - 400K
             axes[hidx].set_ylim([300, 400])
@@ -96,7 +97,7 @@ class DiagPlots(object):
             ax2 = axes[hidx].twinx()
             # Plot meridional derivative of theta on X PVU
             ax2.plot(lat[y_s:y_e], np.mean(dtheta[tix, ...], axis=-1), 'C2',
-                     label=r'$\partial\theta_{%iPVU}/\partial\phi$' % pv_lev, lw=2.0)
+                     label=r'$\partial\theta_{%iPVU}/\partial\phi$' % pv_lev, lw=lwid)
 
             # Restrict to +/- 4 so that both SH and NH have same Y-axis
             ax2.set_ylim([-4, 4])
@@ -137,7 +138,7 @@ class DiagPlots(object):
         # Add plot of zmzw as function of latitude
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), data.lat)
         for lati in jet_lat:
-            axes[3].axhline(lati, color='k', lw=0.5)
+            axes[3].axhline(lati, color='k', lw=0.5 * self.fig_mult)
         axes[3].set_ylim([-90, 90])
 
         axes[0].text(-90, 399, '(a)', verticalalignment='top', horizontalalignment='left')
@@ -261,7 +262,7 @@ class DiagPlots(object):
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
     diags = DiagPlots(jf_run, stj_metric.STJPV)
     diags.test_method_plot(dt.datetime(2015, 1, 1))
 
