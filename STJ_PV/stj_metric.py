@@ -3,7 +3,6 @@
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
-import matplotlib.pyplot as plt
 
 import utils
 import data_out as dio
@@ -188,7 +187,33 @@ class STJPV(STJMetric):
 
         return poly_der, (poly_fit, lat[y_s:y_e][valid])
 
-    def _set_hemis(self, shemis):
+    def set_hemis(self, shemis):
+        """
+        Select hemisphere data.
+
+        This function sets `self.hemis` to be an length N list of slices such that only
+        the desired hemisphere is selected with N-D data (e.g. uwind and ipv) along all
+        other axes. It also returns the latitude for the selected hemisphere, an index
+        to select the hemisphere in output arrays, and the extrema function to find
+        min/max of PV derivative in a particular hemisphere.
+
+        Parameters
+        ----------
+        shemis : boolean
+            If true - use southern hemisphere data, if false, use NH data
+
+        Returns
+        -------
+        lat : array_like
+            Latitude array from selected hemisphere
+        hidx : int
+            Hemisphere index 0 for SH, 1 for NH
+        extrema : function
+            Function used to identify extrema in meridional PV gradient, either
+            :py:meth:`scipy.signal.argrelmax` if SH, or :py:meth:`scipy.signal.argrelmin`
+            for NH
+
+        """
 
         # Find axis
         lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
@@ -216,7 +241,28 @@ class STJPV(STJMetric):
 
         return lat, hidx, extrema
 
-    def _isolate_pv(self, pv_lev):
+    def isolate_pv(self, pv_lev):
+        """
+        Get the potential temperature, zonal wind and zonal wind shear for a PV level.
+
+        Parameters
+        ----------
+        pv_lev : float
+            PV value (for a particular hemisphere, >0 for NH, <0 for SH) on which to
+            interpolate potential temperature and wind
+
+        Returns
+        -------
+        theta_xpv : array_like
+            N-1 dimensional array (where `self.data.ipv` is N-D) of potential temperature
+            on `pv_lev` PVU
+        uwnd_xpv : array_like
+            N-1 dimensional array (where `self.data.uwnd` is N-D) of zonal wind
+            on `pv_lev` PVU
+        ushear : array_like
+            Wind shear between uwnd_xpv and "surface", meaning the lowest valid level
+
+        """
         theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[self.hemis], pv_lev)
         uwnd_xpv = utils.vinterp(self.data.uwnd[self.hemis], self.data.ipv[self.hemis],
                                  pv_lev)
@@ -238,10 +284,10 @@ class STJPV(STJMetric):
         else:
             pv_lev = -1 * np.array([self.pv_lev])
 
-        lat, hidx, extrema = self._set_hemis(shemis)
+        lat, hidx, extrema = self.set_hemis(shemis)
 
         # Get theta on PV==pv_level
-        theta_xpv, uwnd_xpv, ushear = self._isolate_pv(pv_lev)
+        theta_xpv, uwnd_xpv, ushear = self.isolate_pv(pv_lev)
         dims = theta_xpv.shape
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
@@ -252,8 +298,8 @@ class STJPV(STJMetric):
             jet_loc = np.zeros(dims[-1])
             for xix in range(dims[-1]):
                 self.xix = xix
-                jet_loc[xix] = self._find_single_jet(theta_xpv[tix, :, xix],
-                                                     lat, ushear[tix, :, xix], extrema)
+                jet_loc[xix] = self.find_single_jet(theta_xpv[tix, :, xix],
+                                                    lat, ushear[tix, :, xix], extrema)
                 if not self.props['zonal_opt'].lower() == 'mean':
                     self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
                     self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
@@ -298,7 +344,7 @@ class STJPV(STJMetric):
 
         return uwnd_xpv - uwnd_sfc
 
-    def _find_single_jet(self, theta_xpv, lat, ushear, extrema, debug=False):
+    def find_single_jet(self, theta_xpv, lat, ushear, extrema, debug=False):
         """
         Find jet location for a 1D array of theta on latitude.
 
@@ -338,7 +384,7 @@ class STJPV(STJMetric):
         if y_s is not None:
             # If beginning of array is cut off rather than end, add cut-off to adjust
             jet_loc_all += y_s
-        select = self.select_jet(jet_loc_all, lat, ushear)
+        select = self.select_jet(jet_loc_all, ushear)
 
         # Eventually this moves somewhere else to do diagnostic plots
         # if self.plot_idx <= 30:
@@ -352,7 +398,7 @@ class STJPV(STJMetric):
 
         return output
 
-    def select_jet(self, locs, lat, ushear):
+    def select_jet(self, locs, ushear):
         """
         Select correct jet latitude given list of possible jet locations.
 
@@ -360,8 +406,6 @@ class STJPV(STJMetric):
         ----------
         locs : list
             List of indicies of jet locations
-        lat : array_like
-            1D array of hemispheric latitude
         ushear : array_like
             1D array along latitude axis of maximum surface - troposphere u-wind shear
 
@@ -396,87 +440,7 @@ class STJPV(STJMetric):
             ushear_max = np.argmax(ushear[locs])
             jet_loc = locs[ushear_max]
 
-            # if np.abs(lat[jet_loc]) > 60:
-            #     try:
-            #         self._debug_plot_1d(lat, locs, jet_loc)
-            #     except (ValueError, IndexError, TypeError) as err:
-            #         self.log.error("TRIED TO PLOT, COULDN'T")
-            #         self.log.error(err)
-
         return jet_loc
-
-    def _debug_plot_1d(self, lat, locs, jet_loc):
-
-        if np.min(lat) > 0:
-            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat > 0, self.xix]
-        else:
-            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
-        plt.contourf(lat, self.data.th_lev, uwnd_plt.T,
-                     np.linspace(-40, 40, 14), cmap='RdBu_r', extend='both')
-        plt.gca().invert_yaxis()
-        ylims = plt.gca().get_ylim()
-        for loc in locs:
-            plt.plot([lat[loc]] * 2, ylims, '--')
-        plt.plot([lat[jet_loc]] * 2, ylims, '-', lw=3.)
-        plt.gca().set_yscale('log')
-        plt.savefig('plots/plt_uwnd_t{:03d}_x{:03d}_{:05d}.png'
-                    .format(self.tix, self.xix, self.plot_idx))
-        self.plot_idx += 1
-        plt.clf()
-        plt.close()
-
-    def _debug_plot(self, lat, theta_xpv, theta_fit, dtheta,
-                    jet_loc_all, y_s, y_e, select):
-        plt.rc('text', usetex=True)
-        plt.rc('font', family='sans-serif')
-        size_fact = 2.0
-        font_size = 8.0 * size_fact
-
-        if y_s is None:
-            y_si = 0
-        else:
-            y_si = y_s
-
-        if np.min(lat) > 0:
-            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat > 0, self.xix]
-        else:
-            uwnd_plt = self.data.uwnd[self.tix, :, self.data.lat < 0, self.xix]
-
-        poly_fit = self.peval(theta_fit[1], theta_fit[0])
-        width = 11.5 / 2.54     # AGU figure sizes for 1/4 page is 95 x 115 mm,
-        height = 9.5 / 2.54     # for full page is 190 x 230 mm
-        _, axis = plt.subplots(1, 1, figsize=(width * size_fact, height * size_fact))
-        ax1 = axis.twinx()
-
-        axis.contourf(lat, self.data.th_lev, uwnd_plt.T, np.linspace(-40, 40, 14),
-                      cmap='RdBu_r', extend='both')
-
-        axis.plot(lat, theta_xpv, 'k-', lw=2.0, label='Dyn trop.')
-        axis.plot(theta_fit[1], poly_fit, 'C0-', lw=2.0, label='Dyn trop. fit')
-
-        axis.plot(lat[jet_loc_all], theta_xpv[jet_loc_all], 'kx', ms=6.)
-        axis.plot(lat[select], theta_xpv[select], 'ko', ms=8.)
-        ax1.plot(lat[y_si:y_e], dtheta, 'C1', lw=2.0,
-                 label=r'$\partial\Theta_{%iPVU}/\partial\phi$' % self.pv_lev)
-
-        axis.set_ylabel('Potential Temperature [K]', fontsize=font_size)
-        axis.set_xlabel('Latitude', fontsize=font_size)
-        ax1.set_ylabel(r'$\partial\Theta/\partial\phi$ [K/rad]', fontsize=font_size)
-        axis.tick_params(axis='both', which='major', labelsize=font_size)
-        ax1.tick_params(axis='both', which='major', labelsize=font_size)
-
-        h_1, l_1 = axis.get_legend_handles_labels()
-        h_2, l_2 = ax1.get_legend_handles_labels()
-        ax1.legend(h_1 + h_2, l_1 + l_2, fontsize=font_size)
-
-        date = dio.nc.num2date(self.data.time[self.tix], self.data.time_units,
-                               self.data.calendar).strftime('%b %Y')
-        plt.title('Jet Latitude Metric Details {}'.format(date), fontsize=font_size)
-        plt.tight_layout()
-        plt.savefig('plots/plt_jet_{:05d}_t{:010.0f}_x{:03d}.eps'
-                    .format(self.plot_idx, self.data.time[self.tix], self.xix))
-        self.plot_idx += 1
-        plt.close()
 
 
 class STJMaxWind(STJMetric):
@@ -553,7 +517,7 @@ class STJMaxWind(STJMetric):
             jet_loc = np.zeros(dims[-1])
             for xix in range(dims[-1]):
                 self.xix = xix
-                jet_loc[xix] = self._find_single_jet(uwnd_p[tix, :, xix])
+                jet_loc[xix] = self.find_single_jet(uwnd_p[tix, :, xix])
 
             jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
             self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
@@ -563,7 +527,7 @@ class STJMaxWind(STJMetric):
                                             jet_intens[jet_loc.astype(int)])
             self.jet_intens[hidx, tix] = np.ma.median(jet_intens)
 
-    def _find_single_jet(self, uwnd):
+    def find_single_jet(self, uwnd):
         """
         Find the position of the maximum zonal wind of a 1D array of zonal wind.
 

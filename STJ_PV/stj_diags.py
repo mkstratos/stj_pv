@@ -223,12 +223,12 @@ class DiagPlots(object):
         else:
             pv_lev = -1 * np.array([self.stj.pv_lev])
 
-        lat, _, extrema = self.stj._set_hemis(shemis)
-        theta_xpv, _, ushear = self.stj._isolate_pv(pv_lev)
+        lat, _, extrema = self.stj.set_hemis(shemis)
+        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev)
         dims = theta_xpv.shape
 
 
-        # ----------------- Code from STJMetric._find_single_jet() ----------------- #
+        # ----------------- Code from STJMetric.find_single_jet() ----------------- #
         # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
         y_s = np.abs(np.abs(lat) - self.props.config['min_lat']).argmin()
         y_e = None
@@ -247,9 +247,9 @@ class DiagPlots(object):
         for tix in range(dims[0]):
             for xix in range(dims[-1]):
                 # Find derivative of dynamical tropopause
-                jet_info = self.stj._find_single_jet(theta_xpv[tix, :, xix], lat,
-                                                     ushear[tix, :, xix], extrema,
-                                                     debug=True)
+                jet_info = self.stj.find_single_jet(theta_xpv[tix, :, xix], lat,
+                                                    ushear[tix, :, xix], extrema,
+                                                    debug=True)
 
                 select[tix, xix] = jet_info[0]
 
@@ -271,7 +271,6 @@ def main():
         os.remove(jf_run.config['log_file'])
     except OSError:
         print('Log file not found: {}'.format(jf_run.config['log_file']))
-        pass
 
 
 if __name__ == "__main__":
