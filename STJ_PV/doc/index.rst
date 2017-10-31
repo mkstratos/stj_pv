@@ -5,8 +5,8 @@
 
 Welcome to STJ Metric's documentation!
 ======================================
-This is a project to locate the Subtropical Jet, mainly using the gradient of the
-dynamical tropopause (PV == 2PVU).
+This is a project to locate the Subtropical Jet, using the gradient of the
+dynamical tropopause (PV == 2PVU), extensible to other methods.
 
 Contents:
 

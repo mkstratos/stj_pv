@@ -2,6 +2,9 @@
 """
 Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and diags.
 
+To run, set stj configuration file, start and end dates in `main()` and run with
+`$ python run_stj.py`
+
 Authors: Penelope Maher, Michael Kelleher
 """
 import sys
@@ -159,7 +162,7 @@ class JetFindRun(object):
 
         Parameters
         ----------
-        date_s, date_e: :py:meth:`~datetime.datetime`
+        date_s, date_e : :class:`datetime.datetime`
             Beginning and end dates, optional. If not included,
             use (Jan 1, self.year_s) and/or (Dec 31, self.year_e)
 
@@ -202,8 +205,8 @@ class JetFindRun(object):
             Configuration parameter of :py:meth:`~STJ_PV.run_stj.JetFindRun`
         sens_range : iterable
             Range of values of `sens_param` over which to iterate
-        date_s, date_e: integer, optional
-            Start and end years, respectively. Optional, defualts to config file defaults
+        date_s, date_e : :class:`datetime.datetime`, optional
+            Start and end dates, respectively. Optional, defualts to config file defaults
 
         """
         params_avail = ['fit_deg', 'pv_value', 'min_lat']

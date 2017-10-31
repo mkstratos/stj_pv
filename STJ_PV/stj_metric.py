@@ -353,7 +353,7 @@ class STJPV(STJMetric):
         theta_xpv : array_like
             Theta on PV level as a function of latitude
         lat : array_like
-            1D array of latitude same shape as theta_xpv and ttrop
+            1D array of latitude same shape as theta_xpv from :py:meth:`~isolate_pv`
         ushear : array_like
             1D array along latitude axis of maximum surface - troposphere u-wind shear
         debug : boolean
