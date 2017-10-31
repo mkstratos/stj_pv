@@ -29,6 +29,12 @@ def main(param_name, param_vals, var_name='lat'):
 
     time = d_in.time
 
+    # Figure size set to 129 mm wide, 152 mm tall
+    fig_mult = 1.0
+    fig_width = 129 * fig_mult
+    fig_size = (fig_width / 25.4, (fig_width / 3 ) / 25.4)
+    plt.rc('font', family='sans-serif', size=8 * fig_mult)
+
     fig, axes = plt.subplots(2, 1, figsize=(15, 5))
     axes = axes.ravel()
 
@@ -47,7 +53,7 @@ def main(param_name, param_vals, var_name='lat'):
     axes[1].grid(b=True)
 
     plt.tight_layout()
-    plt.savefig('plt_compare_{}_{}.png'.format(var_name, param_name))
+    plt.savefig('plt_compare_{}_{}.{}'.format(var_name, param_name, EXTN))
     plt.close()
 
     nh_seas = d_in['{}_nh'.format(var_name)].groupby('time.season')
@@ -57,7 +63,13 @@ def main(param_name, param_vals, var_name='lat'):
     nh_svar = nh_seas.std(axis=1)
     sh_svar = sh_seas.std(axis=1)
 
-    fig, axis = plt.subplots(1, 2, figsize=(12, 5))
+    # Figure size set to 129 mm wide, 152 mm tall
+    fig_mult = 1.0
+    fig_width = 129 * fig_mult
+    fig_size = (fig_width / 25.4, (fig_width * 0.7) / 25.4)
+    plt.rc('font', family='sans-serif', size=8 * fig_mult)
+
+    fig, axis = plt.subplots(1, 2, figsize=fig_size)
     cols_nh = [0, 3, 2, 1]
     cols_sh = [3, 0, 1, 2]
     for snx, season in enumerate(nh_sm.season):
@@ -84,8 +96,8 @@ def main(param_name, param_vals, var_name='lat'):
         axis[1].set_ylim([-45, -25])
     plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var_name]['name']))
     #plt.tight_layout()
-    plt.savefig('plt_season_mean_{}_{}.png'.format(var_name, param_name))
-    #plt.show()
+    plt.savefig('plt_season_mean_{}_{}.{}'.format(var_name, param_name, EXTN))
+    plt.show()
 
 if __name__ == "__main__":
     PARAMS = {'fit': 'Polynomial Fit [deg]', 'y0': 'Minimum Latitude',
@@ -93,6 +105,8 @@ if __name__ == "__main__":
     VARS = {'lat': {'name': 'Latitude Position', 'units': 'deg'},
             'theta': {'name': 'Theta Position', 'units': 'K'},
             'intens': {'name': 'Intensity', 'units': 'm/s'}}
+    EXTN = 'eps'
+
     for var_name in VARS:
         main('pv_lev', np.arange(1.0, 4.5, 0.5), var_name)
         #main('fit', np.arange(4, 9), var_name)
