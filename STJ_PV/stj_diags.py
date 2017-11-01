@@ -25,10 +25,10 @@ class DiagPlots(object):
         self.metric = metric
         self.stj = None
         self.contours = None
-        self.extn = 'png'
+        self.extn = 'eps'
 
         # Figure size set to 129 mm wide, 152 mm tall
-        self.fig_mult = 2.0
+        self.fig_mult = 1.0
         fig_width = 129 * self.fig_mult
         self.fig_size = (fig_width / 25.4, (fig_width / 0.9) / 25.4)
 
@@ -95,9 +95,16 @@ class DiagPlots(object):
 
             # Duplicate the axis
             ax2 = axes[hidx].twinx()
+
             # Plot meridional derivative of theta on X PVU
-            ax2.plot(lat[y_s:y_e], np.mean(dtheta[tix, ...], axis=-1), 'C2',
+            ax2.plot(lat[y_s:y_e], np.mean(dtheta[tix, ...], axis=-1), 'C2--',
                      label=r'$\partial\theta_{%iPVU}/\partial\phi$' % pv_lev, lw=lwid)
+
+            # Plot locations of extrema of d(theta) / d(phi)
+            _, _, extrema = self.stj.set_hemis(shem)
+            dth_extr = extrema(np.mean(dtheta[tix, ...], axis=-1))
+            ax2.plot(lat[y_s:y_e][dth_extr],
+                     np.mean(dtheta[tix, ...], axis=-1)[dth_extr], 'C2x')
 
             # Restrict to +/- 4 so that both SH and NH have same Y-axis
             ax2.set_ylim([-4, 4])
@@ -123,6 +130,7 @@ class DiagPlots(object):
             axes[hidx].set_xlabel(r'$\phi$')
             axes[hidx].grid(b=False)
             ax2.grid(b=False)
+            print('Jet at: {}'.format(lat[jet_pos]))
 
         # Plot wind map
         cfill = self.plot_uwnd(data, axes[2], (tix, zix), jet_lat)
@@ -252,7 +260,6 @@ class DiagPlots(object):
                                                     debug=True)
 
                 select[tix, xix] = jet_info[0]
-
                 dtheta[tix, :, xix] = jet_info[2]
                 theta_fit[:, tix, xix] = jet_info[3][0]
                 y_s, y_e = jet_info[-2:]
@@ -264,7 +271,7 @@ def main():
 
     jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
     diags = DiagPlots(jf_run, stj_metric.STJPV)
-    diags.test_method_plot(dt.datetime(2015, 1, 1))
+    diags.test_method_plot(dt.datetime(2015, 6, 1))
 
     try:
         # Remove log file created by JF_RUN, comment this out if there's a problem
