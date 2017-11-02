@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
+import scipy.stats as sts
+
 #plt.style.use('ggplot')
 
 
@@ -19,6 +21,7 @@ def main(param_name, param_vals, var_name='lat'):
         Array or list of values that `param_name` takes
 
     """
+    sens_out = {}
     opts = {'run_type': 'ERAI_MONTHLY_THETA_STJPV', 'fit': 8, 'y0': 10, 'pv_lev': 2.0}
     opts.pop(param_name)
     opts_var = [{param_name: p_val} for p_val in param_vals]
@@ -66,38 +69,62 @@ def main(param_name, param_vals, var_name='lat'):
     # Figure size set to 129 mm wide, 152 mm tall
     fig_mult = 1.0
     fig_width = 129 * fig_mult
-    fig_size = (fig_width / 25.4, (fig_width * 0.7) / 25.4)
+    fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
     plt.rc('font', family='sans-serif', size=8 * fig_mult)
 
     fig, axis = plt.subplots(1, 2, figsize=fig_size)
-    cols_nh = [0, 3, 2, 1]
-    cols_sh = [3, 0, 1, 2]
+    cols_nh = ['0x', '3o', '2.', '1v']
+    cols_sh = ['3o', '0x', '1v', '2.']
     for snx, season in enumerate(nh_sm.season):
-        axis[0].plot(param_vals, nh_sm[:, snx], 'C{}o-'.format(cols_nh[snx]),
+        if param_name == 'fit':
+            # Fit is discrete variable that can only be an integer, don't put a line in
+            line_str = 'C{}'
+        else:
+            line_str = 'C{}-'
+        axis[0].plot(param_vals, nh_sm[:, snx], line_str.format(cols_nh[snx]),
                      label=str(season.data))
 
-        axis[1].plot(param_vals, sh_sm[:, snx], 'C{}o-'.format(cols_sh[snx]),
+        axis[1].plot(param_vals, sh_sm[:, snx], line_str.format(cols_sh[snx]),
                      label=str(season.data))
+        sens_out[('NH', str(season.data))] = sts.linregress(param_vals, nh_sm[:, snx])
+        sens_out[('SH', str(season.data))] = sts.linregress(param_vals, sh_sm[:, snx])
 
+    grid_style = {'ls': '--', 'lw': 0.5}
     axis[0].set_xlabel(PARAMS[param_name])
     axis[0].set_ylabel('Mean Jet {name} [{units}]'.format(**VARS[var_name]))
-    axis[0].legend()
-    axis[0].set_title('Northern Hemisphere')
-    axis[0].grid(b=True, ls='--')
-
+    if param_name == 'fit' and var_name == 'lat':
+        axis[0].legend(loc='upper center', bbox_to_anchor=(0.5, 0.5))
+    else:
+        axis[0].legend()
+    axis[0].set_title('(a) Northern Hemisphere')
+    axis[0].grid(b=True, **grid_style)
     axis[1].set_xlabel(PARAMS[param_name])
     axis[1].legend()
-    axis[1].set_title('Southern Hemisphere')
-    axis[1].grid(b=True, ls='--')
+    axis[1].set_title('(b) Southern Hemisphere')
+    axis[1].grid(b=True, **grid_style)
 
     if var_name == 'lat':
         axis[0].set_ylim([25, 45])
-        axis[1].invert_yaxis()
-        axis[1].set_ylim([-45, -25])
+        #axis[1].invert_yaxis()
+        #axis[1].set_ylim([-45, -25])
+        axis[1].set_ylim([-25, -45])
+    fig.subplots_adjust(left=0.11, bottom=0.13, right=0.97, top=0.87, wspace=0.26)
     plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var_name]['name']))
-    #plt.tight_layout()
     plt.savefig('plt_season_mean_{}_{}.{}'.format(var_name, param_name, EXTN))
-    plt.show()
+    #plt.show()
+
+    return sens_out
+
+
+def sens_num(param_vals, data, names):
+    """Get min/max and sensitivity of `data` as a function of `param_vals`."""
+    var_name, param_name, season, hem = names
+
+    sens = sts.linregress(param_vals, data)
+
+    #print('Sensitivity of {} to {} in {} {}: {:.2f} (r: {:.3f}, p: {:.4f})'
+    #      .format(var_name, param_name, hem, season, sens[0], sens[2], sens[3]))
+
 
 if __name__ == "__main__":
     PARAMS = {'fit': 'Polynomial Fit [deg]', 'y0': 'Minimum Latitude',
@@ -106,8 +133,19 @@ if __name__ == "__main__":
             'theta': {'name': 'Theta Position', 'units': 'K'},
             'intens': {'name': 'Intensity', 'units': 'm/s'}}
     EXTN = 'eps'
-
+    sens = {'pv': {}, 'fit': {}}
     for var_name in VARS:
-        main('pv_lev', np.arange(1.0, 4.5, 0.5), var_name)
-        #main('fit', np.arange(4, 9), var_name)
+        sens['pv'][var_name] = main('pv_lev', np.arange(1.0, 4.5, 0.5), var_name)
+        sens['fit'][var_name] = main('fit', np.arange(5, 9), var_name)
+
+    for hem in ['NH', 'SH']:
+        for var in ['pv', 'fit']:
+            out_line = '{} & {} & '.format(hem, var)
+            for season in ['DJF', 'MAM', 'JJA', 'SON']:
+                if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
+                    fmt_str = ' \\textbf{%.4f} & '
+                else:
+                    fmt_str = ' %.4f & '
+                out_line += fmt_str % sens[var]['lat'][(hem, season)].slope
+            print(out_line)
     #main('y0', np.arange(1, 11))
