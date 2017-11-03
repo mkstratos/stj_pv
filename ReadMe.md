@@ -94,68 +94,29 @@ The highest level code is `run_stj.py`. Within this file the following changes a
         - **See comments within `data_config_default.yml` for further details**
 
 ## How the STJPV metric works
-   1. The Experiment object function GetIPV is an interface between the data and the code
 
-   2. within GetIPV the function ipv is called (calc_ipv.py). This function is where ipv is calculate. Within calc_ipv.py the Fortran code is called.
+1. `run_stj.main()` creates a `run_stj.JetFindRun` object, based on configuration parameters.
 
-   3. the only choice made to date is the levels to calculate IPV on  - which is 300 to 500 in 5K increments in this case.
+2. Start and end dates are set, and the `run_stj.JetFindRun.run()` method starts the run, where configuration files are checked
+then the selected metric computes the jet postion in each hemisphere at each time.
 
-   4. Within calcl_ipv the Fortran code is called to do the interpolations (Mike how would you describe the interpolation type? eg spline, linear etc)
+3. If Isentropic PV input data does not exist, this is created and written as setup in the data configuration file
 
-   5. u,v and p are each interpolated onto the same vertical grid as potential temperature (in this case 300-500 every 5K)
+4. When using the **STJPV** metric the jet is identified in the following process:
 
-   6. calculate the relative vorticity where  Z=dVdx-dUdy, where dx is grid box longitude step, dy the grid box latitude step, dV is the finite difference in meridional wind and dU the finite difference in zonal wind.
+    1. Compute the isentropic potential vorticity
 
-   7. Calculate the derivative dThdp and Coriolis parameter f_cor.
+    2. Interpolate to obtain potential temperature ($\Theta$) as a function of latitude on a surface
+        of constant IPV, chosen in configuration file
 
-   8. Calculate IPV where `IPV = -g * (rel_v + f_cor) * dThdp`
+    3. Numerically compute meridional gradient of this surface using a polynomal fit (Chebyshev polynomials of degree 8 used by default)
 
-5. Save the thermal tropopause and IPV fields for faster runtime of code.
+    4. The jet location is determined to be at a relative maximum in the northern hemisphere, or minimum
+        in the southern hemisphere of the meridional gradient of potential temperature on the PV surface at each time and longitude
 
-    After the `STJ_PV_main.py` code has been run and the IPV data has been outputted the code then calculates the metric for the STJ latitude and intensity. This is done within the file STJ_IPV_metric.py and the main function is STJ_IPV_metric.py.
+    5. If multiple extrema exist, the jet latitude has the largest zonal wind shear between the
+        potential vorticity surface and the lowest available level (called the "surface")
 
-    1. Prepare data:
-        1. Open IPV, tropopause height and zonal wind data
-
-        2. Mask IPV array to manage grid box with inf.
-
-        3. define latitudes and theta to interpolate to, every 0.2 deg and every 1K between 310-400K.
-
-        4. Convert tropopause height to theta levels
-
-        5. Define an array that links a calendar month to a season
-
-    2. STJ metric:
-        1. Interpolate the zonal mean IPV to 0.2deg lat and 1.0K theta.
-
-        2. For each lat, find the theta level closest to 2.0 IPV.
-
-        3. Test for unique elements of lat for the 2PV line and remove any repeats. Test that latitude is increasing and remove any elements which are not. This removes points on the 2PV line that look like a Z in the vertical.
-
-        4. Polynomial fit the 2.0PV line. The degree of the polynomial fit is 10. Lower values for the fit were tested but were not able to capture the shape of the 2PV line.
-
-        5. Differentiate the 2.0 IPV line using both finite difference and the chebyshev polynomial fit. The finite difference does not do a good enough job and was used during testing only.
-               The second derivative is also calculated but was used only for testing.
-        x
-        6. Interpolate the thermal tropopause and dynamic tropopause to every 0.2 in latitude.
-
-        7. Find the intersection of the thermal tropopause and dynamic tropopause (2.0 PV line). Subtract the two tropopause arrays and the minimum value is the intersection.
-               The intersection is called the crossing point and will be a equatorial cutoff latitude for the STJ.
-
-        8. Isolate the peaks of the 2.0PV line derivative. The goal is to find the maximum slope of the 2.0 PV line and hence the turning points of the first derivative.
-               Between the crossing latitude and the pole find the local minima (maxima is SH). Sort the peaks in increasing lat.
-
-        9. For testing purposed only, identify if the peaks are near the estimated annual mean of the subtropical and eddy driven jets.
-
-        10. In order to reduce the number of peaks and isolate the STJ, find the shear between the 2.0PV line and surface at each peak identified. The STJ latitude is then the peak with the maximum shear.
-
-    3. At the STJ latitude find its intensity.
-        1. Interpolate zonal mean zonal wind to 0.2 deg and 1K.
-
-        2. Then at the jet latitude, find the maximum wind in the column. This also gives the STJ theta level.
-
-6. Then plot each monthly to show uwind, tropopause definitions etc.
-
-7. When each STJ metric has been found, seasonally separate the timeseries and plot the jet latitude.
-
-
+    6. The zonal mean jet position for each time is then computed as the zonal median of the
+        identified positions at all longitudes, ignoring those longitudes where no position is
+        identified, if the `zonal_opt` is set to `"mean"` in the configuration, otherwise the position is output at each longitude
