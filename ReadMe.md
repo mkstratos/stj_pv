@@ -28,46 +28,72 @@ The version of `basemap` available from Anaconda, `1.0.7`, is not compatable wit
 `conda install --file requirements_36.txt -c conda-forge`
 
 
-# Dependencies
+## Data dependencies
 ---
 Monthly data is recommended but daily data is an option.
-Required fields are:
+
+Required fields if potential vorticity is not available:
 
 * zonal wind (u)
 * meridional wind (v)
 * atmospheric temperature (T)
 
+If isentropic potential vorticity is available, then on isentropic levels:
 
-# How the code is structures and how it works:
+* zonal wind (u)
+* potential vorticity (pv)
+
+
+## How the code is structured and how it works:
 ---
 
 
 The highest level code is `run_stj.py`. Within this file the following changes are required:
 
-1. Directory object:
-    1. Requires environment variable BASE to be defined within .bashrc
+1. Two [YAML](http://www.yaml.org/start.html) configuration files are used
+    - STJ config (for properties of jet finding metric)
+    - Data config (for properties of input data.
+2. The data configuration file is set within the STJ configuration file. Examples of both can be found in the `conf/` directory.
+	1. The `stj_config_default.yml` file contains the following options:
 
-    2. Remove existing if statements and add a new one for where your data and working location is
+        - `data_cfg`: Location of data config file
+        - `freq`: Input data frequency
+        - `zonal_opt`: Output zonal mean (if 'mean') or individual longitude positions (if != 'mean')
+        - `method`: Jet metric to use. Included are **STJPV** and **STJUMax**
+        log_file: Log file name and location. If "{}" is included within this string (e.g. `stj_find_{}.log`) the time (from `datetime.now()`) at which the finder was initialised will be put into the file name (e.g. `stj_find_2017-11-02_14-08-32.log`)
+        - `pv_value`: Potential vorticity level on which potential temperature is interpolated to find the jet (if using **STJPV** metric)
+        - `fit_deg`: Also for **STJPV** metric, use this degree (integer) polynomial to fit the potential temperature on the `pv_value` surface
+        - `min_lat`: Minimum latitude boundary (equatorward) on which to perform interpolation
+        - `update_pv`: If isentropic PV (IPV) file(s) exist already, re-create them if this is set to `True`. If not, use files that exist
+        - `year_s`: Year to start jet finding (Jan 1 of this year)
+        - `year_e`: Year to end jet finding (Dec 31 of this year)
+        - Dates may also be set in `run_stj.main()` function
+        - `poly`: Polynomial to use, one of 'cheby', 'legendre', or 'poly' for Chebyshev, Legendre, or polynomial fit respectively
 
-2. Experiment object:
-    1. Assign a RunOpt, depending on if you want to save the output from calculating IPV or open a previously saved file. Suggest saving the data for faster code.
+    2. The `data_config_default.yml` file contains the following options
+        - `path`: Absolute path of input data
+        - `wpath`: If `path` is _not_ writeable, absolute path to directory where IPV data can be written
+        - `short_name`: String name to call this dataset
+        - `single_var_file`: Each variables has its own file (if True)
+        - `single_year_file`: Each years has its own file (if True)
+        - `file_paths`: Names (within `path`) of input / output files for atmospheric variables.
+            - If `single_var_file` is True, then this has:
+                - `uwnd` (input u wind)
+                - `vwnd` (input v wind)
+                - `tair` (input air temperature)
+                - `ipv`  (_output_ isentropic PV)
+            - Otherwise, `file_paths` is just
+                - `all`: File where all variables are (u, v, t, [optionally IPV])
+                - `ipv`: File where IPV is, if different from `all`
+        - `lon`: Name within netCDF file of 'longitude' variable
+        - `lat`: Name within netCDF file of 'latitude' variable
+        - `lev`: Name within netCDF file of 'level' variable
+        - `time`: Name within netCDF file of 'time' variable
+        - `ztype`: Type of levels (pressure, potential temperature, etc.)
+        - `pfac`: Multiply pressure by this (float) to get units of Pascals
+        - **See comments within `data_config_default.yml` for further details**
 
-    2. set the file_loc for where your data is. This will break an assert statement if your working from the wrong location
-
-    3. the function PathFilenameERA is written to open era-int data. Add a function for each datatype you wish to use and add a flag to the data_options within the `__init__`
-
-    Within `STJ_PV_main.py` the IPV data and thermal tropopause are calculated via `MakeIPV_data.py`.
-
-3.  The thermal tropopause function is in the file thermal_tropopause.py which calculated the WHO definition of the tropopause.
-   1. Interpolate the temperature field to every 10hPa in the vertical (between surface and 10hPa).
-
-   2. Calculate the lapse rate: \Gamma = -dT/dz, where dT is the difference across a level and dz is given by the hydrostatic equation.
-
-   3. Identify where the lapse rate is less than 2.0 K/km.
-
-   4. From the middle atmosphere to TOA, test is the 2km layer above has a lapse rate that remains below 2.0 K/km. If it does not, then the tropopause height has been found. If not, continue until it is found.
-
-4.  The IPV code works in the following way:
+## How the STJPV metric works
    1. The Experiment object function GetIPV is an interface between the data and the code
 
    2. within GetIPV the function ipv is called (calc_ipv.py). This function is where ipv is calculate. Within calc_ipv.py the Fortran code is called.
