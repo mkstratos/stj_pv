@@ -261,17 +261,17 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
             check_str = u'[\U0001F621  WRONG TYPE]'
         else:
             check_str = u'[\U0001F60E  OKAY]'
-        print('{:30s} {:30s}'.format(key, check_str))
+        print(u'{:30s} {:30s}'.format(key, check_str))
 
     # When either `missing` or `wrong_type` have values, this will evaluate `True`
     if missing or wrong_type:
-        print('{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
+        print(u'{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
                                            'KEYS MISSING OR WRONG TYPE', 12 * '<'))
 
         for key in missing:
-            print('    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
+            print(u'    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
         for key in wrong_type:
-            print('    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
+            print(u'    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
                                                                   required_keys_all[key]))
         mkeys = True
     else:

@@ -44,7 +44,7 @@ class DiagPlots(object):
 
         Parmaeters
         ----------
-        date : A :py:meth:`~datetime.datetime` instance to select and plot
+        date : A :class:`datetime.datetime` instance to select and plot
 
         """
         data = input_data.InputData(self.props, date_s=date,
@@ -146,10 +146,6 @@ class DiagPlots(object):
             axes[hidx].grid(b=False)
             ax2.grid(b=False)
             print('Jet at: {}'.format(lat[jet_pos]))
-
-        # Plot wind map
-        cfill, map_y = self.plot_uwnd(data, axes[2], (tix, zix), jet_lat)
-
         axes[0].set_ylabel(r'$\theta$ [K]')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
 
@@ -157,6 +153,9 @@ class DiagPlots(object):
         h_1, l_1 = axes[1].get_legend_handles_labels()
         h_2, l_2 = ax2.get_legend_handles_labels()
         ax2.legend(h_1 + h_2, l_1 + l_2, loc='upper right', fancybox=False)
+
+        # Plot wind map
+        cfill, map_y = self.plot_uwnd(data, axes[2], (tix, zix), jet_lat)
 
         # Add plot of zmzw as function of latitude
         #axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), data.lat, 'C1')
@@ -216,7 +215,7 @@ class DiagPlots(object):
             lon_0 = 0.0
 
         tix, zix = index
-        pmap = basemap.Basemap(projection='eck4', lon_0=lon_0, resolution='c')
+        pmap = basemap.Basemap(projection='eck4', lon_0=lon_0, resolution='c', ax=axis)
         # pmap = basemap.Basemap(projection='kav7', lon_0=lon_0, resolution='c')
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
