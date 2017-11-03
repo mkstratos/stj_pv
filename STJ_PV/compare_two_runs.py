@@ -3,6 +3,7 @@
 import netCDF4 as nc
 import pandas as pd
 import matplotlib.pyplot as plt
+import xarray as xr
 #plt.style.use('ggplot')
 
 
@@ -23,12 +24,13 @@ def main():
 
     ftypes = sorted(files_in.keys())
 
-    d_in = {in_f: nc.Dataset(files_in[in_f], 'r') for in_f in files_in}
+    d_in = {in_f: xr.open_dataset(files_in[in_f], decode_times=False)
+            for in_f in files_in}
 
-    times = [d_in[ftype].variables['time'] for ftype in ftypes]
-    dates = [pd.DatetimeIndex(nc.num2date(time[:], time.units)) for time in times]
-    lat_nh = {in_f: d_in[in_f].variables['lat_nh'][:] for in_f in d_in}
-    lat_sh = {in_f: d_in[in_f].variables['lat_sh'][:] for in_f in d_in}
+    times = [d_in[ftype].time for ftype in ftypes]
+    dates = [pd.DatetimeIndex(nc.num2date(time.data[:], time.units)) for time in times]
+    lat_nh = {in_f: d_in[in_f].variables['lat_nh'].data[:] for in_f in d_in}
+    lat_sh = {in_f: d_in[in_f].variables['lat_sh'].data[:] for in_f in d_in}
 
     min_shape = min([lat_nh[ft].shape[0] for ft in lat_nh])
 
