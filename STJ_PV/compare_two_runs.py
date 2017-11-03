@@ -20,10 +20,10 @@ def main():
     #            'cb8': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc'}
     #files_in = {'ERA': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
     #            'NCEP-HR': './NCEP_NCAR_MONTHLY_HR_STJPV_pv2.0_fit12_y010.0.nc'}
-    #files_in = {'NCEP-PV': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
-    #            'NCEP-Umax': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc'}
-    files_in = {'ERAI': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
-                'NCEP': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc'}
+    files_in = {'ERAI-PV': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
+                'ERAI-Umax': './ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc'}
+    #files_in = {'ERAI': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
+    #            'NCEP': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc'}
 
     ftypes = sorted(files_in.keys())
 
@@ -71,8 +71,10 @@ def main():
 
     #diffs = ['NCEP-PV', 'NCEP-Umax']
     #labels = {'NCEP-PV': 'PV', 'NCEP-Umax': 'u max'}
-    diffs = ['NCEP', 'ERAI']
-    labels = {'NCEP': 'NCEP', 'ERAI': 'ERA-int'}
+    diffs = ['ERAI-PV', 'ERAI-Umax']
+    labels = {'ERAI-PV': 'PV', 'ERAI-Umax': 'u max'}
+    #diffs = ['NCEP', 'ERAI']
+    #labels = {'NCEP': 'NCEP', 'ERAI': 'ERA-int'}
     d_in = {in_f: xr.open_dataset(files_in[in_f]) for in_f in files_in}
 
     nh_seas = {in_f: d_in[in_f]['lat_nh'].groupby('time.season') for in_f in files_in}
@@ -96,7 +98,7 @@ def main():
     plt.legend(fontsize=font_size)
     plt.title('Equatorward difference of {} to {}'
               .format(labels[diffs[0]], labels[diffs[1]]), fontsize=font_size)
-    plt.subplots_adjust(left=0.16, bottom=0.12, right=0.97, top=0.89)
+    plt.subplots_adjust(left=0.18, bottom=0.12, right=0.97, top=0.89)
     plt.savefig('plt_compare_metrics.eps')
 
 
