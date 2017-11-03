@@ -1,8 +1,36 @@
 Information on how to run the code and how it works.
+# Running the code
+Use of the [Anaconda Python](https://www.anaconda.com/download/) distribution is reccomended, as is Python 3.6 or newer.
+## Required Python modules
+
+#### Required for diagnostic plots:
+----
+
+	basemap
+	matplotlib
+
+#### Required for running the jet metric:
+---
+
+	netCDF4
+	numpy
+	psutil
+	PyYAML
+	scipy
+
+
+### Installing for Python 2.7
+`conda install --file requirements_27.txt`
+
+### Installing for Python 3+
+The version of `basemap` available from Anaconda, `1.0.7`, is not compatable with Python >= 3. The `conda-forge` channel has `v1.1.0` available.
+
+`conda install --file requirements_36.txt -c conda-forge`
+
 
 # Dependencies
 ---
-Monthly data is recommended but daily data is an option (though untested).
+Monthly data is recommended but daily data is an option.
 Required fields are:
 
 * zonal wind (u)
@@ -14,7 +42,7 @@ Required fields are:
 ---
 
 
-The highest level code is STJ_PV_main.py. Within this file the following changes are required:
+The highest level code is `run_stj.py`. Within this file the following changes are required:
 
 1. Directory object:
     1. Requires environment variable BASE to be defined within .bashrc
