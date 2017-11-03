@@ -95,7 +95,7 @@ The highest level code is `run_stj.py`. Within this file the following changes a
 
 ## How the STJPV metric works
 
-1. `run_stj.main()` creates a `run_stj.JetFindRun` object, based on configuration parameters.
+1. The `run_stj.main()` function creates a `run_stj.JetFindRun` object, based on configuration parameters.
 
 2. Start and end dates are set, and the `run_stj.JetFindRun.run()` method starts the run, where configuration files are checked
 then the selected metric computes the jet postion in each hemisphere at each time.
@@ -104,19 +104,17 @@ then the selected metric computes the jet postion in each hemisphere at each tim
 
 4. When using the **STJPV** metric the jet is identified in the following process:
 
-    1. Compute the isentropic potential vorticity
-
-    2. Interpolate to obtain potential temperature ($\Theta$) as a function of latitude on a surface
+    1. Interpolate to obtain potential temperature ($\Theta$) as a function of latitude on a surface
         of constant IPV, chosen in configuration file
 
-    3. Numerically compute meridional gradient of this surface using a polynomal fit (Chebyshev polynomials of degree 8 used by default)
+    2. Numerically compute meridional gradient of this surface using a polynomal fit (Chebyshev polynomials of degree 8 used by default)
 
-    4. The jet location is determined to be at a relative maximum in the northern hemisphere, or minimum
+    3. The jet location is determined to be at a relative maximum in the northern hemisphere, or minimum
         in the southern hemisphere of the meridional gradient of potential temperature on the PV surface at each time and longitude
 
-    5. If multiple extrema exist, the jet latitude has the largest zonal wind shear between the
+    4. If multiple extrema exist, the jet latitude has the largest zonal wind shear between the
         potential vorticity surface and the lowest available level (called the "surface")
 
-    6. The zonal mean jet position for each time is then computed as the zonal median of the
+    5. The zonal mean jet position for each time is then computed as the zonal median of the
         identified positions at all longitudes, ignoring those longitudes where no position is
         identified, if the `zonal_opt` is set to `"mean"` in the configuration, otherwise the position is output at each longitude
