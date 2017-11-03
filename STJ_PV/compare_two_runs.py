@@ -20,8 +20,10 @@ def main():
     #            'cb8': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc'}
     #files_in = {'ERA': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
     #            'NCEP-HR': './NCEP_NCAR_MONTHLY_HR_STJPV_pv2.0_fit12_y010.0.nc'}
-    files_in = {'NCEP-PV': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
-                'NCEP-Umax': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc'}
+    #files_in = {'NCEP-PV': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
+    #            'NCEP-Umax': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc'}
+    files_in = {'ERAI': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
+                'NCEP': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc'}
 
     ftypes = sorted(files_in.keys())
 
@@ -67,17 +69,20 @@ def main():
     #plt.show()
     plt.close()
 
-    plt_labels = {'NCEP-PV': 'STJ PV', 'NCEP-Umax': 'STJ u max'}
+    #diffs = ['NCEP-PV', 'NCEP-Umax']
+    #labels = {'NCEP-PV': 'PV', 'NCEP-Umax': 'u max'}
+    diffs = ['NCEP', 'ERAI']
+    labels = {'NCEP': 'NCEP', 'ERAI': 'ERA-int'}
     d_in = {in_f: xr.open_dataset(files_in[in_f]) for in_f in files_in}
 
     nh_seas = {in_f: d_in[in_f]['lat_nh'].groupby('time.season') for in_f in files_in}
     sh_seas = {in_f: d_in[in_f]['lat_sh'].groupby('time.season') for in_f in files_in}
 
-    diff_nh = nh_seas['NCEP-PV'].mean() - nh_seas['NCEP-Umax'].mean()
-    diff_sh = sh_seas['NCEP-PV'].mean() - sh_seas['NCEP-Umax'].mean()
+    diff_nh = nh_seas[diffs[0]].mean() - nh_seas[diffs[1]].mean()
+    diff_sh = sh_seas[diffs[0]].mean() - sh_seas[diffs[1]].mean()
     bar_width = 0.35
-    seasons = sh_seas['NCEP-PV'].mean().season.data.astype(str)
-    index = np.arange(4)
+    seasons = sh_seas[diffs[0]].mean().season.data.astype(str)
+    index = np.arange(len(seasons))
 
     fig_width = 84 / 25.4
     fig_height = fig_width * (2 / (1 + np.sqrt(5)))
@@ -89,7 +94,8 @@ def main():
 
     plt.ylabel(u'\u00b0 latitude', fontsize=font_size)
     plt.legend(fontsize=font_size)
-    plt.title('Equatorward difference of PV to u max', fontsize=font_size)
+    plt.title('Equatorward difference of {} to {}'
+              .format(labels[diffs[0]], labels[diffs[1]]), fontsize=font_size)
     plt.subplots_adjust(left=0.16, bottom=0.12, right=0.97, top=0.89)
     plt.savefig('plt_compare_metrics.eps')
 
