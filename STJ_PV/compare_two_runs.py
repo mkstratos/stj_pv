@@ -4,6 +4,7 @@ import netCDF4 as nc
 import pandas as pd
 import matplotlib.pyplot as plt
 import xarray as xr
+import numpy as np
 #plt.style.use('ggplot')
 
 
@@ -63,7 +64,35 @@ def main():
     plt.grid(b=True, ls='--')
     plt.tight_layout()
     plt.savefig('plt_compare_{}_{}.png'.format(*files_in.keys()))
-    plt.show()
+    #plt.show()
+    plt.close()
+
+    plt_labels = {'NCEP-PV': 'STJ PV', 'NCEP-Umax': 'STJ u max'}
+    d_in = {in_f: xr.open_dataset(files_in[in_f]) for in_f in files_in}
+
+    nh_seas = {in_f: d_in[in_f]['lat_nh'].groupby('time.season') for in_f in files_in}
+    sh_seas = {in_f: d_in[in_f]['lat_sh'].groupby('time.season') for in_f in files_in}
+
+    diff_nh = nh_seas['NCEP-PV'].mean() - nh_seas['NCEP-Umax'].mean()
+    diff_sh = sh_seas['NCEP-PV'].mean() - sh_seas['NCEP-Umax'].mean()
+    bar_width = 0.35
+    seasons = sh_seas['NCEP-PV'].mean().season.data.astype(str)
+    index = np.arange(4)
+
+    fig_width = 84 / 25.4
+    fig_height = fig_width * (2 / (1 + np.sqrt(5)))
+    font_size = 9
+    plt.figure(figsize=(fig_width, fig_height))
+    plt.bar(index, -diff_nh, bar_width, label='NH')
+    plt.bar(index + bar_width, diff_sh, bar_width, label='SH')
+    plt.xticks(index + bar_width/2, seasons, fontsize=font_size)
+
+    plt.ylabel(u'\u00b0 latitude', fontsize=font_size)
+    plt.legend(fontsize=font_size)
+    plt.title('Equatorward difference of PV to u max', fontsize=font_size)
+    plt.subplots_adjust(left=0.16, bottom=0.12, right=0.97, top=0.89)
+    plt.savefig('plt_compare_metrics.eps')
+
 
 if __name__ == "__main__":
     main()
