@@ -7,11 +7,14 @@ import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
-from scipy import signal as sig
 
 import input_data
 import stj_metric
 import run_stj
+
+# Define the plot output extention
+EXTN = 'eps'
+
 
 class DiagPlots(object):
     """
@@ -26,18 +29,19 @@ class DiagPlots(object):
         self.metric = metric
         self.stj = None
         self.contours = None
-        self.extn = 'png'
-        self.ticks_off = True
+        self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
 
         # Figure size set to 129 mm wide, 152 mm tall
         self.fig_mult = 1.0
-        fig_width = 174 * self.fig_mult
-        self.fig_size = (fig_width / 25.4, (fig_width / 0.9) / 25.4)
-        print(self.fig_size)
 
         plt.rc('text', usetex=True)
         plt.rc('text.latex', unicode=True)
         plt.rc('font', family='serif', size=8 * self.fig_mult)
+
+    def _get_figsize(self, width=174):
+        """Assign the figure size as function of width in mm."""
+        fig_width = width * self.fig_mult
+        return (fig_width / 25.4, (fig_width / 0.9) / 25.4)
 
     def test_method_plot(self, date):
         """
@@ -50,12 +54,12 @@ class DiagPlots(object):
         """
         data = input_data.InputData(self.props, date_s=date,
                                     date_e=date + dt.timedelta(seconds=3600 * 32 * 24))
-        pv_lev = self.props.config['pv_value']
         data.get_data_input()
         self.stj = self.metric(self.props, data)
         tix = 0
         zix = 7
-        fig = plt.figure(figsize=self.fig_size)
+        fig = plt.figure(figsize=self._get_figsize())
+
         axes = [plt.subplot2grid((3, 4), (0, 0), rowspan=2, colspan=2),
                 plt.subplot2grid((3, 4), (0, 2), rowspan=2, colspan=2),
                 plt.subplot2grid((3, 4), (2, 0), rowspan=1, colspan=3),
@@ -64,82 +68,9 @@ class DiagPlots(object):
         uwnd_max = 50.
         spc = 5.
         self.contours = np.arange(-np.ceil(uwnd_max), np.ceil(uwnd_max) + spc, spc)
-        jet_lat = []
-        jet_loc = []
-        select_all = []
-        lwid = 2.0 * self.fig_mult
 
         for hidx, shem in enumerate([True, False]):
-            dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
-            select_all.append(lat[select.astype(int)])
-            jet_pos = np.median(select[tix, :]).astype(int)
-            jet_lat.append(lat[jet_pos])
-            jet_loc.append(list(data.lat).index(jet_lat[-1]))
-
-            theta_fit_eval = self.stj.peval(lat[y_s:y_e], theta_fit)
-
-            # Find the zonal mean zonal wind for this hemisphere
-            uwnd_hemis = np.mean(data.uwnd[self.stj.hemis], axis=-1)[tix, ...]
-
-            # Make contour plot (theta vs. lat) of zmzw
-            axes[hidx].contourf(lat, data.th_lev, uwnd_hemis, self.contours,
-                                cmap='RdBu_r', extend='both')
-
-            # Plot mean theta profile
-            axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'k.',
-                            ms=1.0 * self.fig_mult, label=r'$\theta_{%iPVU}$' % pv_lev)
-
-            # Plot Mean theta fit
-            axes[hidx].plot(lat[y_s:y_e], np.mean(theta_fit_eval[tix, ...], axis=0),
-                            'C0-', label=r'$\theta_{%iPVU}$ Fit' % pv_lev, lw=lwid)
-            if y_s is not None:
-                axes[hidx].plot(lat[jet_pos],
-                                np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos - y_s],
-                                'C0o', ms=5 * self.fig_mult, label='Jet Location')
-            else:
-                axes[hidx].plot(lat[jet_pos],
-                                np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos],
-                                'C0o', ms=5 * self.fig_mult, label='Jet Location')
-
-            # Duplicate the axis
-            ax2 = axes[hidx].twinx()
-
-            # Plot meridional derivative of theta on X PVU
-            ax2.plot(lat[y_s:y_e], np.ma.mean(dtheta[tix, ...], axis=-1), 'C2--',
-                     label=r'$\partial\theta_{%iPVU}/\partial\phi$' % pv_lev, lw=lwid)
-
-            # Restrict axis to only between 280 - 400K
-            axes[hidx].set_ylim([300, 400])
-
-            # Restrict to +/- 4 so that both SH and NH have same Y-axis
-            ax2.set_ylim([-4, 4])
-
-            # Set the color to match the dTheta/dphi line
-            ax2.tick_params('y', colors='C2')
-
-            if hidx == 0:
-                axes[hidx].set_xlim([lat.min(), 0])
-                axes[hidx].spines['right'].set_color('none')
-                ax2.spines['right'].set_color('none')
-                ax2.tick_params(right='off', labelright='off')
-                lat_labels = np.arange(-90, 30, 30)
-            else:
-                axes[hidx].set_xlim([0, lat.max()])
-                axes[hidx].spines['left'].set_color('none')
-                ax2.spines['left'].set_color('none')
-                axes[hidx].tick_params(left='off', labelleft='off')
-                lat_labels = np.arange(30, 90 + 30, 30)
-
-            axes[hidx].tick_params(bottom='off', labelbottom='off',
-                                   top='on', labeltop='on')
-
-            axes[hidx].set_xticks(lat_labels)
-            axes[hidx].set_xticklabels([u'{}\u00B0'.format(lati) for lati in lat_labels],
-                                       fontdict={'usetex': False})
-
-            axes[hidx].grid(b=False)
-            ax2.grid(b=False)
-            print('Jet at: {}'.format(lat[jet_pos]))
+            ax2 = self.plot_zonal_slice(data, shem, hidx, tix, axes)
 
         axes[0].set_ylabel(r'$\theta$ [K]')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
@@ -150,16 +81,15 @@ class DiagPlots(object):
         ax2.legend(h_1 + h_2, l_1 + l_2, loc='upper right', fancybox=False)
 
         # Plot wind map
-        cfill, pmap = self.plot_uwnd(data, axes[2], (tix, zix), jet_lat, select_all)
+        cfill, pmap = self.plot_uwnd(data, axes[2], (tix, zix), map_zm=True)
 
         # Add plot of zmzw as function of latitude
-        #axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), data.lat, 'C1')
         axes[3].spines['right'].set_color('none')
         axes[3].spines['top'].set_color('none')
-        map_x, map_y = pmap(*np.meshgrid(data.lon, data.lat))
+        _, map_y = pmap(*np.meshgrid(data.lon, data.lat))
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0], 'C1')
 
-        for lati in jet_loc:
+        for lati in self.jet_info['jet_idx']:
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
 
         axes[3].tick_params(left='off', labelleft='off', labeltop='off')
@@ -179,10 +109,96 @@ class DiagPlots(object):
         fig.subplots_adjust(left=0.1, bottom=0.12, right=0.92, top=0.96,
                             wspace=0.0, hspace=0.27)
         axes[2].set_position([0.0, 0.12, 0.75, .24])
-        plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m'), self.extn))
-        #plt.show()
+        plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m'), EXTN))
 
-    def plot_uwnd(self, data, axis, index, jet_lat, select=None):
+    def plot_zonal_slice(self, data, shem, hidx, tix, axes):
+        """
+        Plots zonal mean jet diagnostic picture.
+        """
+        lwid = 2.0 * self.fig_mult
+
+        dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
+        jet_pos = np.median(select[tix, :]).astype(int)
+
+        # Append the list of jet latitude at each longitude in this hemisphere
+        self.jet_info['lat_all'].append(lat[select.astype(int)])
+        # Append the median jet latitude in this hemisphere to the list
+        self.jet_info['jet_lat'].append(lat[jet_pos])
+        # Append the index of this hemisphere's jet on the full set of latitudes
+        self.jet_info['jet_idx'].append(list(data.lat).index(lat[jet_pos]))
+
+        # Evaluate the polynomial fit of the pv surface for plotting
+        theta_fit_eval = self.stj.peval(lat[y_s:y_e], theta_fit)
+
+        # Find the zonal mean zonal wind for this hemisphere
+        uwnd_hemis = np.mean(data.uwnd[self.stj.hemis], axis=-1)[tix, ...]
+
+        # Make contour plot (theta vs. lat) of zmzw
+        axes[hidx].contourf(lat, data.th_lev, uwnd_hemis, self.contours,
+                            cmap='RdBu_r', extend='both')
+
+        # Plot mean theta profile
+        axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'k.',
+                        ms=2.0 * self.fig_mult,
+                        label=r'$\theta_{%iPVU}$' % self.props.config['pv_value'])
+
+        # Plot Mean theta fit
+        axes[hidx].plot(lat[y_s:y_e], np.mean(theta_fit_eval[tix, ...], axis=0), 'C0-',
+                        label=r'$\theta_{%iPVU}$ Fit' % self.props.config['pv_value'],
+                        lw=lwid)
+        if y_s is not None:
+            axes[hidx].plot(lat[jet_pos],
+                            np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos - y_s],
+                            'C0o', ms=5 * self.fig_mult, label='Jet Location')
+        else:
+            axes[hidx].plot(lat[jet_pos],
+                            np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos],
+                            'C0o', ms=5 * self.fig_mult, label='Jet Location')
+
+        # Duplicate the axis
+        ax2 = axes[hidx].twinx()
+
+        # Plot meridional derivative of theta on X PVU
+        ax2.plot(lat[y_s:y_e], np.ma.mean(dtheta[tix, ...], axis=-1), 'C2--',
+                 label=r'$\partial\theta_{%iPVU}/\partial\phi$' %
+                 self.props.config['pv_value'], lw=lwid)
+
+        # Restrict axis to only between 280 - 400K
+        axes[hidx].set_ylim([300, 400])
+
+        # Restrict to +/- 4 so that both SH and NH have same Y-axis
+        ax2.set_ylim([-4, 4])
+
+        # Set the color to match the dTheta/dphi line
+        ax2.tick_params('y', colors='C2')
+
+        # Set hemisphere specific plotting parameters
+        if hidx == 0:
+            axes[hidx].set_xlim([lat.min(), 0])
+            axes[hidx].spines['right'].set_color('none')
+            ax2.spines['right'].set_color('none')
+            ax2.tick_params(right='off', labelright='off')
+            lat_labels = np.arange(-90, 30, 30)
+        else:
+            axes[hidx].set_xlim([0, lat.max()])
+            axes[hidx].spines['left'].set_color('none')
+            ax2.spines['left'].set_color('none')
+            axes[hidx].tick_params(left='off', labelleft='off')
+            lat_labels = np.arange(30, 90 + 30, 30)
+
+        axes[hidx].tick_params(bottom='off', labelbottom='off',
+                               top='on', labeltop='on')
+
+        axes[hidx].set_xticks(lat_labels)
+        axes[hidx].set_xticklabels([u'{}\u00B0'.format(lati) for lati in lat_labels],
+                                   fontdict={'usetex': False})
+
+        axes[hidx].grid(b=False)
+        ax2.grid(b=False)
+        print('Jet at: {}'.format(lat[jet_pos]))
+        return ax2
+
+    def plot_uwnd(self, data, axis, index, map_zm=True):
         """
         Plot zonal wind for a specific time/level on a map.
 
@@ -194,8 +210,6 @@ class DiagPlots(object):
             Axis on which to plot
         index : tuple
             Tuple of (time, level) indicies, respectively
-        jet_lat : list
-            Length 2 list of jet latitudes [NH, SH] or [SH, NH]
 
         Returns
         -------
@@ -235,11 +249,12 @@ class DiagPlots(object):
         # Draw horizontal lines for jet location in each hemisphere
         # Dashes list is [pixels on, pixels off], higher numbers are better
         # when using eps and trying to draw a solid line
-        if select is None:
-            pmap.drawparallels(jet_lat, dashes=[5, 0], linewidth=1.5, ax=axis)
+        if map_zm:
+            pmap.drawparallels(self.jet_info['jet_lat'], dashes=[5, 0],
+                               linewidth=1.5, ax=axis)
         else:
             for hidx in [0, 1]:
-                xpt, ypt = pmap(data.lon, select[hidx][tix])
+                xpt, ypt = pmap(data.lon, self.jet_info['lat_all'][hidx][tix])
                 pmap.plot(xpt, ypt, 'k-')
 
         return cfill, pmap
