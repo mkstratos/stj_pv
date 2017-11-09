@@ -26,7 +26,8 @@ class DiagPlots(object):
         self.metric = metric
         self.stj = None
         self.contours = None
-        self.extn = 'eps'
+        self.extn = 'png'
+        self.ticks_off = True
 
         # Figure size set to 129 mm wide, 152 mm tall
         self.fig_mult = 1.0
@@ -60,17 +61,17 @@ class DiagPlots(object):
                 plt.subplot2grid((3, 4), (2, 0), rowspan=1, colspan=3),
                 plt.subplot2grid((3, 4), (2, 3), rowspan=1, colspan=1)]
 
-        # uwnd_max = np.max(np.abs(data.uwnd[tix, zix, ...]))
-        # spc = uwnd_max // 13
         uwnd_max = 50.
         spc = 5.
         self.contours = np.arange(-np.ceil(uwnd_max), np.ceil(uwnd_max) + spc, spc)
         jet_lat = []
         jet_loc = []
+        select_all = []
         lwid = 2.0 * self.fig_mult
 
         for hidx, shem in enumerate([True, False]):
             dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
+            select_all.append(lat[select.astype(int)])
             jet_pos = np.median(select[tix, :]).astype(int)
             jet_lat.append(lat[jet_pos])
             jet_loc.append(list(data.lat).index(jet_lat[-1]))
@@ -115,37 +116,31 @@ class DiagPlots(object):
 
             # Set the color to match the dTheta/dphi line
             ax2.tick_params('y', colors='C2')
+
             if hidx == 0:
+                axes[hidx].set_xlim([lat.min(), 0])
                 axes[hidx].spines['right'].set_color('none')
                 ax2.spines['right'].set_color('none')
-                axes[hidx].set_xlim([lat.min(), lat.max() - (lat[3] - lat[0])])
-            else:
-                axes[hidx].spines['left'].set_color('none')
-                ax2.spines['left'].set_color('none')
-                axes[hidx].set_xlim([lat.min() + (lat[3] - lat[0]), lat.max()])
-
-            axes[hidx].spines['bottom'].set_color('none')
-            ax2.spines['bottom'].set_color('none')
-
-            if shem:
                 ax2.tick_params(right='off', labelright='off')
-            else:
-                axes[hidx].tick_params(left='off', labelleft='off')
-            axes[hidx].tick_params(bottom='off', labelbottom='off',
-                                   top='on', labeltop='on')
-            if shem:
                 lat_labels = np.arange(-90, 30, 30)
             else:
-                lat_labels = np.arange(0, 90 + 30, 30)
+                axes[hidx].set_xlim([0, lat.max()])
+                axes[hidx].spines['left'].set_color('none')
+                ax2.spines['left'].set_color('none')
+                axes[hidx].tick_params(left='off', labelleft='off')
+                lat_labels = np.arange(30, 90 + 30, 30)
+
+            axes[hidx].tick_params(bottom='off', labelbottom='off',
+                                   top='on', labeltop='on')
 
             axes[hidx].set_xticks(lat_labels)
             axes[hidx].set_xticklabels([u'{}\u00B0'.format(lati) for lati in lat_labels],
                                        fontdict={'usetex': False})
 
-            #axes[hidx].set_xlabel(r'$\phi$')
             axes[hidx].grid(b=False)
             ax2.grid(b=False)
             print('Jet at: {}'.format(lat[jet_pos]))
+
         axes[0].set_ylabel(r'$\theta$ [K]')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
 
@@ -155,12 +150,13 @@ class DiagPlots(object):
         ax2.legend(h_1 + h_2, l_1 + l_2, loc='upper right', fancybox=False)
 
         # Plot wind map
-        cfill, map_y = self.plot_uwnd(data, axes[2], (tix, zix), jet_lat)
+        cfill, pmap = self.plot_uwnd(data, axes[2], (tix, zix), jet_lat, select_all)
 
         # Add plot of zmzw as function of latitude
         #axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), data.lat, 'C1')
         axes[3].spines['right'].set_color('none')
         axes[3].spines['top'].set_color('none')
+        map_x, map_y = pmap(*np.meshgrid(data.lon, data.lat))
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0], 'C1')
 
         for lati in jet_loc:
@@ -170,8 +166,8 @@ class DiagPlots(object):
         axes[3].ticklabel_format(axis='y', style='plain')
         axes[3].set_ylim([map_y[:, 0].min(), map_y[:, 0].max()])
 
-        axes[0].text(-89, 399, '(a)', verticalalignment='top', horizontalalignment='left')
-        axes[1].text(0, 399, '(b)', verticalalignment='top', horizontalalignment='left')
+        axes[0].text(-88, 399, '(a)', verticalalignment='top', horizontalalignment='left')
+        axes[1].text(2, 399, '(b)', verticalalignment='top', horizontalalignment='left')
         axes[2].set_title('(c)')
         axes[3].set_title('(d)')
         axes[3].set_xlabel(r'u wind [$m\,s^{-1}$]')
@@ -181,12 +177,12 @@ class DiagPlots(object):
                      label=r'u wind [$m\,s^{-1}$]')
 
         fig.subplots_adjust(left=0.1, bottom=0.12, right=0.92, top=0.96,
-                            wspace=0.03, hspace=0.27)
+                            wspace=0.0, hspace=0.27)
         axes[2].set_position([0.0, 0.12, 0.75, .24])
         plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m'), self.extn))
         #plt.show()
 
-    def plot_uwnd(self, data, axis, index, jet_lat):
+    def plot_uwnd(self, data, axis, index, jet_lat, select=None):
         """
         Plot zonal wind for a specific time/level on a map.
 
@@ -239,9 +235,14 @@ class DiagPlots(object):
         # Draw horizontal lines for jet location in each hemisphere
         # Dashes list is [pixels on, pixels off], higher numbers are better
         # when using eps and trying to draw a solid line
-        pmap.drawparallels(jet_lat, dashes=[5, 0], linewidth=1.5, ax=axis)
+        if select is None:
+            pmap.drawparallels(jet_lat, dashes=[5, 0], linewidth=1.5, ax=axis)
+        else:
+            for hidx in [0, 1]:
+                xpt, ypt = pmap(data.lon, select[hidx][tix])
+                pmap.plot(xpt, ypt, 'k-')
 
-        return cfill, map_y
+        return cfill, pmap
 
 
     def _jet_details(self, shemis=True):
@@ -292,7 +293,7 @@ class DiagPlots(object):
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
+    jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     diags = DiagPlots(jf_run, stj_metric.STJPV)
     diags.test_method_plot(dt.datetime(2015, 6, 1))
 
