@@ -65,7 +65,7 @@ def main():
     plt.title('SH DIFF')
     plt.grid(b=True, ls='--')
     plt.tight_layout()
-    plt.savefig('plt_compare_{}_{}.png'.format(*files_in.keys()))
+    plt.savefig('plt_compare_time_series_{}_{}.png'.format(*files_in.keys()))
     #plt.show()
     plt.close()
 
@@ -96,10 +96,10 @@ def main():
 
     plt.ylabel(u'\u00b0 latitude', fontsize=font_size)
     plt.legend(fontsize=font_size)
-    plt.title('Equatorward difference of {} to {}'
+    plt.title('Equatorward bias of {} to {}'
               .format(labels[diffs[0]], labels[diffs[1]]), fontsize=font_size)
-    plt.subplots_adjust(left=0.18, bottom=0.12, right=0.97, top=0.89)
-    plt.savefig('plt_compare_metrics.eps')
+    plt.subplots_adjust(left=0.19, bottom=0.12, right=0.97, top=0.89)
+    plt.savefig('plt_compare_{}_{}.eps'.format(*files_in.keys()))
 
 
 if __name__ == "__main__":
