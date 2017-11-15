@@ -15,11 +15,11 @@ def get_linear_trend(x, y, time_dim):
     slope, intercept, r_value, p_value, std_err = mstats.linregress(x,y)
 
     if p_value > 0.05:
-        print '    Not significant: {:.3f} with mean {:.2f}'.format(p_value, np.mean(y.data))
+        print('    Not significant: {:.3f} with mean {:.2f}'.format(p_value, np.mean(y.data)))
     else:
-        print '    Is  significant: {:.3f} with mean {:.2f}'.format(p_value, np.mean(y.data)) 
+        print('    Is  significant: {:.3f} with mean {:.2f}'.format(p_value, np.mean(y.data))) 
 
-    print '        Trend: total {:.3f} or {:.3f}/yr'.format(slope*len(y), slope*len(y)/time_dim)
+    print('        Trend: total {:.3f} or {:.3f}/yr'.format(slope*len(y), slope*len(y)/time_dim))
 
     return slope, intercept
 
@@ -47,9 +47,9 @@ def make_plot(data_nh, data_sh, dates, flag):
 
     time_array, num_years, season_array, nh_sm, sh_sm = plot_dependencies(data_nh, data_sh)
 
-    print 'nh timeseries'
+    print('nh timeseries')
     slope_nh, intercept_nh = get_linear_trend(time_array, data_nh, num_years)
-    print 'sh timeseries'
+    print('sh timeseries')
     slope_sh, intercept_sh = get_linear_trend(time_array, data_sh,  num_years)
 
 
@@ -62,14 +62,14 @@ def make_plot(data_nh, data_sh, dates, flag):
     axis[2,1].plot([dates[0][0],dates[0][-1]], 
                    [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='k')
     for season in ['DJF', 'MAM', 'JJA', 'SON']:
-        print season
+        print(season)
         nh_ts = data_nh[sh_sm.groups[season]]
         sh_ts = data_sh[sh_sm.groups[season]]
         dates_season = dates[0][sh_sm.groups[season]]
 
-        print 'nh'
+        print('nh')
         slope_nh, intercept_nh = get_linear_trend(season_array, nh_ts, num_years)
-        print 'sh'
+        print('sh')
         slope_sh, intercept_sh = get_linear_trend(season_array, sh_ts, num_years)
 
         if season == 'DJF': 
@@ -107,7 +107,7 @@ def make_plot(data_nh, data_sh, dates, flag):
 
     #for j, row in enumerate (axis):
     #    for i, ax in enumerate (row):
-    for j in xrange(2):
+    for j in range(2):
             if j == 0:
                 #NH
                 axis[0,j].set_ylim([min_range, max_range]) 
