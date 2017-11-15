@@ -1,4 +1,4 @@
-HE# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and diags.
 
@@ -354,7 +354,7 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-     jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2015, 3, 1)
