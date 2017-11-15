@@ -15,6 +15,8 @@ import numpy as np
 import yaml
 import stj_metric
 import input_data as inp
+
+
 np.seterr(all='ignore')
 warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 
@@ -268,6 +270,7 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
         print(u'{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
                                            'KEYS MISSING OR WRONG TYPE', 12 * '<'))
 
+
         for key in missing:
             print(u'    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
         for key in wrong_type:
@@ -351,8 +354,8 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    # jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2015, 3, 1)
     jf_run.run(date_s, date_e)
