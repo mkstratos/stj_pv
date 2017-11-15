@@ -57,8 +57,10 @@ def make_plot(data_nh, data_sh, dates, flag):
     
     axis[2,0].plot(dates[0], data_nh, '-', c='k')
     axis[2,1].plot(dates[0], data_sh, '-', c='k', label='Time series')
-    axis[2,0].plot([dates[0][0],dates[0][-1]], [intercept_nh, slope_nh* season_array[-1]+intercept_nh], c='k')
-    axis[2,1].plot([dates[0][0],dates[0][-1]], [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='k')
+    axis[2,0].plot([dates[0][0],dates[0][-1]], 
+                   [intercept_nh, slope_nh* season_array[-1]+intercept_nh], c='k')
+    axis[2,1].plot([dates[0][0],dates[0][-1]], 
+                   [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='k')
     for season in ['DJF', 'MAM', 'JJA', 'SON']:
         print season
         nh_ts = data_nh[sh_sm.groups[season]]
@@ -73,26 +75,34 @@ def make_plot(data_nh, data_sh, dates, flag):
         if season == 'DJF': 
             axis[0,0].plot(dates_season, nh_ts, 'x', c='b',label='Winter')
             axis[0,1].plot(dates_season, sh_ts, 'x', c='r',label='Summer')
-            axis[0,0].plot([dates_season[0],dates_season[-1]], [intercept_nh, slope_nh* season_array[-1]+intercept_nh], c='b')
-            axis[0,1].plot([dates_season[0],dates_season[-1]], [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='r')
+            axis[0,0].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_nh, slope_nh* season_array[-1]+intercept_nh], c='b')
+            axis[0,1].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='r')
 
         elif season == 'JJA':
             axis[0,0].plot(dates_season, nh_ts, 'x',c='r', label='Summer')
             axis[0,1].plot(dates_season, sh_ts, 'x',c='b', label='Winter')
-            axis[0,0].plot([dates_season[0],dates_season[-1]], [intercept_nh, slope_nh* season_array[-1]+intercept_nh] , c='r')
-            axis[0,1].plot([dates_season[0],dates_season[-1]], [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='b')
+            axis[0,0].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_nh, slope_nh* season_array[-1]+intercept_nh] , c='r')
+            axis[0,1].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='b')
 
         elif season == 'SON':
             axis[1,0].plot(dates_season, nh_ts, 'x', c ='orange',label='Autumn')
             axis[1,1].plot(dates_season, sh_ts, 'x', c='g', label='Spring')
-            axis[1,0].plot([dates_season[0],dates_season[-1]], [intercept_nh, slope_nh* season_array[-1]+intercept_nh], c='orange')
-            axis[1,1].plot([dates_season[0],dates_season[-1]], [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='g')
+            axis[1,0].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_nh, slope_nh* season_array[-1]+intercept_nh], c='orange')
+            axis[1,1].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='g')
 
         else:
             axis[1,0].plot(dates_season, nh_ts, 'x',c='g', label='Spring')
             axis[1,1].plot(dates_season, sh_ts, 'x', c='orange',label='Autumn')
-            axis[1,0].plot([dates_season[0],dates_season[-1]], [intercept_nh, slope_nh* season_array[-1]+intercept_nh] , c='g')
-            axis[1,1].plot([dates_season[0],dates_season[-1]], [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='orange')
+            axis[1,0].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_nh, slope_nh* season_array[-1]+intercept_nh] , c='g')
+            axis[1,1].plot([dates_season[0],dates_season[-1]], 
+                           [intercept_sh, slope_sh* season_array[-1]+intercept_sh], c='orange')
 
 
     #for j, row in enumerate (axis):
@@ -112,13 +122,19 @@ def make_plot(data_nh, data_sh, dates, flag):
     axis[0,0].set_title('Northern Hemisphere')
     axis[0,1].set_title('Southern Hemisphere')
 
-    summer = mlines.Line2D([], [], color='red', marker='x',markersize=5,linestyle = '',label='Summer')
-    winter = mlines.Line2D([], [], color='blue', marker='x',markersize=5,linestyle = '',label='Winter')
-    autumn = mlines.Line2D([], [], color='orange', marker='x',markersize=5,linestyle = '',label='Autumn')
-    spring = mlines.Line2D([], [], color='green', marker='x',markersize=5,linestyle = '',label='Spring')
-    timeseries = mlines.Line2D([], [], color='black', linestyle = '-',label='Time series')
+    summer = mlines.Line2D([], [], color='red', marker='x',
+                           markersize=5,linestyle = '',label='Summer')
+    winter = mlines.Line2D([], [], color='blue', marker='x',
+                           markersize=5,linestyle = '',label='Winter')
+    autumn = mlines.Line2D([], [], color='orange', marker='x',
+                           markersize=5,linestyle = '',label='Autumn')
+    spring = mlines.Line2D([], [], color='green', marker='x',
+                           markersize=5,linestyle = '',label='Spring')
+    timeseries = mlines.Line2D([], [], color='black', 
+                               linestyle = '-',label='Time series')
 
-    l1 = plt.legend(handles = [winter, autumn, summer, spring, timeseries], numpoints=1,loc=(1.05, 0.6))
+    l1 = plt.legend(handles = [winter, autumn, summer, spring, timeseries],
+                    numpoints=1,loc=(1.05, 0.6))
     plt.gca().add_artist(l1) 
 
     plt.savefig(filename)
