@@ -102,6 +102,10 @@ class JetFindRun(object):
             self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
                                       250., 200., 150., 100., 70., 50., 30., 20., 10.])
             self.metric = stj_metric.STJMaxWind
+        elif self.config['method'] == 'KangPolvani':
+            self.metric = stj_metric.STJKangPolvani
+            print ('Need to check metric for KangPolvani')
+            pdb.set_trace()
         else:
             self.metric = None
 
@@ -124,6 +128,11 @@ class JetFindRun(object):
             self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
                                       250., 200., 150., 100., 70., 50., 30., 20., 10.])
             self.metric = stj_metric.STJMaxWind
+
+        elif self.config['method'] == 'KangPolvani':
+            print ('To set up output for KangPolvani')
+            pdb.set_trace()
+
 
         else:
             self.config['output_file'] = ('{short_name}_{method}'
@@ -155,6 +164,9 @@ class JetFindRun(object):
             data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
             data = inp.InputDataUMax(self, date_s.year)
+        else:
+            print ('Need to set up data for KangPolvani')
+            pdb.set_trace()
         data.get_data_input()
         return data
 
@@ -301,7 +313,7 @@ def check_run_config(cfg_file):
     # Optional checks
     missing_optionals = []
     if not missing_req:
-        if config['method'] not in ['STJPV', 'STJUMax']:
+        if config['method'] not in ['STJPV', 'STJUMax','KangPolvani']:
             # config must have pfac if it's pressure level data
             missing_optionals.append(False)
             print('NO METHOD FOR HANDLING: {}'.format(config['method']))
@@ -315,6 +327,10 @@ def check_run_config(cfg_file):
             opt_keys = {'pres_level': float, 'min_lat': float}
             _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
             missing_optionals.append(missing_opt)
+        elif config['method'] == 'KangPolvani':
+            print ('Need to set up config for KangPolvani')
+            pdb.set_trace()
+
 
     return config, any([missing_req, all(missing_optionals)])
 
