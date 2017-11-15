@@ -16,7 +16,6 @@ short_name: 'ERAI_MONTHLY_PRES'
 # file_paths:
 #   'all': 'erai_all.nc'
 #   'ipv': 'erai_all.nc'
-#   'tpause': 'erai_tpause_all.nc'
 
 # single var/file, multiple years/file - n_vars files (4: u/v/t/pv)
 single_var_file: True       # Variables are in multiple files (if True)
@@ -26,9 +25,6 @@ file_paths:
     'vwnd': 'vwind.nc'
     'tair': 'tair.nc'
     'ipv': 'ipv.nc'
-    'psi': 'psi.nc'
-    'tpause': 'tpause.nc'
-    'dyn_trop': 'dyn_trop.nc'
 
 # multiple vars/file, single year/file - n_years files
 # single_var_file: False    # Variables are in multiple files (if True)
@@ -36,7 +32,6 @@ file_paths:
 # file_paths:
 #   'all': 'erai_theta_{year:04d}.nc'
 #   'ipv': 'erai_theta_{year:04d}.nc'
-#   'tpause': 'erai_tpause_{year:04d}.nc'
 
 # single var/file, single year/file - n_vars * n_years files
 # single_var_file: False    # Variables are in multiple files (if True)
@@ -46,7 +41,6 @@ file_paths:
 #   'vwnd': 'vwnd.{year:04d}.nc'
 #   'air': 'air.{year:04d}.nc'
 #   'ipv': 'ipv.{year:04d}.nc'
-#   'tpause': 'tpause.{year:04d}.nc'
 
 lon: 'lon'     # Name within netCDF file of 'longitude' variable
 lat: 'lat'     # Name within netCDF file of 'latitude' variable

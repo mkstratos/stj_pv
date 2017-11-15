@@ -2,6 +2,9 @@
 """
 Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and diags.
 
+To run, set stj configuration file, start and end dates in `main()` and run with
+`$ python run_stj.py`
+
 Authors: Penelope Maher, Michael Kelleher
 """
 import sys
@@ -84,10 +87,23 @@ class JetFindRun(object):
             # if it isn't, then wpath == path is fine, set that here
             self.data_cfg['wpath'] = self.data_cfg['path']
 
-        self._set_output()
+        self._set_metric()
         self.log_setup()
 
-    def _set_output(self):
+    def _set_metric(self):
+        """Set metric and associated levels."""
+        if self.config['method'] == 'STJPV':
+            self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
+                                       350.0, 370.0, 395.0, 430.0])
+            self.metric = stj_metric.STJPV
+        elif self.config['method'] == 'STJUMax':
+            self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
+                                      250., 200., 150., 100., 70., 50., 30., 20., 10.])
+            self.metric = stj_metric.STJMaxWind
+        else:
+            self.metric = None
+
+    def _set_output(self, date_s=None, date_e=None):
 
         if self.config['method'] == 'STJPV':
             self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
@@ -112,6 +128,12 @@ class JetFindRun(object):
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
 
+        if date_s is not None and isinstance(date_s, dt.datetime):
+            self.config['output_file'] += '_{}'.format(date_s.strftime('%Y-%m-%d'))
+
+        if date_e is not None and isinstance(date_e, dt.datetime):
+            self.config['output_file'] += '_{}'.format(date_e.strftime('%Y-%m-%d'))
+
     def log_setup(self):
         """Create a logger object with file location from `self.config`."""
         logger = logging.getLogger(self.config['method'])
@@ -125,53 +147,55 @@ class JetFindRun(object):
         logger.addHandler(log_file_handle)
         self.log = logger
 
-    def _get_data(self, curr_year=None):
+    def _get_data(self, date_s=None, date_e=None):
         """Retrieve data stored according to `self.data_cfg`."""
         if self.config['method'] == 'STJPV':
-            data = inp.InputData(self, curr_year)
+            data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
-            data = inp.InputDataUMax(self, curr_year)
+            data = inp.InputDataUMax(self, date_s.year)
         data.get_data_input()
         return data
 
-    def run(self, year_s=None, year_e=None):
+    def run(self, date_s=None, date_e=None):
         """
         Find the jet, save location to a file.
 
         Parameters
         ----------
-        year_s, year_e : int
-            Beginning and end years, optional. If not included,
-            use self.year_s and/or self.year_e
+        date_s, date_e : :class:`datetime.datetime`
+            Beginning and end dates, optional. If not included,
+            use (Jan 1, self.year_s) and/or (Dec 31, self.year_e)
 
         """
-        if year_s is None:
-            year_s = self.config['year_s']
-        if year_e is None:
-            year_e = self.config['year_e']
+        if date_s is None:
+            date_s = dt.datetime(self.config['year_s'], 1, 1)
+        if date_e is None:
+            date_e = dt.datetime(self.config['year_e'], 12, 31)
+
+        self._set_output(date_s, date_e)
 
         if self.data_cfg['single_year_file']:
-            for year in range(year_s, year_e + 1):
+            for year in range(date_s.year, date_e.year + 1):
                 self.log.info('FIND JET FOR %d', year)
-                data = self._get_data(year)
+                data = self._get_data(date_s, date_e)
                 jet = self.metric(self, data)
 
                 for shemis in [True, False]:
                     jet.find_jet(shemis)
 
-                if year == year_s:
+                if year == date_s.year:
                     jet_all = jet
                 else:
                     jet_all.append(jet)
         else:
-            data = self._get_data(year_s)
+            data = self._get_data(date_s, date_e)
             jet_all = self.metric(self, data)
             for shemis in [True, False]:
                 jet_all.find_jet(shemis)
 
         jet_all.save_jet()
 
-    def run_sensitivity(self, sens_param, sens_range, year_s=None, year_e=None):
+    def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
         """
         Perform a parameter sweep on a particular parameter of the JetFindRun.
 
@@ -181,8 +205,8 @@ class JetFindRun(object):
             Configuration parameter of :py:meth:`~STJ_PV.run_stj.JetFindRun`
         sens_range : iterable
             Range of values of `sens_param` over which to iterate
-        year_s, year_e : integer, optional
-            Start and end years, respectively. Optional, defualts to config file defaults
+        date_s, date_e : :class:`datetime.datetime`, optional
+            Start and end dates, respectively. Optional, defualts to config file defaults
 
         """
         params_avail = ['fit_deg', 'pv_value', 'min_lat']
@@ -196,9 +220,9 @@ class JetFindRun(object):
         for param_val in sens_range:
             self.log.info('----- RUNNING WITH %s = %f -----', sens_param, param_val)
             self.config[sens_param] = param_val
-            self._set_output()
+            self._set_output(date_s, date_e)
             self.log.info('OUTPUT TO: %s', self.config['output_file'])
-            self.run(year_s, year_e)
+            self.run(date_s, date_e)
 
 
 def check_config_req(cfg_file, required_keys_all, id_file=True):
@@ -237,17 +261,17 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
             check_str = u'[\U0001F621  WRONG TYPE]'
         else:
             check_str = u'[\U0001F60E  OKAY]'
-        print('{:30s} {:30s}'.format(key, check_str))
+        print(u'{:30s} {:30s}'.format(key, check_str))
 
     # When either `missing` or `wrong_type` have values, this will evaluate `True`
     if missing or wrong_type:
-        print('{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
+        print(u'{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
                                            'KEYS MISSING OR WRONG TYPE', 12 * '<'))
 
         for key in missing:
-            print('    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
+            print(u'    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
         for key in wrong_type:
-            print('    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
+            print(u'    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
                                                                   required_keys_all[key]))
         mkeys = True
     else:
@@ -328,8 +352,10 @@ def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
     # jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_ncep.yml')
-    jf_run.run(1979, 2016)
+    jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    date_s = dt.datetime(1979, 1, 1)
+    date_e = dt.datetime(2015, 3, 1)
+    jf_run.run(date_s, date_e)
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
     #                        year_s=1979, year_e=2016)
     jf_run.log.info('JET FINDING COMPLETE')
