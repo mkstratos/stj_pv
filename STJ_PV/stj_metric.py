@@ -7,6 +7,12 @@ from scipy import signal as sig
 import utils
 import data_out as dio
 
+from netCDF4 import num2date
+import pandas as pd
+import xarray as xr
+import pdb
+
+from EDJ_KE import Kinetic_Eddy_Energies
 
 class STJMetric(object):
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
@@ -560,10 +566,153 @@ class STJKangPolvani(STJMetric):
 
     def __init__(self, props, data):
 
-        """Initialise Metric using PV Gradient Method."""
+        """Initialise Metric using Kang and Polvani Method."""
 
         name = 'KangPolvani'
-        super(STJMaxWind, self).__init__(name=name, props=props, data=data)
-        #start here
-        pdb.set_trace()
+        super(STJKangPolvani, self).__init__(name=name, props=props, data=data)
+
+
+        #;-(
+        self.t_start, self.t_end = 0, 400
+        self.time = self.data.time[self.t_start:self.t_end]
+        start_date = num2date(self.time[0], self.data.time_units)
+        end_date = num2date(self.time[-1], self.data.time_units)
+        # year 1 months, years*12 in between and last years months
+        num_months = (12 - start_date.month+1) +  (end_date.year - start_date.year - 1)*12 + (end_date.month ) 
+
+ 
+        self.interp_1_deg_lat() #;-(
+
+        dims = self.data.uwnd.shape
+        lat_dim_per_hemi = int((dims[2])/2.-1)
+        self.kp_jet_season = np.zeros([2, 4]) 
+        self.jet_lat_ts = np.zeros([2, dims[0]]) 
+        self.jet_lat = np.zeros([2, num_months]) 
+        self.flux_div    = np.zeros([2, 4, lat_dim_per_hemi]) 
+        self.flux_div_ts = np.zeros([2, dims[0], lat_dim_per_hemi]) 
+
+    def interp_1_deg_lat(self):
+
+        lat_interp = np.arange(90,-91,-1)
+        self.data.uwnd = utils.interp_nd(self.data.lon, self.data.lat, self.data.uwnd[self.t_start:self.t_end,:,:,:], self.data.lon, lat_interp)
+        self.data.vwnd = utils.interp_nd(self.data.lon, self.data.lat, self.data.vwnd[self.t_start:self.t_end,:,:,:], self.data.lon, lat_interp)
+        self.data.lat = lat_interp
+
+
+    def find_jet(self, shemis=True):
+        """
+        Find the subtropical jet using input parameters.
+
+        Parameters
+        ----------
+        shemis : logical, optional
+            If True, find jet position in Southern Hemisphere, if False, find N.H. jet
+
+        """
+
+        # Find axis
+        lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
+
+        if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
+            # Log a message about which matching dimension used since this
+            # could be time or lev or lon if ntimes, nlevs or nlons == nlats
+            self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
+                                                                self.data.uwnd.shape))
+
+        self.hemis = [slice(None)] * self.data.uwnd.ndim
+
+        if shemis:
+            self.hemis[lat_axis] = self.data.lat < 0
+            lat_elem = np.where(self.data.lat < 0)[0]
+            lat = self.data.lat[lat_elem]
+            self.known_jet_lat = -30.
+            hidx = 0
+        else:
+            self.hemis[lat_axis] = self.data.lat > 0
+            lat_elem = np.where(self.data.lat > 0)[0]
+            lat = self.data.lat[lat_elem]
+            self.known_jet_lat = 30.
+            hidx = 1
+
+        self.pk_method(lat_elem,hidx)
+
+    def pk_method(self,lat_elem,hidx):
+
+        #isolate seasons using xarray
+        dates = pd.DatetimeIndex(num2date(self.time, self.data.time_units))
+       
+        lat = self.data.lat[lat_elem]
+        lon = self.data.lon.tolist()
+        pres = [20000.] #;-(
+
+        uwnd =  xr.DataArray(self.data.uwnd[:,:,lat_elem,:], 
+                             coords=[dates, pres, lat, lon], dims=['time','pres','lat','lon'])
+        vwnd =  xr.DataArray(self.data.vwnd[:,:,lat_elem,:], 
+                              coords=[dates, pres, lat, lon], dims=['time','pres','lat','lon'])
+
+        self.calc_flux_div(uwnd, vwnd, lat,hidx)
+        self.dates = dates
+
+        self.get_zero_crossing(hidx,uwnd.groupby('time.season'),dates)
+
+
+    def calc_flux_div(self, uwnd, vwnd, lat, hidx): #only seasonal mean time mean jet
+        '''Calc s= del. (bar(uv) - bar(u)bar(v)) where bar is the seasonal mean'''
+
+        count = 0
+        season_elem = uwnd.groupby('time.season')
+        for season in ['DJF', 'MAM', 'JJA', 'SON']:
+            print ("       current season is_" + season)
+            KE = Kinetic_Eddy_Energies(uwnd[season_elem.groups[season]].values, vwnd[season_elem.groups[season]].values, lat, ['20000']) #:-( level
+            KE.GetComponents()
+            KE.Calc_momentum_flux() # look at utils ->  diff_cfd and dlat_dlon. Need to check flux calc derivative
+
+            self.flux_div_ts[hidx,season_elem.groups[season],:] =   KE.horizontal_eddy_flux_div_ts[:,0,:]
+            self.flux_div[hidx,count,:] =   KE.horizontal_eddy_flux_div[0,:]
+
+            jet_loc_opts = self.get_jet_lat(self.flux_div[hidx,count,:],KE.new_lat)
+
+            idx = (np.abs(jet_loc_opts-self.known_jet_lat)).argmin()
+            self.kp_jet_season[hidx,count] =  jet_loc_opts[idx]
+
+            count = count + 1
+
+        setattr(self,'lat', KE.new_lat[:])    
+
+    def get_zero_crossing(self,hidx,season_elem,dates ):
+
+
+        for tidx in xrange(self.flux_div_ts.shape[1]):
+
+            lat_opts = self.get_jet_lat(self.flux_div_ts[hidx,tidx,:],self.lat)
+
+
+            c_month = self.dates[tidx].month
+            if c_month == 12 or c_month <= 2:
+                season_index = 0
+            elif 3 <= c_month <= 5:
+                season_index = 1
+            elif 6 <= c_month <= 8:
+                season_index = 2
+            else:
+                season_index = 3
+
+            idx = (np.abs(lat_opts - self.kp_jet_season[hidx,season_index])).argmin()
+
+            if idx.size != 1:
+                print("Cant find index.")
+                pdb.set_trace()
+           
+            self.jet_lat_ts[hidx,tidx] =  lat_opts[idx]
+
+        jet_lats_xr = xr.DataArray(self.jet_lat_ts[hidx, :], coords=[dates], dims=['time'])
+        self.jet_lat[hidx, :] = jet_lats_xr.resample(freq='MS', dim='time').values
+        
+    def get_jet_lat(self, data, lat):
+     
+        signchange = ((np.roll(np.sign(data), 1) - np.sign(data)) != 0).astype(int)
+        lat_opts = lat[signchange.astype(bool)]
+
+        return lat_opts
+
 
