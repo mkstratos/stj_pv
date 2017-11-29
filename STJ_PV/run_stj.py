@@ -17,6 +17,8 @@ import stj_metric
 import input_data as inp
 
 
+import pdb
+
 np.seterr(all='ignore')
 warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 
@@ -61,6 +63,7 @@ class JetFindRun(object):
                            'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
                            'update_pv': False, 'year_s': 1979, 'year_e': 2015}
         else:
+
             # Open the configuration file, put its contents into a variable to be read by
             # YAML reader
             self.config, cfg_failed = check_run_config(config_file)
@@ -77,8 +80,9 @@ class JetFindRun(object):
             print('DATA CONFIG CHECKS FAILED...EXITING')
             sys.exit(1)
 
+
         if self.data_cfg['single_var_file']:
-            for var in ['uwnd', 'vwnd', 'tair', 'omega']:
+            for var in ['uwnd', 'vwnd', 'tair', 'omega']:   #TODO: Need to change list
                 if var not in self.data_cfg['file_paths']:
                     # This replicates the path in 'all' so each variable points to it
                     # this allows for the same loop no matter if data is in multiple files
@@ -104,8 +108,6 @@ class JetFindRun(object):
             self.metric = stj_metric.STJMaxWind
         elif self.config['method'] == 'KangPolvani':
             self.metric = stj_metric.STJKangPolvani
-            print ('Need to check metric for KangPolvani')
-            pdb.set_trace()
         else:
             self.metric = None
 
@@ -130,9 +132,10 @@ class JetFindRun(object):
             self.metric = stj_metric.STJMaxWind
 
         elif self.config['method'] == 'KangPolvani':
-            print ('To set up output for KangPolvani')
-            pdb.set_trace()
 
+            self.config['output_file'] = ('{short_name}_{method}'
+                                          .format(**dict(self.data_cfg, **self.config)))
+            self.metric = stj_metric.STJKangPolvani
 
         else:
             self.config['output_file'] = ('{short_name}_{method}'
@@ -163,10 +166,11 @@ class JetFindRun(object):
         if self.config['method'] == 'STJPV':
             data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
-            data = inp.InputDataUMax(self, date_s.year)
+            data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
         else:
-            print ('Need to set up data for KangPolvani')
-            pdb.set_trace()
+            data = inp.InputDataWind(self, ['uwnd','vwnd'],date_s, date_e)
+           
+
         data.get_data_input()
         return data
 
@@ -206,7 +210,9 @@ class JetFindRun(object):
             jet_all = self.metric(self, data)
             for shemis in [True, False]:
                 jet_all.find_jet(shemis)
-
+ 
+        print ("Have the KP time series. Need to save it. Also need to check the lack of time averaging is valid")
+        pdb.set_trace()
         jet_all.save_jet()
 
     def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
@@ -328,9 +334,7 @@ def check_run_config(cfg_file):
             _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
             missing_optionals.append(missing_opt)
         elif config['method'] == 'KangPolvani':
-            print ('Need to set up config for KangPolvani')
-            pdb.set_trace()
-
+            missing_optionals = [False]
 
     return config, any([missing_req, all(missing_optionals)])
 
@@ -370,10 +374,12 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+
+    jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
+    #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(2015, 3, 1)
+    date_e = dt.datetime(1979, 12, 31)
     jf_run.run(date_s, date_e)
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
     #                        year_s=1979, year_e=2016)
