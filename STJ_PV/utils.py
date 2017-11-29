@@ -280,22 +280,27 @@ def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
     """
     lat_dim = np.where(np.array(data.shape) == lat.shape[0])[0]
     theta_dim = np.where(np.array(data.shape) == theta_in.shape[0])[0]
-
     if data.ndim == 2:
         data_f = interp.interp2d(lat, theta_in, data, kind='cubic')
         data_interp = data_f(lat_hr, theta_hr)
 
     elif data.ndim == 3:
+
         out_shape = list(data.shape)
         out_shape[lat_dim] = lat_hr.shape[0]
         out_shape[theta_dim] = theta_hr.shape[0]
 
         data_interp = np.zeros(out_shape)
-        cmn_axis = np.where(out_shape == np.array(data.shape))[0]
 
+        #For contexts when you have a 3d array but 2 dimensions are the same. 
+        cmn_axis = np.where( np.logical_and( np.array(data.shape) != lat.shape[0],
+                                              np.array(data.shape) != theta_in.shape[0]))[0]
+        #cmn_axis = np.where(out_shape == np.array(data.shape))[0]
         for idx0 in range(data.shape[cmn_axis]):
+
             data_f = interp.interp2d(lat, theta_in, data.take(idx0, axis=cmn_axis),
                                      kind='cubic')
+
             slc = [slice(None)] * data_interp.ndim
             slc[cmn_axis] = idx0
             data_interp[slc] = data_f(lat_hr, theta_hr)
@@ -307,7 +312,11 @@ def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
         out_shape[theta_dim] = theta_hr.shape[0]
         data_interp = np.zeros(out_shape)
 
-        cmn_axis = np.where(out_shape == np.array(data.shape))[0][:]
+        #For contexts when you have a 3d array but 2 dimensions are the same. 
+        cmn_axis = np.where( np.logical_and( np.array(data.shape) != lat.shape[0],
+                                              np.array(data.shape) != theta_in.shape[0]))[0]
+
+        #cmn_axis = np.where(out_shape == np.array(data.shape))[0][:]
         for idx0 in range(data.shape[cmn_axis[0]]):
             for idx1 in range(data.shape[cmn_axis[1]]):
                 data_slice = data.take(idx1, axis=cmn_axis[1]).take(idx0,
