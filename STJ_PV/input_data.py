@@ -432,42 +432,6 @@ class InputDataWind(object):
             else:
                 self.d_select = slice(None)
 
-
-    def _select(self, var_name, date_s=None, date_e=None):
-        """
-        Return a subset of the data between two times.
-
-        Parameters
-        ----------
-        date_s, date_e : :py:meth:`datetime.datetime` for start and end of selection,
-            optional. Default: None
-
-        """
-        if self.time is None:
-            file_name = '/scratch/pm366/Data/ERA_INT_1979-2016/daily/u200_19790101-20151231_dm.nc'
-            nc_file = nc.Dataset(file_name, 'r')
-            self.time_units = nc_file.variables['time'].units
-            self.calendar =  'standard'
-            self.time = nc_file.variables['time'][:]
-
-        dates = nc.num2date(self.time, self.time_units, self.calendar)
-
-        if date_s is not None and date_e is not None:
-            # We have both start and end
-            self.d_select = np.logical_and(dates >= date_s, dates <= date_e)
-
-        elif date_s is None and date_e is not None:
-            # Beginning of data to an endpoint
-            self.d_select = dates <= date_e
-
-        elif date_s is not None and date_e is None:
-            # Start time to end of data
-            self.d_select = dates >= date_s
-
-        self.time = self.time[self.d_select]
-
-
-
     def get_data_input(self):
         """Get input data for metric calculation."""
         # First, check if we want to update data, or need to create from scratch
