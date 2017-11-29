@@ -8,6 +8,8 @@ import utils
 import data_out as dout
 import psutil
 
+import pdb
+
 __author__ = "Penelope Maher, Michael Kelleher"
 
 
@@ -380,7 +382,7 @@ class InputData(object):
         ipv_in.close()
 
 
-class InputDataUMax(object):
+class InputDataWind(object):
     """
     Contains the relevant input data and routines for an JetFindRun.
 
@@ -394,12 +396,16 @@ class InputDataUMax(object):
 
     """
 
-    def __init__(self, props, year=None):
+    def __init__(self, props, var_name, date_s=None, date_e=None):
         """Initialize InputData object, using JetFindRun class."""
         self.props = props
         self.config = props.config
         self.data_cfg = props.data_cfg
-        self.year = year
+
+        if date_s is not None:
+            self.year = date_s.year
+        else:
+            self.year = None
 
         # Initialize attributes defined in open_files or open_ipv_data
         self.time = None
@@ -413,8 +419,54 @@ class InputDataUMax(object):
 
         # Each input data _must_ have u-wind, isentropic pv, and thermal tropopause,
         # but _might_ need the v-wind and air temperature to calculate PV/thermal-trop
-        self.uwnd = None
         self.in_data = None
+
+        self.var_name = var_name
+        for i in xrange(len(self.var_name)):
+            setattr(self, var_name[i], None)
+
+        print ('the select option is a hack and does not work')
+        if False:
+            if date_s is not None or date_e is not None:
+                self._select(self.var_name[0], date_s, date_e)
+            else:
+                self.d_select = slice(None)
+
+
+    def _select(self, var_name, date_s=None, date_e=None):
+        """
+        Return a subset of the data between two times.
+
+        Parameters
+        ----------
+        date_s, date_e : :py:meth:`datetime.datetime` for start and end of selection,
+            optional. Default: None
+
+        """
+        if self.time is None:
+            file_name = '/scratch/pm366/Data/ERA_INT_1979-2016/daily/u200_19790101-20151231_dm.nc'
+            nc_file = nc.Dataset(file_name, 'r')
+            self.time_units = nc_file.variables['time'].units
+            self.calendar =  'standard'
+            self.time = nc_file.variables['time'][:]
+
+        dates = nc.num2date(self.time, self.time_units, self.calendar)
+
+        if date_s is not None and date_e is not None:
+            # We have both start and end
+            self.d_select = np.logical_and(dates >= date_s, dates <= date_e)
+
+        elif date_s is None and date_e is not None:
+            # Beginning of data to an endpoint
+            self.d_select = dates <= date_e
+
+        elif date_s is not None and date_e is None:
+            # Start time to end of data
+            self.d_select = dates >= date_s
+
+        self.time = self.time[self.d_select]
+
+
 
     def get_data_input(self):
         """Get input data for metric calculation."""
@@ -422,22 +474,25 @@ class InputDataUMax(object):
         # if not, then we can load existing data
         cfg = self.data_cfg
 
-        self._load_data()
-        if cfg['ztype'] == 'theta':
-            self._calc_uwnd()
-        else:
-            self.uwnd = self.in_data['uwnd']
+        for i in xrange(len(self.var_name)):
 
-        if self.lev[0] > self.lev[-1]:
-            self.uwnd = self.uwnd[:, ::-1, ...]
-            self.lev = self.lev[::-1]
+            self._load_data(i)
+            if cfg['ztype'] == 'theta':
+                if i == 'uwnd':
+                    self._calc_interp(i)
+            else:
+                setattr(self, self.var_name[i], self.in_data[self.var_name[i]])
 
-    def _load_data(self):
+            if len(self.lev > 1) and (self.lev[0] > self.lev[-1]):
+                setattr(self, var_name[i], var_name[i][:, ::-1, ...])
+                self.lev = self.lev[::-1]
+
+    def _load_data(self,i):
         cfg = self.data_cfg
         self.in_data = {}
 
         data_vars = []
-        data_vars.extend(['uwnd'])
+        data_vars.extend([self.var_name[i]])
 
         if cfg['ztype'] == 'theta':
             # If input data is isentropic already..need pressure on theta, not air temp
@@ -490,6 +545,10 @@ class InputDataUMax(object):
         if not cfg['single_var_file']:
             nc_file.close()
 
-    def _calc_uwnd(self):
+    def _calc_interp(self, var_name):
         self.lev = self.props.p_levels
-        self.uwnd = utils.vinterp(self.in_data['uwnd'], self.in_data['pres'], self.lev)
+        data_interp  = utils.vinterp(self.in_data[var_name], self.in_data['pres'], self.lev) 
+        setattr(self,  var_name, data_interp)
+
+
+

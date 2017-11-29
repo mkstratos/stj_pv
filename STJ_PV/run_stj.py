@@ -154,7 +154,7 @@ class JetFindRun(object):
         if self.config['method'] == 'STJPV':
             data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
-            data = inp.InputDataUMax(self, date_s.year)
+            data = inp.InputDataWind(self, date_s.year)
         data.get_data_input()
         return data
 
