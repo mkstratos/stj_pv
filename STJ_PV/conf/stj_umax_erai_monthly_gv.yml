@@ -1,9 +1,10 @@
 data_cfg:   './conf/data_config_erai_monthly_gv.yml'
 freq:       'mon'
 zonal_opt:  'mean'
-method:     'KangPolvani'
+method:     'STJUMax'
 log_file:   'stj_find_erai_pres_mon_umax_{}.log'
 pres_level: 25000.
 min_lat:    10.0
 year_s:     1979
 year_e:     2016
+
