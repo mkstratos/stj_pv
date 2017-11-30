@@ -8,7 +8,6 @@ import utils
 import data_out as dout
 import psutil
 
-import pdb
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
@@ -97,7 +96,6 @@ class InputData(object):
         """Get input data for metric calculation."""
         # First, check if we want to update data, or need to create from scratch
         # if not, then we can load existing data
-        cfg = self.data_cfg
 
         pv_update = self._find_pv_update()
         if pv_update:
@@ -396,7 +394,7 @@ class InputDataWind(object):
 
     """
 
-    def __init__(self, props, var_name, date_s=None, date_e=None):
+    def __init__(self, props, var_names, date_s=None, date_e=None):
         """Initialize InputData object, using JetFindRun class."""
         self.props = props
         self.config = props.config
@@ -421,16 +419,20 @@ class InputDataWind(object):
         # but _might_ need the v-wind and air temperature to calculate PV/thermal-trop
         self.in_data = None
 
-        self.var_name = var_name
-        for i in xrange(len(self.var_name)):
-            setattr(self, var_name[i], None)
+        if isinstance(var_names, str):
+            self.var_names = [var_names]
+        else:
+            self.var_names = var_names
 
-        print ('the select option is a hack and does not work')
-        if False:
-            if date_s is not None or date_e is not None:
-                self._select(self.var_name[0], date_s, date_e)
-            else:
-                self.d_select = slice(None)
+        for var_name in self.var_names:
+            setattr(self, var_name, None)
+
+        self._load_time()
+
+        if date_s is not None or date_e is not None:
+            self._select(date_s, date_e)
+        else:
+            self.d_select = slice(None)
 
     def get_data_input(self):
         """Get input data for metric calculation."""
@@ -438,25 +440,70 @@ class InputDataWind(object):
         # if not, then we can load existing data
         cfg = self.data_cfg
 
-        for i in xrange(len(self.var_name)):
+        for var_name in self.var_names:
 
-            self._load_data(i)
+            self._load_data(var_name)
             if cfg['ztype'] == 'theta':
-                if i == 'uwnd':
-                    self._calc_interp(i)
+                if var_name == 'uwnd':
+                    self._calc_interp(var_name)
             else:
-                setattr(self, self.var_name[i], self.in_data[self.var_name[i]])
+                setattr(self, var_name, self.in_data[var_name])
 
-            if len(self.lev > 1) and (self.lev[0] > self.lev[-1]):
-                setattr(self, var_name[i], var_name[i][:, ::-1, ...])
+            if len(self.lev) > 1 and (self.lev[0] > self.lev[-1]):
+                setattr(self, var_name, self.in_data[var_name][:, ::-1, ...])
                 self.lev = self.lev[::-1]
 
-    def _load_data(self,i):
+    def _select(self, date_s=None, date_e=None):
+        """
+        Return a subset of the data between two times.
+
+        Parameters
+        ----------
+        date_s, date_e : :py:meth:`datetime.datetime` for start and end of selection,
+            optional. Default: None
+
+        """
+        dates = nc.num2date(self.time, self.time_units, self.calendar)
+        if date_s is not None and date_e is not None:
+            # We have both start and end
+            self.d_select = np.logical_and(dates >= date_s, dates <= date_e)
+
+        elif date_s is None and date_e is not None:
+            # Beginning of data to an endpoint
+            self.d_select = dates <= date_e
+
+        elif date_s is not None and date_e is None:
+            # Start time to end of data
+            self.d_select = dates >= date_s
+
+        self.time = self.time[self.d_select]
+
+    def _load_time(self):
+        var = self.var_names[0]
+
+        # Load an example file
+        try:
+            file_name = self.data_cfg['file_paths'][var].format(year=self.year)
+        except KeyError:
+            file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
+
+        nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
+
+        self.time = nc_file.variables[self.data_cfg['time']][:]
+
+        # Set time units and calendar properties
+        self.time_units = nc_file.variables[self.data_cfg['time']].units
+        try:
+            self.calendar = nc_file.variables[self.data_cfg['time']].calendar
+        except (KeyError, AttributeError):
+            self.calendar = 'standard'
+        nc_file.close()
+
+    def _load_data(self, var_name):
         cfg = self.data_cfg
         self.in_data = {}
 
-        data_vars = []
-        data_vars.extend([self.var_name[i]])
+        data_vars = [var_name]
 
         if cfg['ztype'] == 'theta':
             # If input data is isentropic already..need pressure on theta, not air temp
@@ -464,7 +511,7 @@ class InputDataWind(object):
 
         # This is how they're called in the configuration file, each should point to
         # how the variable is called in the actual netCDF file
-        dim_vars = ['time', 'lev', 'lat', 'lon']
+        dim_vars = ['lev', 'lat', 'lon']
 
         # Load u/v/t; create pv file that has ipv, tpause file with tropopause lev
         first_file = True
@@ -477,11 +524,13 @@ class InputDataWind(object):
                     file_name = cfg['file_paths'][var].format(year=self.year)
                 except KeyError:
                     file_name = cfg['file_paths']['all'].format(year=self.year)
+
                 self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
                                                                    file_name)))
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
             self.props.log.info("\tLOAD: {}".format(var))
-            self.in_data[var] = nc_file.variables[vname][:, ...].astype(np.float16)
+            self.in_data[var] = (nc_file.variables[vname][self.d_select, ...]
+                                 .astype(np.float16))
 
             if first_file:
                 for dvar in dim_vars:
@@ -511,8 +560,6 @@ class InputDataWind(object):
 
     def _calc_interp(self, var_name):
         self.lev = self.props.p_levels
-        data_interp  = utils.vinterp(self.in_data[var_name], self.in_data['pres'], self.lev) 
-        setattr(self,  var_name, data_interp)
-
-
-
+        data_interp = utils.vinterp(self.in_data[var_name], self.in_data['pres'],
+                                    self.lev)
+        setattr(self, var_name, data_interp)
