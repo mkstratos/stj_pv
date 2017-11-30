@@ -571,7 +571,7 @@ class STJKangPolvani(STJMetric):
         name = 'KangPolvani'
         super(STJKangPolvani, self).__init__(name=name, props=props, data=data)
 
-
+        pdb.set_trace()
         #;-(
         self.t_start, self.t_end = 0, 400
         self.time = self.data.time[self.t_start:self.t_end]
