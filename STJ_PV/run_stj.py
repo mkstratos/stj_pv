@@ -78,7 +78,7 @@ class JetFindRun(object):
             sys.exit(1)
 
         if self.data_cfg['single_var_file']:
-            for var in ['uwnd', 'vwnd', 'tair', 'omega']:
+            for var in ['uwnd', 'vwnd', 'tair', 'omega']:   #TODO: Need to change list
                 if var not in self.data_cfg['file_paths']:
                     # This replicates the path in 'all' so each variable points to it
                     # this allows for the same loop no matter if data is in multiple files
