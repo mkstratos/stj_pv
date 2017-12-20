@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 #plt.style.use('ggplot')
-
+import pdb 
 
 def main():
     """Compare jet latitudes of results from two different runs of stj_run."""
@@ -20,21 +20,24 @@ def main():
     #            'cb8': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc'}
     #files_in = {'ERA': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
     #            'NCEP-HR': './NCEP_NCAR_MONTHLY_HR_STJPV_pv2.0_fit12_y010.0.nc'}
-    files_in = {'ERAI-PV': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
-                'ERAI-Umax': './ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc'}
     #files_in = {'ERAI': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
     #            'NCEP': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc'}
+    #files_in = {'ERAI-PV': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
+    #            'ERAI-Umax': './ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc'}
+    files_in = {'ERAI-KP': './ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
+                'ERAI-PV': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0_1979-01-01_2015-12-31.nc'}
 
     ftypes = sorted(files_in.keys())
 
     d_in = {in_f: xr.open_dataset(files_in[in_f], decode_times=False)
             for in_f in files_in}
 
-    times = [d_in[ftype].time for ftype in ftypes]
-    dates = [pd.DatetimeIndex(nc.num2date(time.data[:], time.units)) for time in times]
+
+    #times = [d_in[ftype].time for ftype in ftypes]
+    #dates = [pd.DatetimeIndex(nc.num2date(time.data[:], time.units)) for time in times]
     lat_nh = {in_f: d_in[in_f].variables['lat_nh'].data[:] for in_f in d_in}
     lat_sh = {in_f: d_in[in_f].variables['lat_sh'].data[:] for in_f in d_in}
-
+    dates = [np.arange(0,len(lat_nh['ERAI-KP']),1), np.arange(0,len(lat_nh['ERAI-PV']),1)]
     min_shape = min([lat_nh[ft].shape[0] for ft in lat_nh])
 
     fig = plt.figure(figsize=(15, 5))
@@ -66,9 +69,9 @@ def main():
     plt.grid(b=True, ls='--')
     plt.tight_layout()
     plt.savefig('plt_compare_time_series_{}_{}.png'.format(*files_in.keys()))
-    #plt.show()
+    plt.show()
     plt.close()
-
+    pdb.set_trace()
     #diffs = ['NCEP-PV', 'NCEP-Umax']
     #labels = {'NCEP-PV': 'PV', 'NCEP-Umax': 'u max'}
     diffs = ['ERAI-PV', 'ERAI-Umax']
