@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
+import sys
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
@@ -13,7 +14,7 @@ import xarray as xr
 import pdb
 
 import matplotlib.pyplot as plt
-from EDJ_KE import Kinetic_Eddy_Energies
+from eddy_terms import Kinetic_Eddy_Energies
 
 class STJMetric(object):
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
@@ -574,29 +575,14 @@ class STJKangPolvani(STJMetric):
 
         self.dates = pd.DatetimeIndex(num2date(self.data.time, self.data.time_units))
 
-        dims = self.data.uwnd.shape
-        num_months = 12*(self.dates.year.max()- self.dates.year.min() +1)
+        self.jet_intens    = np.zeros([2, self.dates.shape[0]]) 
+        self.jet_lat       = np.zeros([2,  self.dates.shape[0]])  #seasonal mean is expected
 
-        lat_dim_per_hemi = int((dims[2])/2.-1)
-        self.kp_jet_season = np.zeros([2, 4]) 
-        self.kp_jet_month = np.zeros([2, 12]) 
-        self.jet_lat_ts = np.zeros([2, dims[0]])
-        self.jet_intens_ts = np.zeros([2, dims[0]])
+        self.jet_lat_mm_dd    = np.zeros([2, self.dates.shape[0]]) 
 
-        self.jet_lat = np.zeros([2, num_months]) 
-        self.jet_intens = np.zeros([2, num_months]) 
-
-        self.flux_div    = np.zeros([2, 4, lat_dim_per_hemi]) 
-        self.flux_div_ts = np.zeros([2, dims[0], lat_dim_per_hemi]) 
-
-#    def interp_1_deg_lat(self):
-#        lat_interp = np.arange(90,-91,-1)
-#        self.data.uwnd = utils.interp_nd(self.data.lon, self.data.lat, 
-#                                         self.data.uwnd, self.data.lon, lat_interp)
-#        self.data.vwnd = utils.interp_nd(self.data.lon, self.data.lat, 
-#                                         self.data.vwnd, self.data.lon, lat_interp)
-#        self.data.lat = lat_interp
-
+        #seasonal and monthly mean positions
+        self.jet_lat_sm    = np.zeros([2, 4]) 
+        self.jet_lat_mm    = np.zeros([2, 12]) 
 
     def find_jet(self, shemis=True):
         """
@@ -609,7 +595,38 @@ class STJKangPolvani(STJMetric):
 
         """
 
-        # Find axis
+        lat_elem, known_jet_lat, hidx = self.set_hemis(shemis)
+
+        uwnd, vwnd, lev_200 = self.prep_data(lat_elem, hidx)
+
+        self.get_jet_from_flux_div(uwnd, vwnd, lat_elem, hidx, lev_200, known_jet_lat)
+
+    def set_hemis(self, shemis):
+        """
+        Select hemisphere data.
+
+        This function sets `self.hemis` to be an length N list of slices such that only
+        the desired hemisphere is selected with N-D data (e.g. uwind and ipv) along all
+        other axes. It also returns the latitude for the selected hemisphere, an index
+        to select the hemisphere in output arrays, and the extrema function to find
+        min/max of PV derivative in a particular hemisphere.
+
+        Parameters
+        ----------
+        shemis : boolean
+            If true - use southern hemisphere data, if false, use NH data
+
+        Returns
+        -------
+        lat_elem : array_like
+            Latitude element locations for given hemisphere
+        known_jet_lat : int
+            Expected latitude of the subtropical jet
+        hidx : int
+            Hemisphere index 0 for SH, 1 for NH
+
+        """
+
         lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
 
         if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
@@ -624,81 +641,94 @@ class STJKangPolvani(STJMetric):
             self.hemis[lat_axis] = self.data.lat < 0
             lat_elem = np.where(self.data.lat < 0)[0]
             #needed to find the seasonal mean jet let from each zero crossing latitude
-            self.known_jet_lat = -30.  #estimate based on seasonal zonal mean zonal wind
+            known_jet_lat = -30.  #estimate based on seasonal zonal mean zonal wind
             hidx = 0
         else:
             self.hemis[lat_axis] = self.data.lat > 0
             lat_elem = np.where(self.data.lat > 0)[0]
-            self.known_jet_lat = 30.
+            known_jet_lat = 30.
             hidx = 1
 
-        self.pk_method(lat_elem,hidx)
+        return lat_elem, known_jet_lat, hidx
 
-    def pk_method(self,lat_elem,hidx):
+    def prep_data(self, lat_elem, hidx):
 
         #isolate seasons using xarray
         uwnd =  xr.DataArray(self.data.uwnd[:,:,lat_elem,:], 
-                             coords=[self.dates, self.data.lev, self.data.lat[lat_elem], self.data.lon], dims=['time','pres','lat','lon'])
+                             coords=[self.dates, 
+                                     self.data.lev, 
+                                     self.data.lat[lat_elem], 
+                                     self.data.lon], 
+                                     dims=['time','pres','lat','lon'])
    
         vwnd =  xr.DataArray(self.data.vwnd[:,:,lat_elem,:], 
-                              coords=[self.dates, self.data.lev, self.data.lat[lat_elem], self.data.lon], dims=['time','pres','lat','lon'])
+                              coords=[self.dates, 
+                               self.data.lev, 
+                               self.data.lat[lat_elem], 
+                               self.data.lon], 
+                               dims=['time','pres','lat','lon'])
 
         #test if pressure is in Pa or hPa
         if self.data.lev.max() < 1100.0: 
             self.data.lev = self.data.lev * 100.
 
-        self.lev_200 = np.where( self.data.lev == 20000.0)[0]
-        if len(self.lev_200) != 1:
+        try:
+            lev_200 = np.where( self.data.lev == 20000.0)[0][0]
+        except IndexError:
             print("Can't find 200hPa level - investigate")
-            pdb.set_trace()
+            sys.exit(1)
 
-        self.calc_seasonal_flux_div(uwnd, vwnd, self.data.lat[lat_elem], self.data.lev[self.lev_200], self.data.lon, hidx)
-        self.get_jet_timeseries(hidx,uwnd.groupby('time.season'),uwnd,self.data.lat[lat_elem])
+        return uwnd, vwnd, lev_200
 
-
-    def calc_seasonal_flux_div(self, uwnd, vwnd, lat, lev, lon, hidx): #only seasonal mean time mean jet
+    def get_jet_from_flux_div(self, uwnd, vwnd, lat_elem, hidx, lev_200, known_jet_lat): #only seasonal mean time mean jet
         '''Calc s= del. (bar(uv) - bar(u)bar(v)) where bar is the seasonal mean
            and find the seasonal mean location of the STJ
         '''
 
-        count_sn = 0
-        count_mm = 0
+        lat = self.data.lat[lat_elem]
 
-        season_elem = uwnd.groupby('time.season')
-        month_elem  = uwnd.groupby('time.month')
-        for season in ['DJF', 'MAM', 'JJA', 'SON']:
-            print ("       current season is_" + season)
+        KE = Kinetic_Eddy_Energies(uwnd.values, vwnd.values,  
+                                   lat, self.data.lev[lev_200], 
+                                   self.data.lon)
+        KE.get_components()
+        KE.calc_momentum_flux()
+ 
+        del_f =  xr.DataArray(KE.del_f,coords=[self.dates,
+                                               self.data.lev, 
+                                               self.data.lat[lat_elem]],
+                              dims=['time','pres','lat'])
+        del_f = np.squeeze(del_f)
 
-            KE = Kinetic_Eddy_Energies(uwnd[season_elem.groups[season]].values, 
-                                       vwnd[season_elem.groups[season]].values, 
-                                       lat, lev, lon)
-            KE.GetComponents()
-            KE.Calc_momentum_flux()
+        del_f_sm = del_f.groupby('time.season').mean(axis=0)
+
+        for count_sm, season in enumerate(['DJF', 'MAM', 'JJA', 'SON']):
+
             #find the seasonal mean STJ position
-            self.kp_jet_season[hidx,count_sn] = self.get_jet_loc(
-                                                      np.mean(KE.del_f[:,0,:], axis=0), 
-                                                      self.known_jet_lat, lat)
-            count_sn = count_sn + 1
+            self.jet_lat_sm[hidx,count_sm] = self.get_jet_loc(
+                                                      del_f_sm[count_sm, :], 
+                                                      known_jet_lat, lat)
 
-            #find the monthly mean STJ position
-            mm_index = self.get_months(season)
+        del_f_mm = del_f.groupby('time.month').mean(axis=0)
 
-            for mm in mm_index:
-                #find the relevant month in the seasonal subset
-                mm_elem_subset = [season_elem.groups[season].index(x) 
-                                  for x in month_elem.groups[mm] ] 
+        for count_mm, mm in enumerate(del_f_mm.month):
 
-                self.kp_jet_month[hidx,count_mm] =  self.get_jet_loc(
-                                                      np.mean(KE.del_f[mm_elem_subset,0,:], axis=0), 
-                                                      self.known_jet_lat, lat)
+                count_sm = get_season(count_mm)
+                self.jet_lat_mm[hidx,count_mm] =  self.get_jet_loc(
+                                                      del_f_mm[count_mm, :], 
+                                                      known_jet_lat, lat)
+        
+        dates = pd.DatetimeIndex(del_f.time.values)
 
-                #now find the timeseries jet latitude - not possible as flux div has too much variability
-                #self.kp_jet_ts[hidx,:] =  self.get_jet_loc(
-                #                                      KE.del_f[mm_elem_subset,0,:], 
-                #                                      self.kp_jet_month[hidx,count_mm], lat)
+        #for each day, find the jet position assuming the *monthly* mean lat - for testing only
+        self.jet_lat_mm_dd[hidx,:] = self.loop_jet_lat(del_f, self.jet_lat_mm[hidx, dates.month - 1], lat)
 
-                count_mm = count_mm + 1
-                pdb.set_trace()
+        #for each day, find the jet position assuming the *seasonal* mean lat
+        self.jet_lat[hidx,:]  = self.loop_jet_lat(del_f, self.jet_lat_sm[hidx, get_season(dates.month - 1)], lat)
+
+        #assume the seasonal mean is a valid expected lat of the STJ
+        for tidx in range(self.jet_lat[hidx, :].shape[0]):
+            jet_lat_elem = np.where(lat == self.jet_lat[hidx, tidx])[0]
+            self.jet_intens[hidx, tidx] = np.mean(uwnd.values[tidx, lev_200, jet_lat_elem, :], axis=-1, dtype=float)
 
     def get_months(self, season):
         if season == 'DJF':
@@ -713,46 +743,72 @@ class STJKangPolvani(STJMetric):
 
     def get_jet_loc(self, data, expected_lat, lat):
 
-        signchange = ((np.roll(np.sign(data), 1) - np.sign(data)) != 0).astype(int)
-        jet_loc_opts  = lat[signchange.astype(bool)]
-        idx = (np.abs(jet_loc_opts-expected_lat)).argmin()
+        signchange = ((np.roll(np.sign(data), 1) - np.sign(data)) != 0).values
+        idx = (np.abs(lat[signchange]-expected_lat)).argmin()
 
-        return jet_loc_opts[idx]
+        return lat[signchange][idx]
 
-    def get_jet_timeseries(self,hidx,season_elem,uwnd,lat):
-        '''Find the zero crossing latitudes and then select the latitude 
-         that is closest to the seasonal mean latitude '''
+    def loop_jet_lat(self, data, expected_lat, lat):
+        
+        return np.array([self.get_jet_loc(data[tidx,:], expected_lat[tidx], lat) for tidx in range(data.shape[0])])
 
-        for tidx in xrange(self.KE.del_f.shape[1]):
+    def test_method(self):
 
-            signchange = self.get_sign_change(self.KE.del_f[hidx,tidx,:],lat=lat)
-            lat_opts   = lat[signchange.astype(bool)]
+        print 'Does it matter if I use the seasonal or monthly position?'
+        diff_mm = self.jet_lat_mm_mm - self.jet_lat
 
-            c_month = self.dates[tidx].month
-            if c_month == 12 or c_month <= 2:
-                season_index = 0
-            elif 3 <= c_month <= 5:
-                season_index = 1
-            elif 6 <= c_month <= 8:
-                season_index = 2
-            else:
-                season_index = 3
+        fig = plt.figure(figsize=(16, 8))
+        ax = fig.add_axes([0.1, 0.15, 0.8, 0.8]) 
 
-            idx = (np.abs(lat_opts - self.kp_jet_season[hidx,season_index])).argmin()
+        num_mm = self.jet_lat_mm_mm.shape[1]*self.jet_lat_mm_mm.shape[2]
+        ax.plot(np.arange(0,num_mm),self.jet_lat_mm_mm.reshape(2,num_mm)[0,:]  , c='k', linestyle='-', ) 
+        ax.plot(np.arange(0,num_mm),self.jet_lat.reshape(2,num_mm)[0,:]  , c='red', linestyle='-', ) 
 
-            if idx.size != 1:
-                print("Cant find index.")
-                pdb.set_trace()
-           
-            self.jet_lat_ts[hidx,tidx]  =  lat_opts[idx]
-            jet_lat_elem = np.where(self.lat == lat_opts[idx])[0]
-            self.jet_intens_ts[hidx,tidx]  =  uwnd[tidx,self.lev_200,jet_lat_elem ,:].mean()
+        filename = 'KP_mm.eps'
+        plt.savefig(filename)
+        print "Saved plot:  ", filename
+        plt.show()
+        plt.close()
 
-        jet_lats_xr = xr.DataArray(self.jet_lat_ts[hidx, :], coords=[self.dates], dims=['time'])
-        self.jet_lat[hidx, :] = jet_lats_xr.resample(freq='MS', dim='time').values
+        pdb.set_trace()
 
-        jet_intens_xr = xr.DataArray(self.jet_intens_ts[hidx, :], coords=[self.dates], dims=['time'])
-        self.jet_intens[hidx, :] = jet_intens_xr.resample(freq='MS', dim='time').values
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_axes([0.1, 0.15, 0.8, 0.8]) 
+
+        ax.plot([1,12],[self.jet_lat_sm[0,0],self.jet_lat_sm[0,0]]  , c='blue', linestyle='-', ) #djf mean
+        ax.plot([1,12],[self.jet_lat_sm[0,1],self.jet_lat_sm[0,1]]  , c='orange', linestyle='-', ) #mam mean
+        ax.plot([1,12],[self.jet_lat_sm[0,2],self.jet_lat_sm[0,2]]  , c='red', linestyle='-', ) #jja mean
+        ax.plot([1,12],[self.jet_lat_sm[0,3],self.jet_lat_sm[0,3]]  , c='green', linestyle='-', ) #son mean
+
+        c_opt = [0,'b','b','orange','orange','orange','r','r','r','g','g','g','b']
+        for m in np.arange(1, 12):
+
+            ax.plot([m,m],[self.jet_lat_mm[0,m],self.jet_lat_mm[0,m]]  , c=c_opt[m], linestyle='', marker='x' ) 
+
+        ax.set_ylim([-28, -38])
+        filename = 'test_KP.eps'
+        plt.savefig(filename)
+        print "Saved plot:  ", filename
+        plt.show()
+        plt.close()
+        pdb.set_trace()
+
+def test_ss_vs_mm(jet_lat_sm_dd,jet_lat_mm_dd ):
+
+    lats = pd.DataFrame({'seasonal': jet_lat_sm_dd, 'monthly': jet_lat_mm_dd})
+    lats.plot.hexbin(x='seasonal', y='monthly', gridsize=10, mincnt=1, cmap='viridis')
+    plt.show()
+
+
+def get_season(month):
+    seasons = np.array([0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 0])
+    return seasons[month]
+
+#jet_lats_xr = xr.DataArray(self.jet_lat_ts[hidx, :], coords=[self.dates], dims=['time'])
+#self.jet_lat[hidx, :] = jet_lats_xr.resample(freq='MS', dim='time').values
+
+#jet_intens_xr = xr.DataArray(self.jet_intens_ts[hidx, :], coords=[self.dates], dims=['time'])
+#self.jet_intens[hidx, :] = jet_intens_xr.resample(freq='MS', dim='time').values
  
 
 
