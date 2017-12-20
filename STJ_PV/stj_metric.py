@@ -754,7 +754,7 @@ class STJKangPolvani(STJMetric):
 
     def test_method(self):
 
-        print 'Does it matter if I use the seasonal or monthly position?'
+        print('Does it matter if I use the seasonal or monthly position?')
         diff_mm = self.jet_lat_mm_mm - self.jet_lat
 
         fig = plt.figure(figsize=(16, 8))
@@ -766,7 +766,7 @@ class STJKangPolvani(STJMetric):
 
         filename = 'KP_mm.eps'
         plt.savefig(filename)
-        print "Saved plot:  ", filename
+        print("Saved plot:  ", filename)
         plt.show()
         plt.close()
 
@@ -788,7 +788,7 @@ class STJKangPolvani(STJMetric):
         ax.set_ylim([-28, -38])
         filename = 'test_KP.eps'
         plt.savefig(filename)
-        print "Saved plot:  ", filename
+        print("Saved plot:  ", filename)
         plt.show()
         plt.close()
         pdb.set_trace()
