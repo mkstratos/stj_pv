@@ -168,8 +168,7 @@ class JetFindRun(object):
         elif self.config['method'] == 'STJUMax':
             data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
         else:
-            data = inp.InputDataWind(self, ['uwnd','vwnd'],date_s, date_e)
-           
+            data = inp.InputDataWind(self, ['uwnd', 'vwnd'],date_s, date_e)
 
         data.get_data_input()
         return data
@@ -210,7 +209,7 @@ class JetFindRun(object):
             jet_all = self.metric(self, data)
             for shemis in [True, False]:
                 jet_all.find_jet(shemis)
- 
+
         jet_all.save_jet()
 
     def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
@@ -378,6 +377,7 @@ def main():
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2016, 1, 1)
+
     jf_run.run(date_s, date_e)
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
     #                        year_s=1979, year_e=2016)
