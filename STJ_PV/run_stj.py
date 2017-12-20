@@ -211,8 +211,6 @@ class JetFindRun(object):
             for shemis in [True, False]:
                 jet_all.find_jet(shemis)
  
-        print ("Have the KP time series. Need to save it. Also need to check the lack of time averaging is valid")
-        pdb.set_trace()
         jet_all.save_jet()
 
     def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
@@ -379,7 +377,7 @@ def main():
     #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(1979, 12, 31)
+    date_e = dt.datetime(2016, 1, 1)
     jf_run.run(date_s, date_e)
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
     #                        year_s=1979, year_e=2016)

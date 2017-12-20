@@ -3,9 +3,8 @@ freq:       'day'
 zonal_opt:  'mean'
 method:     'KangPolvani'
 log_file:   'stj_find_erai_pres_day_KangPolvani_{}.log'
-pres_level: 20000.
 min_lat:    0.0
 year_s:     1979
-year_e:     1979
+year_e:     2015
 
 
