@@ -574,6 +574,7 @@ class STJKangPolvani(STJMetric):
         name = 'KangPolvani'
         super(STJKangPolvani, self).__init__(name=name, props=props, data=data)
 
+        self.time = self.data.time[:]
         self.dates = pd.DatetimeIndex(num2date(self.data.time, self.data.time_units))
 
         self.jet_intens = np.zeros([2, self.dates.shape[0]])
