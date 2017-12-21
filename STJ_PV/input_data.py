@@ -400,6 +400,11 @@ class InputDataWind(object):
         self.config = props.config
         self.data_cfg = props.data_cfg
 
+        if 'pres_level' in self.config:
+            self.plev = self.config['pres_level']
+        else:
+            self.plev = None
+
         if date_s is not None:
             self.year = date_s.year
         else:
@@ -447,11 +452,13 @@ class InputDataWind(object):
                 if var_name == 'uwnd':
                     self._calc_interp(var_name)
             else:
-                setattr(self, var_name, self.in_data[var_name])
+                var_attrib = self.in_data[var_name]
 
             if len(self.lev) > 1 and (self.lev[0] > self.lev[-1]):
-                setattr(self, var_name, self.in_data[var_name][:, ::-1, ...])
+                var_attrib = self.in_data[var_name][:, ::-1, ...]
                 self.lev = self.lev[::-1]
+
+            setattr(self, var_name, var_attrib)
 
     def _select(self, date_s=None, date_e=None):
         """
@@ -529,9 +536,6 @@ class InputDataWind(object):
                                                                    file_name)))
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
             self.props.log.info("\tLOAD: {}".format(var))
-            self.in_data[var] = (nc_file.variables[vname][self.d_select, ...]
-                                 .astype(np.float16))
-
             if first_file:
                 for dvar in dim_vars:
                     v_in_name = cfg[dvar]
@@ -550,6 +554,19 @@ class InputDataWind(object):
                     self.calendar = 'standard'
 
                 first_file = False
+
+            if self.plev is not None:
+                lev_sel = self.lev == self.plev
+            else:
+                lev_sel = slice(None)
+
+            try:
+                self.in_data[var] = (nc_file.variables[vname][self.d_select, lev_sel, ...]
+                                     .astype(np.float16))
+            except IndexError:
+                self.in_data[var] = (nc_file.variables[vname][self.d_select, ...]
+                                     .astype(np.float16))
+
 
             if cfg['single_var_file']:
                 nc_file.close()

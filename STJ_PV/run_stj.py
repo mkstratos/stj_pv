@@ -17,6 +17,8 @@ import stj_metric
 import input_data as inp
 
 
+import pdb
+
 np.seterr(all='ignore')
 warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 
@@ -61,6 +63,7 @@ class JetFindRun(object):
                            'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
                            'update_pv': False, 'year_s': 1979, 'year_e': 2015}
         else:
+
             # Open the configuration file, put its contents into a variable to be read by
             # YAML reader
             self.config, cfg_failed = check_run_config(config_file)
@@ -76,6 +79,7 @@ class JetFindRun(object):
         if data_cfg_failed:
             print('DATA CONFIG CHECKS FAILED...EXITING')
             sys.exit(1)
+
 
         if self.data_cfg['single_var_file']:
             for var in ['uwnd', 'vwnd', 'tair', 'omega']:   #TODO: Need to change list
@@ -102,6 +106,8 @@ class JetFindRun(object):
             self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
                                       250., 200., 150., 100., 70., 50., 30., 20., 10.])
             self.metric = stj_metric.STJMaxWind
+        elif self.config['method'] == 'KangPolvani':
+            self.metric = stj_metric.STJKangPolvani
         else:
             self.metric = None
 
@@ -124,6 +130,12 @@ class JetFindRun(object):
             self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
                                       250., 200., 150., 100., 70., 50., 30., 20., 10.])
             self.metric = stj_metric.STJMaxWind
+
+        elif self.config['method'] == 'KangPolvani':
+
+            self.config['output_file'] = ('{short_name}_{method}'
+                                          .format(**dict(self.data_cfg, **self.config)))
+            self.metric = stj_metric.STJKangPolvani
 
         else:
             self.config['output_file'] = ('{short_name}_{method}'
@@ -155,6 +167,9 @@ class JetFindRun(object):
             data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
             data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
+        else:
+            data = inp.InputDataWind(self, ['uwnd', 'vwnd'], date_s, date_e)
+
         data.get_data_input()
         return data
 
@@ -301,7 +316,7 @@ def check_run_config(cfg_file):
     # Optional checks
     missing_optionals = []
     if not missing_req:
-        if config['method'] not in ['STJPV', 'STJUMax']:
+        if config['method'] not in ['STJPV', 'STJUMax', 'KangPolvani']:
             # config must have pfac if it's pressure level data
             missing_optionals.append(False)
             print('NO METHOD FOR HANDLING: {}'.format(config['method']))
@@ -313,6 +328,10 @@ def check_run_config(cfg_file):
 
         elif config['method'] == 'STJUMax':
             opt_keys = {'pres_level': float, 'min_lat': float}
+            _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
+            missing_optionals.append(missing_opt)
+        elif config['method'] == 'KangPolvani':
+            opt_keys = {'pres_level': float}
             _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
             missing_optionals.append(missing_opt)
 
@@ -354,12 +373,13 @@ def check_data_config(cfg_file):
 def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
+
+    jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
     #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    jf_run = JetFindRun('./conf/stj_umax_ncep_monthly.yml')
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(1982, 12, 31)
-    #date_e = dt.datetime(2015, 3, 1)
+    date_e = dt.datetime(2016, 1, 1)
+
     jf_run.run(date_s, date_e)
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
     #                        year_s=1979, year_e=2016)
