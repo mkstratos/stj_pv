@@ -7,7 +7,6 @@ import xarray as xr
 import numpy as np
 import seaborn as sns
 
-
 def boxplot(data):
     print(data)
     plt.boxplot(data.values)
@@ -16,6 +15,7 @@ def boxplot(data):
 #def main():
 if __name__ == "__main__":
     """Compare jet latitudes of results from two different runs of stj_run."""
+<<<<<<< HEAD
 
     file_info = {
         'NCEP-PV': {'file': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
@@ -34,11 +34,12 @@ if __name__ == "__main__":
             for name in diffs}
 
     times = [d_in[ftype].time for ftype in diffs]
-    #dates = [pd.DatetimeIndex(nc.num2date(time.data[:], time.units)) for time in times]
-    dates = [time.values[:] for time in times]
+    dates = [pd.DatetimeIndex(nc.num2date(time.data[:], time.units)) for time in times]
+    #dates = [time.values[:] for time in times]
+
     lat_nh = {in_f: d_in[in_f].variables['lat_nh'].data[:] for in_f in d_in}
     lat_sh = {in_f: d_in[in_f].variables['lat_sh'].data[:] for in_f in d_in}
-
+    dates = [np.arange(0,len(lat_nh['ERAI-KP']),1), np.arange(0,len(lat_nh['ERAI-PV']),1)]
     min_shape = min([lat_nh[ft].shape[0] for ft in lat_nh])
 
     fig = plt.figure(figsize=(15, 5))
@@ -68,11 +69,13 @@ if __name__ == "__main__":
     plt.title('SH DIFF')
     plt.grid(b=True, ls='--')
     plt.tight_layout()
+
     plt.savefig('plt_compare_time_series_{}_{}.png'.format(*diffs))
     plt.close()
 
     nh_seas = {in_f: d_in[in_f]['lat_nh'].groupby('time.season') for in_f in diffs}
     sh_seas = {in_f: d_in[in_f]['lat_sh'].groupby('time.season') for in_f in diffs}
+
 
     diff_nh = nh_seas[diffs[0]].mean() - nh_seas[diffs[1]].mean()
     diff_sh = sh_seas[diffs[0]].mean() - sh_seas[diffs[1]].mean()
