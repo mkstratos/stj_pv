@@ -15,7 +15,6 @@ def boxplot(data):
 #def main():
 if __name__ == "__main__":
     """Compare jet latitudes of results from two different runs of stj_run."""
-<<<<<<< HEAD
 
     file_info = {
         'NCEP-PV': {'file': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
