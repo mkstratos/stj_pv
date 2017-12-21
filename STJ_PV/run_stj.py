@@ -168,7 +168,7 @@ class JetFindRun(object):
         elif self.config['method'] == 'STJUMax':
             data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
         else:
-            data = inp.InputDataWind(self, ['uwnd', 'vwnd'],date_s, date_e)
+            data = inp.InputDataWind(self, ['uwnd', 'vwnd'], date_s, date_e)
 
         data.get_data_input()
         return data
@@ -316,7 +316,7 @@ def check_run_config(cfg_file):
     # Optional checks
     missing_optionals = []
     if not missing_req:
-        if config['method'] not in ['STJPV', 'STJUMax','KangPolvani']:
+        if config['method'] not in ['STJPV', 'STJUMax', 'KangPolvani']:
             # config must have pfac if it's pressure level data
             missing_optionals.append(False)
             print('NO METHOD FOR HANDLING: {}'.format(config['method']))
@@ -331,7 +331,9 @@ def check_run_config(cfg_file):
             _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
             missing_optionals.append(missing_opt)
         elif config['method'] == 'KangPolvani':
-            missing_optionals = [False]
+            opt_keys = {'pres_level': float}
+            _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
+            missing_optionals.append(missing_opt)
 
     return config, any([missing_req, all(missing_optionals)])
 

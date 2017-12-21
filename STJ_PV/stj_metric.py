@@ -598,9 +598,8 @@ class STJKangPolvani(STJMetric):
 
         lat_elem, known_jet_lat, hidx = self.set_hemis(shemis)
 
-        uwnd, vwnd, lev_200 = self._prep_data(lat_elem)
-
-        self.get_jet_from_flux_div(uwnd, vwnd, lat_elem, hidx, lev_200, known_jet_lat)
+        uwnd, vwnd = self._prep_data(lat_elem)
+        self.get_jet_from_flux_div(uwnd, vwnd, lat_elem, hidx, known_jet_lat)
 
     def set_hemis(self, shemis):
         """
@@ -653,18 +652,17 @@ class STJKangPolvani(STJMetric):
         return lat_elem, known_jet_lat, hidx
 
     def _prep_data(self, lat_elem):
-
         #isolate seasons using xarray
         uwnd = xr.DataArray(self.data.uwnd[:, :, lat_elem, :],
                             coords=[self.dates,
-                                    self.data.lev,
+                                    np.array([self.props['pres_level']]),
                                     self.data.lat[lat_elem],
                                     self.data.lon],
                             dims=['time', 'pres', 'lat', 'lon'])
 
         vwnd = xr.DataArray(self.data.vwnd[:, :, lat_elem, :],
                             coords=[self.dates,
-                                    self.data.lev,
+                                    np.array([self.props['pres_level']]),
                                     self.data.lat[lat_elem],
                                     self.data.lon],
                             dims=['time', 'pres', 'lat', 'lon'])
@@ -673,15 +671,9 @@ class STJKangPolvani(STJMetric):
         if self.data.lev.max() < 1100.0:
             self.data.lev = self.data.lev * 100.
 
-        try:
-            lev_200 = np.where(self.data.lev == 20000.0)[0][0]
-        except IndexError:
-            print("Can't find 200hPa level - investigate")
-            sys.exit(1)
+        return uwnd, vwnd
 
-        return uwnd, vwnd, lev_200
-
-    def get_jet_from_flux_div(self, uwnd, vwnd, lat_elem, hidx, lev_200, known_jet_lat):
+    def get_jet_from_flux_div(self, uwnd, vwnd, lat_elem, hidx, known_jet_lat):
         """
         Calc s= del. (bar(uv) - bar(u)bar(v)) where bar is the seasonal mean
         and find the seasonal mean location of the STJ
@@ -692,16 +684,14 @@ class STJKangPolvani(STJMetric):
         lat = self.data.lat[lat_elem]
 
         k_e = Kinetic_Eddy_Energies(uwnd.values, vwnd.values,
-                                    lat, self.data.lev[lev_200],
+                                    lat, self.props['pres_level'],
                                     self.data.lon)
         k_e.get_components()
         k_e.calc_momentum_flux()
 
-        del_f = xr.DataArray(k_e.del_f, coords=[self.dates,
-                                                self.data.lev,
-                                                self.data.lat[lat_elem]],
-                             dims=['time', 'pres', 'lat'])
-        del_f = np.squeeze(del_f)
+        del_f = xr.DataArray(np.squeeze(k_e.del_f),
+                             coords=[self.dates, self.data.lat[lat_elem]],
+                             dims=['time', 'lat'])
 
         del_f_sm = del_f.groupby('time.season').mean(axis=0)
 
@@ -736,9 +726,8 @@ class STJKangPolvani(STJMetric):
         #assume the seasonal mean is a valid expected lat of the STJ
         for tidx in range(self.jet_lat[hidx, :].shape[0]):
             jet_lat_elem = np.where(lat == self.jet_lat[hidx, tidx])[0]
-            self.jet_intens[hidx, tidx] = np.mean(uwnd.values[tidx, lev_200,
-                                                              jet_lat_elem, :],
-                                                  axis=-1, dtype=float)
+            self.jet_intens[hidx, tidx] = np.mean(uwnd.values[tidx, :, jet_lat_elem, :],
+                                                  axis=(1, -1), dtype=float)
 
     def get_jet_loc(self, data, expected_lat, lat):
         """Get jet location based on sign changes of Del(f)."""
