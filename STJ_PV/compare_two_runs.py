@@ -7,34 +7,39 @@ import xarray as xr
 import numpy as np
 import seaborn as sns
 
-def boxplot(data):
-    print(data)
-    plt.boxplot(data.values)
+
+SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
+                    'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 
-#def main():
-if __name__ == "__main__":
+class FileDiag(object):
+    def __init__(self, info):
+        self.name = info['label']
+        self.d_s = xr.open_dataset(info['file'])
+        self.dframe = None
+        self.lats = self.make_dframe()
+
+    def make_dframe(self):
+        hems = ['nh', 'sh']
+        self.dframe = self.d_s.to_dataframe()
+
+        lats = [pd.DataFrame({'lat': self.dframe['lat_{}'.format(hem)], 'hem': hem})
+                for hem in hems]
+        lats = lats[0].append(lats[1])
+        lats['season'] = SEASONS[lats.index.month].astype(str)
+        lats['kind'] = self.name
+
+        return lats
+
+    def append(self, other):
+        assert isinstance(other, FileDiag)
+        return self.lats.append(other.lats)
+
+def main():
+#if __name__ == "__main__":
     """Compare jet latitudes of results from two different runs of stj_run."""
-
-    file_info = {
-        'NCEP-PV': {'file': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
-                    'label': 'NCEP PV'},
-        'NCEP-Umax': {'file': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
-                      'label': 'NCEP U-max'},
-        'ERAI-PV': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
-                    'label': 'ERAI Theta'},
-        'ERAI-Umax': {'file': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
-                      'label': 'ERAI Pres'}
-    }
-    # diffs = ['NCEP-PV', 'ERAI-PV']
     diffs = ['NCEP-PV', 'NCEP-Umax']
 
-    d_in = {name: xr.open_dataset(file_info[name]['file'])
-            for name in diffs}
-
-    times = [d_in[ftype].time for ftype in diffs]
-    dates = [pd.DatetimeIndex(nc.num2date(time.data[:], time.units)) for time in times]
-    #dates = [time.values[:] for time in times]
 
     lat_nh = {in_f: d_in[in_f].variables['lat_nh'].data[:] for in_f in d_in}
     lat_sh = {in_f: d_in[in_f].variables['lat_sh'].data[:] for in_f in d_in}
@@ -180,5 +185,39 @@ if __name__ == "__main__":
     plt.savefig('plt_compare_boxplot_{}_{}.png'.format(*diffs))
 
 
-#if __name__ == "__main__":
-#    main()
+def new_main():
+    file_info = {
+        'NCEP-PV': {'file': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
+                    'label': 'NCEP PV'},
+        'NCEP-Umax': {'file': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
+                      'label': 'NCEP U-max'},
+        'ERAI-Theta': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
+                       'label': 'ERAI Theta'},
+        'ERAI-Pres': {'file': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
+                      'label': 'ERAI PV'},
+        'ERAI-KP': {'file': './ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
+                    'label': 'ERAI K-P'}
+    }
+
+    fig_width = 110 / 25.4
+    fig_height = fig_width * (2 / (1 + np.sqrt(5)))
+    font_size = 9
+
+    in_names = ['ERAI-Pres', 'ERAI-KP']
+    fds = [FileDiag(file_info[in_name]) for in_name in in_names]
+    data = fds[0].append(fds[1])
+
+    fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_width * 2))
+    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
+                   split=True, inner='quart', ax=axes[0], cut=0)
+    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem =='sh'],
+                   split=True, inner='quart', ax=axes[1], cut=0)
+    fig.legend()
+    for axis in axes:
+        axis.legend_.remove()
+
+    plt.savefig('plt_dist.png')
+    plt.close()
+
+if __name__ == "__main__":
+    new_main()
