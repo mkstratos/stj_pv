@@ -11,6 +11,7 @@ import seaborn as sns
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
+HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
 
 class FileDiag(object):
     def __init__(self, info):
@@ -203,7 +204,7 @@ def new_main():
     fig_height = fig_width * (2 / (1 + np.sqrt(5)))
     font_size = 9
 
-    in_names = ['ERAI-Pres', 'ERAI-KP']
+    in_names = ['NCEP-PV', 'NCEP-Umax']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
     data = fds[0].append(fds[1])
 
@@ -218,6 +219,24 @@ def new_main():
 
     plt.savefig('plt_dist.png')
     plt.close()
+
+    klabels = [kind for kind, _ in data.groupby('kind')]
+    fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+
+    for idx, dfh in enumerate(data.groupby('hem')):
+        hem = dfh[0]
+        dfs = dfh[1]
+        axes[idx, 1].plot(dfs[dfs.kind == klabels[0]].lat -
+                          dfs[dfs.kind==klabels[1]].lat)
+        for kind, dfk in dfh[1].groupby('kind'):
+            axes[idx, 0].plot(dfk.lat, label=kind)
+        axes[idx, 0].set_title(HEMS[hem])
+        axes[idx, 1].set_title('{} Difference'.format(HEMS[hem]))
+        axes[idx, 0].grid(b=True, ls='--')
+        axes[idx, 1].grid(b=True, ls='--')
+    axes[0, 0].legend()
+    plt.tight_layout()
+    plt.savefig('plt_diff_timeseries.png')
 
 if __name__ == "__main__":
     new_main()
