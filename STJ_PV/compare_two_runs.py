@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Script to compare two or more runs of STJ Find."""
-import netCDF4 as nc
 import pandas as pd
 import matplotlib.pyplot as plt
 import xarray as xr
@@ -14,6 +13,9 @@ SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
 HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
 
 class FileDiag(object):
+    """
+    Contains information about an STJ metric output file in a DataFrame.
+    """
     def __init__(self, info):
         self.name = info['label']
         self.d_s = xr.open_dataset(info['file'])
@@ -21,6 +23,7 @@ class FileDiag(object):
         self.lats = self.make_dframe()
 
     def make_dframe(self):
+        """Creates dataframe from input netCDF / xarray."""
         hems = ['nh', 'sh']
         self.dframe = self.d_s.to_dataframe()
 
@@ -33,6 +36,7 @@ class FileDiag(object):
         return lats
 
     def append(self, other):
+        """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
         assert isinstance(other, FileDiag)
         return self.lats.append(other.lats)
 
@@ -47,6 +51,7 @@ class FileDiag(object):
 
 
 def main():
+    """Selects two files to compare, loads and plots them."""
     file_info = {
         'NCEP-PV': {'file': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
                     'label': 'NCEP PV'},
@@ -61,17 +66,17 @@ def main():
     }
 
     fig_width = 110 / 25.4
-    fig_height = fig_width * (2 / (1 + np.sqrt(5)))
-    font_size = 9
 
     in_names = ['NCEP-PV', 'NCEP-Umax']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
     data = fds[0].append(fds[1])
+    diff = fds[0] - fds[1]
 
+    # Make violin plot grouped by hemisphere, then season
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_width * 2))
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
                    split=True, inner='quart', ax=axes[0], cut=0)
-    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem =='sh'],
+    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
                    split=True, inner='quart', ax=axes[1], cut=0)
     fig.legend()
     for axis in axes:
@@ -80,15 +85,11 @@ def main():
     plt.savefig('plt_dist.png')
     plt.close()
 
-    klabels = [kind for kind, _ in data.groupby('kind')]
+
+    # Make timeseries plot for each hemisphere, and difference in each
     fig, axes = plt.subplots(2, 2, figsize=(15, 5))
-    bar_idx = np.arange(4)
-
-    diff = fds[0] - fds[1]
-
     for idx, dfh in enumerate(data.groupby('hem')):
         hem = dfh[0]
-        dfs = dfh[1]
         axes[idx, 1].plot(diff.lat[diff.hem == hem])
 
         for kind, dfk in dfh[1].groupby('kind'):
@@ -102,7 +103,8 @@ def main():
     plt.tight_layout()
     plt.savefig('plt_diff_timeseries.png')
 
-    bar_plt = sns.factorplot(x='season', y='lat', col='hem', data=diff, kind='bar')
+    # Make a bar chart of mean difference
+    sns.factorplot(x='season', y='lat', col='hem', data=diff, kind='bar')
     plt.tight_layout()
     plt.savefig('plt_diff_bar.png')
 
