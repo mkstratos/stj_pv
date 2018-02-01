@@ -1,105 +1,112 @@
 # -*- coding: utf-8 -*-
 """Script to compare two or more runs of STJ Find."""
-import netCDF4 as nc
 import pandas as pd
 import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
-#plt.style.use('ggplot')
+import seaborn as sns
+
+
+SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
+                    'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
+
+HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
+
+class FileDiag(object):
+    """
+    Contains information about an STJ metric output file in a DataFrame.
+    """
+    def __init__(self, info):
+        self.name = info['label']
+        self.d_s = xr.open_dataset(info['file'])
+        self.dframe = None
+        self.lats = self.make_dframe()
+
+    def make_dframe(self):
+        """Creates dataframe from input netCDF / xarray."""
+        hems = ['nh', 'sh']
+        self.dframe = self.d_s.to_dataframe()
+
+        lats = [pd.DataFrame({'lat': self.dframe['lat_{}'.format(hem)], 'hem': hem})
+                for hem in hems]
+        lats = lats[0].append(lats[1])
+        lats['season'] = SEASONS[lats.index.month].astype(str)
+        lats['kind'] = self.name
+
+        return lats
+
+    def append(self, other):
+        """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
+        assert isinstance(other, FileDiag)
+        return self.lats.append(other.lats)
+
+    def __sub__(self, other):
+        hems = ['nh', 'sh']
+        diff = [pd.DataFrame({'lat': (self.lats.lat[self.lats.hem == hem] -
+                                      other.lats.lat[other.lats.hem == hem]),
+                              'hem': hem}) for hem in hems]
+        diff = diff[0].append(diff[1])
+        diff['season'] = SEASONS[diff.index.month].astype(str)
+        return diff
 
 
 def main():
-    """Compare jet latitudes of results from two different runs of stj_run."""
-    #files_in = {'minlat': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit12_y010.0_minlat.nc',
-    #            'ushear': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit12_y010.0.nc'}
-    #files_in = {'Theta': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit12_y010.0.nc',
-    #            'Press': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc'}
-    #files_in = {'minlat': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
-    #            'strflat': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0_psimax.nc'}
-    #files_in = {'cb4': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit4_y010.0.nc',
-    #            'cb8': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc'}
-    #files_in = {'ERA': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
-    #            'NCEP-HR': './NCEP_NCAR_MONTHLY_HR_STJPV_pv2.0_fit12_y010.0.nc'}
-    files_in = {'ERAI-PV': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
-                'ERAI-Umax': './ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc'}
-    #files_in = {'ERAI': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
-    #            'NCEP': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc'}
+    """Selects two files to compare, loads and plots them."""
+    file_info = {
+        'NCEP-PV': {'file': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
+                    'label': 'NCEP PV'},
+        'NCEP-Umax': {'file': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
+                      'label': 'NCEP U-max'},
+        'ERAI-Theta': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
+                       'label': 'ERAI Theta'},
+        'ERAI-Pres': {'file': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
+                      'label': 'ERAI PV'},
+        'ERAI-KP': {'file': './ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
+                    'label': 'ERAI K-P'}
+    }
 
-    ftypes = sorted(files_in.keys())
+    fig_width = 110 / 25.4
 
-    d_in = {in_f: xr.open_dataset(files_in[in_f], decode_times=False)
-            for in_f in files_in}
+    in_names = ['NCEP-PV', 'NCEP-Umax']
+    fds = [FileDiag(file_info[in_name]) for in_name in in_names]
+    data = fds[0].append(fds[1])
+    diff = fds[0] - fds[1]
 
-    times = [d_in[ftype].time for ftype in ftypes]
-    dates = [pd.DatetimeIndex(nc.num2date(time.data[:], time.units)) for time in times]
-    lat_nh = {in_f: d_in[in_f].variables['lat_nh'].data[:] for in_f in d_in}
-    lat_sh = {in_f: d_in[in_f].variables['lat_sh'].data[:] for in_f in d_in}
+    # Make violin plot grouped by hemisphere, then season
+    fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_width * 2))
+    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
+                   split=True, inner='quart', ax=axes[0], cut=0)
+    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
+                   split=True, inner='quart', ax=axes[1], cut=0)
+    fig.legend()
+    for axis in axes:
+        axis.legend_.remove()
 
-    min_shape = min([lat_nh[ft].shape[0] for ft in lat_nh])
-
-    fig = plt.figure(figsize=(15, 5))
-    plt.subplot(2, 2, 1)
-    for fix, in_f in enumerate(lat_nh):
-        plt.plot(dates[fix], lat_nh[in_f], label=in_f)
-
-    plt.title('NH')
-    plt.legend()
-    plt.grid(b=True, ls='--')
-
-    plt.subplot(2, 2, 3)
-    for fix, in_f in enumerate(lat_sh):
-        plt.plot(dates[fix], lat_sh[in_f], label=in_f)
-    plt.title('SH')
-    plt.grid(b=True, ls='--')
-
-    plt.subplot(2, 2, 2)
-    plt.plot(dates[0][:min_shape],
-             lat_nh[ftypes[0]][:min_shape] - lat_nh[ftypes[1]][:min_shape])
-    plt.title('NH DIFF')
-    plt.grid(b=True, ls='--')
-
-
-    plt.subplot(2, 2, 4)
-    plt.plot(dates[0][:min_shape],
-             lat_sh[ftypes[0]][:min_shape] - lat_sh[ftypes[1]][:min_shape])
-    plt.title('SH DIFF')
-    plt.grid(b=True, ls='--')
-    plt.tight_layout()
-    plt.savefig('plt_compare_time_series_{}_{}.png'.format(*files_in.keys()))
-    #plt.show()
+    plt.savefig('plt_dist.png')
     plt.close()
 
-    #diffs = ['NCEP-PV', 'NCEP-Umax']
-    #labels = {'NCEP-PV': 'PV', 'NCEP-Umax': 'u max'}
-    diffs = ['ERAI-PV', 'ERAI-Umax']
-    labels = {'ERAI-PV': 'PV', 'ERAI-Umax': 'u max'}
-    #diffs = ['NCEP', 'ERAI']
-    #labels = {'NCEP': 'NCEP', 'ERAI': 'ERA-int'}
-    d_in = {in_f: xr.open_dataset(files_in[in_f]) for in_f in files_in}
 
-    nh_seas = {in_f: d_in[in_f]['lat_nh'].groupby('time.season') for in_f in files_in}
-    sh_seas = {in_f: d_in[in_f]['lat_sh'].groupby('time.season') for in_f in files_in}
+    # Make timeseries plot for each hemisphere, and difference in each
+    fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+    for idx, dfh in enumerate(data.groupby('hem')):
+        hem = dfh[0]
+        axes[idx, 1].plot(diff.lat[diff.hem == hem])
 
-    diff_nh = nh_seas[diffs[0]].mean() - nh_seas[diffs[1]].mean()
-    diff_sh = sh_seas[diffs[0]].mean() - sh_seas[diffs[1]].mean()
-    bar_width = 0.35
-    seasons = sh_seas[diffs[0]].mean().season.data.astype(str)
-    index = np.arange(len(seasons))
+        for kind, dfk in dfh[1].groupby('kind'):
+            axes[idx, 0].plot(dfk.lat, label=kind)
+        axes[idx, 0].set_title(HEMS[hem])
+        axes[idx, 1].set_title('{} Difference'.format(HEMS[hem]))
+        axes[idx, 0].grid(b=True, ls='--')
+        axes[idx, 1].grid(b=True, ls='--')
 
-    fig_width = 84 / 25.4
-    fig_height = fig_width * (2 / (1 + np.sqrt(5)))
-    font_size = 9
-    plt.figure(figsize=(fig_width, fig_height))
-    plt.bar(index, -diff_nh, bar_width, label='NH')
-    plt.bar(index + bar_width, diff_sh, bar_width, label='SH')
-    plt.xticks(index + bar_width/2, seasons, fontsize=font_size)
+    axes[0, 0].legend()
+    plt.tight_layout()
+    plt.savefig('plt_diff_timeseries.png')
 
-    plt.ylabel(u'\u00b0 latitude', fontsize=font_size)
-    plt.legend(fontsize=font_size)
-    plt.title('Equatorward bias of {} to {}'
-              .format(labels[diffs[0]], labels[diffs[1]]), fontsize=font_size)
-    plt.subplots_adjust(left=0.19, bottom=0.12, right=0.97, top=0.89)
-    plt.savefig('plt_compare_{}_{}.eps'.format(*files_in.keys()))
+    # Make a bar chart of mean difference
+    sns.factorplot(x='season', y='lat', col='hem', data=diff, kind='bar')
+    plt.tight_layout()
+    plt.savefig('plt_diff_bar.png')
 
 
 if __name__ == "__main__":
