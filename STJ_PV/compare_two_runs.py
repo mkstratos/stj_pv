@@ -31,13 +31,22 @@ class FileDiag(object):
 
         self.vars = set([var.split('_')[0] for var in self.dframe])
         dframes = [[pd.DataFrame({var: self.dframe['{}_{}'.format(var, hem)], 'hem': hem})
-                    for hem in hems] for var in self.vars]
-        dframes_tmp = [frame[0].append(frame[1]) for frame in dframes]
-        metric = pd.DataFrame()
-        for frame in dframes_tmp:
-            metric = metric.append(frame)
+                    for var in self.vars] for hem in hems]
 
-        metric['season'] = SEASONS[metric.index.month].astype(str)
+        dframes_tmp = []
+        for frames in dframes:
+            metric_hem = pd.DataFrame()
+            for frame in frames:
+                # Add a time column so that the merge works
+                frame['time'] = frame.index
+                if not metric_hem.columns:
+                    metric_hem = frame
+                else:
+                    metric_hem = metric_hem.merge(frame)
+            dframes_tmp.append(metric_hem)
+        metric = dframes_tmp[0].append(dframes_tmp[1])
+
+        metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
         return metric, self.dframe.index[0], self.dframe.index[-1]
@@ -52,7 +61,7 @@ class FileDiag(object):
 
         df1 = self.metric
         df2 = other.metric
-
+        assert all(df1.time == df2.time), 'Not all times match, subtraction invalid'
         # Get a set of all variables common to both datasets
         var_names = self.vars.intersection(other.vars)
 
@@ -62,18 +71,23 @@ class FileDiag(object):
             # Separate hemispheres for `var` one list for self, one for other
             inside = [df1[df1.hem == hem][var] for hem in hems]
             outside = [df2[df2.hem == hem][var] for hem in hems]
+
             # For each hemisphere, make the difference of self - other a DataFrame
-            diff_c = [pd.DataFrame({var: inside[idx] - outside[idx], 'hem': hems[idx]})
+            diff_c = [pd.DataFrame({var: inside[idx] - outside[idx], 'hem': hems[idx],
+                                    'time': df1[df1.hem == hems[idx]].time})
                       for idx in range(len(hems))]
 
             # Combine the two hemispheres into one DF
             diff.append(diff_c[0].append(diff_c[1]))
 
-        diff_out = pd.DataFrame()
-        for frame in diff:
-            diff_out = diff_out.append(frame)
+            diff_out = pd.DataFrame()
+            for frame in diff:
+                if not diff_out.columns:
+                    diff_out = frame
+                else:
+                    diff_out = diff_out.merge(frame)
 
-        diff_out['season'] = SEASONS[diff_out.index.month].astype(str)
+        diff_out['season'] = SEASONS[pd.DatetimeIndex(diff_out.time).month].astype(str)
         return diff_out
 
 
@@ -93,7 +107,8 @@ def main():
     }
 
     fig_width = 110 / 25.4
-    in_names = ['NCEP-PV', 'NCEP-Umax']
+    # in_names = ['NCEP-PV', 'NCEP-Umax']
+    in_names = ['ERAI-Pres', 'ERAI-Theta']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     assert fds[0].start_t == fds[1].start_t, 'Start dates are different'
