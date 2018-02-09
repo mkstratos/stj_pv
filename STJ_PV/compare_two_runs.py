@@ -35,11 +35,11 @@ class FileDiag(object):
 
         dframes_tmp = []
         for frames in dframes:
-            metric_hem = pd.DataFrame()
+            metric_hem = None
             for frame in frames:
                 # Add a time column so that the merge works
                 frame['time'] = frame.index
-                if not metric_hem.columns:
+                if metric_hem is None:
                     metric_hem = frame
                 else:
                     metric_hem = metric_hem.merge(frame)
@@ -80,9 +80,9 @@ class FileDiag(object):
             # Combine the two hemispheres into one DF
             diff.append(diff_c[0].append(diff_c[1]))
 
-            diff_out = pd.DataFrame()
+            diff_out = None
             for frame in diff:
-                if not diff_out.columns:
+                if diff_out is None:
                     diff_out = frame
                 else:
                     diff_out = diff_out.merge(frame)
