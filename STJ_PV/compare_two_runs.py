@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
-
+import pdb
 
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
@@ -16,31 +16,38 @@ class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
-    def __init__(self, info):
+    def __init__(self, info,var_name):
         self.name = info['label']
         self.d_s = xr.open_dataset(info['file'])
         self.dframe = None
-        self.lats = self.make_dframe()
+        self.var_name = var_name
+        var, self.start_t, self.end_t = self.make_dframe()
+        setattr(self, self.var_name, var) 
 
     def make_dframe(self):
         """Creates dataframe from input netCDF / xarray."""
         hems = ['nh', 'sh']
         self.dframe = self.d_s.to_dataframe()
 
-        lats = [pd.DataFrame({'lat': self.dframe['lat_{}'.format(hem)], 'hem': hem})
+        var = [pd.DataFrame({self.var_name: self.dframe['{}_{}'.format(self.var_name, hem)], 'hem': hem})
                 for hem in hems]
-        lats = lats[0].append(lats[1])
-        lats['season'] = SEASONS[lats.index.month].astype(str)
-        lats['kind'] = self.name
+        var = var[0].append(var[1])
+        var['season'] = SEASONS[var.index.month].astype(str)
+        var['kind'] = self.name
 
-        return lats
+        return var, self.dframe.index[0], self.dframe.index[-1]
 
     def append(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
         assert isinstance(other, FileDiag)
-        return self.lats.append(other.lats)
 
-    def __sub__(self, other):
+        assert self.var_name == other.var_name, 'Cant append with two different var_names'
+        df1 = getattr(self,self.var_name)
+        df2 = getattr(other,other.var_name)
+
+        return df1.append(df2)
+        
+    def __sub__(self, other): 
         hems = ['nh', 'sh']
         diff = [pd.DataFrame({'lat': (self.lats.lat[self.lats.hem == hem] -
                                       other.lats.lat[other.lats.hem == hem]),
@@ -66,9 +73,9 @@ def main():
     }
 
     fig_width = 110 / 25.4
-
     in_names = ['NCEP-PV', 'NCEP-Umax']
-    fds = [FileDiag(file_info[in_name]) for in_name in in_names]
+    fds = [FileDiag(file_info[in_name], 'lat') for in_name in in_names]
+
     data = fds[0].append(fds[1])
     diff = fds[0] - fds[1]
 
