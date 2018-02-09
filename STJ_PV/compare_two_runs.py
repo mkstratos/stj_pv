@@ -16,18 +16,19 @@ class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
-    def __init__(self, info,var_name):
+    def __init__(self, info, var_name):
         self.name = info['label']
         self.d_s = xr.open_dataset(info['file'])
         self.dframe = None
         self.var_name = var_name
         var, self.start_t, self.end_t = self.make_dframe()
-        setattr(self, self.var_name, var) 
+        setattr(self, 'metric', var) 
 
     def make_dframe(self):
         """Creates dataframe from input netCDF / xarray."""
         hems = ['nh', 'sh']
         self.dframe = self.d_s.to_dataframe()
+
 
         var = [pd.DataFrame({self.var_name: self.dframe['{}_{}'.format(self.var_name, hem)], 'hem': hem})
                 for hem in hems]
@@ -40,18 +41,23 @@ class FileDiag(object):
     def append(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
         assert isinstance(other, FileDiag)
-
         assert self.var_name == other.var_name, 'Cant append with two different var_names'
-        df1 = getattr(self,self.var_name)
-        df2 = getattr(other,other.var_name)
+        
+        df1 = getattr(self.metric, self.var_name)
+        df2 = getattr(other.metric, other.var_name)
 
         return df1.append(df2)
         
     def __sub__(self, other): 
         hems = ['nh', 'sh']
-        diff = [pd.DataFrame({'lat': (self.lats.lat[self.lats.hem == hem] -
-                                      other.lats.lat[other.lats.hem == hem]),
+
+        df1 = getattr(self, 'metric')
+        df2 = getattr(other, 'metric')
+
+        diff = [pd.DataFrame({self.var_name: getattr(df1[getattr(df1,'hem') == hem], self.var_name)-
+                                             getattr(df2[getattr(df2,'hem') == hem], other.var_name),
                               'hem': hem}) for hem in hems]
+
         diff = diff[0].append(diff[1])
         diff['season'] = SEASONS[diff.index.month].astype(str)
         return diff
@@ -74,7 +80,7 @@ def main():
 
     fig_width = 110 / 25.4
     in_names = ['NCEP-PV', 'NCEP-Umax']
-    fds = [FileDiag(file_info[in_name], 'lat') for in_name in in_names]
+    fds = [FileDiag(file_info[in_name], 'metric') for in_name in in_names]
 
     data = fds[0].append(fds[1])
     diff = fds[0] - fds[1]
