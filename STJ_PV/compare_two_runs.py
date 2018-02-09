@@ -16,51 +16,70 @@ class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
-    def __init__(self, info, var_name):
+    def __init__(self, info):
         self.name = info['label']
         self.d_s = xr.open_dataset(info['file'])
         self.dframe = None
-        self.var_name = var_name
+        self.vars = None
+
         var, self.start_t, self.end_t = self.make_dframe()
-        setattr(self, 'metric', var) 
+        self.metric = var
 
     def make_dframe(self):
         """Creates dataframe from input netCDF / xarray."""
         hems = ['nh', 'sh']
         self.dframe = self.d_s.to_dataframe()
 
+        self.vars = set([var.split('_')[0] for var in self.dframe])
+        dframes = [[pd.DataFrame({var: self.dframe['{}_{}'.format(var, hem)], 'hem': hem})
+                   for hem in hems] for var in self.vars]
+        dframes_tmp = [frame[0].append(frame[1]) for frame in dframes]
+        metric = pd.DataFrame()
+        for frame in dframes_tmp:
+            metric = metric.append(frame)
 
-        var = [pd.DataFrame({self.var_name: self.dframe['{}_{}'.format(self.var_name, hem)], 'hem': hem})
-                for hem in hems]
-        var = var[0].append(var[1])
-        var['season'] = SEASONS[var.index.month].astype(str)
-        var['kind'] = self.name
+        metric['season'] = SEASONS[metric.index.month].astype(str)
+        metric['kind'] = self.name
 
-        return var, self.dframe.index[0], self.dframe.index[-1]
+        return metric, self.dframe.index[0], self.dframe.index[-1]
 
     def append(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
         assert isinstance(other, FileDiag)
-        assert self.var_name == other.var_name, 'Cant append with two different var_names'
-        
-        df1 = getattr(self.metric, self.var_name)
-        df2 = getattr(other.metric, other.var_name)
+
+        df1 = self.metric
+        df2 = other.metric
 
         return df1.append(df2)
-        
-    def __sub__(self, other): 
+
+    def __sub__(self, other):
         hems = ['nh', 'sh']
 
-        df1 = getattr(self, 'metric')
-        df2 = getattr(other, 'metric')
+        df1 = self.metric
+        df2 = other.metric
 
-        diff = [pd.DataFrame({self.var_name: getattr(df1[getattr(df1,'hem') == hem], self.var_name)-
-                                             getattr(df2[getattr(df2,'hem') == hem], other.var_name),
-                              'hem': hem}) for hem in hems]
+        # Get a set of all variables common to both datasets
+        var_names = self.vars.intersection(other.vars)
 
-        diff = diff[0].append(diff[1])
-        diff['season'] = SEASONS[diff.index.month].astype(str)
-        return diff
+        # Initialise a list of differences of the variables between datasets
+        diff = []
+        for var in var_names:
+            # Separate hemispheres for `var` one list for self, one for other
+            inside = [df1[df1.hem == hem][var] for hem in hems]
+            outside = [df2[df2.hem == hem][var] for hem in hems]
+            # For each hemisphere, make the difference of self - other a DataFrame
+            diff_c = [pd.DataFrame({var: inside[idx] - outside[idx], 'hem': hems[idx]})
+                      for idx in range(len(hems))]
+
+            # Combine the two hemispheres into one DF
+            diff.append(diff_c[0].append(diff_c[1]))
+
+        diff_out = pd.DataFrame()
+        for frame in diff:
+            diff_out = diff_out.append(frame)
+
+        diff_out['season'] = SEASONS[diff_out.index.month].astype(str)
+        return diff_out
 
 
 def main():
@@ -80,7 +99,7 @@ def main():
 
     fig_width = 110 / 25.4
     in_names = ['NCEP-PV', 'NCEP-Umax']
-    fds = [FileDiag(file_info[in_name], 'metric') for in_name in in_names]
+    fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     assert fds[0].start_t == fds[1].start_t  , 'Start dates are different'
     assert fds[0].end_t   == fds[1].end_t  , 'Start dates are different'
