@@ -46,11 +46,7 @@ class FileDiag(object):
     def append(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
         assert isinstance(other, FileDiag)
-
-        df1 = self.metric
-        df2 = other.metric
-
-        return df1.append(df2)
+        return self.metric.append(other.metric)
 
     def __sub__(self, other):
         hems = ['nh', 'sh']
