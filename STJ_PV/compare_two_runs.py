@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
-import pdb
 
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
@@ -32,7 +31,7 @@ class FileDiag(object):
 
         self.vars = set([var.split('_')[0] for var in self.dframe])
         dframes = [[pd.DataFrame({var: self.dframe['{}_{}'.format(var, hem)], 'hem': hem})
-                   for hem in hems] for var in self.vars]
+                    for hem in hems] for var in self.vars]
         dframes_tmp = [frame[0].append(frame[1]) for frame in dframes]
         metric = pd.DataFrame()
         for frame in dframes_tmp:
@@ -97,8 +96,8 @@ def main():
     in_names = ['NCEP-PV', 'NCEP-Umax']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
-    assert fds[0].start_t == fds[1].start_t  , 'Start dates are different'
-    assert fds[0].end_t   == fds[1].end_t  , 'Start dates are different'
+    assert fds[0].start_t == fds[1].start_t, 'Start dates are different'
+    assert fds[0].end_t == fds[1].end_t, 'End dates are different'
 
     data = fds[0].append(fds[1])
     diff = fds[0] - fds[1]
