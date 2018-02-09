@@ -374,11 +374,11 @@ def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
-    jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
-    #jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    #jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(2016, 31, 12)
+    date_e = dt.datetime(2016, 12, 31)
 
     jf_run.run(date_s, date_e)
     # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
