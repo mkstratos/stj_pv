@@ -82,6 +82,9 @@ def main():
     in_names = ['NCEP-PV', 'NCEP-Umax']
     fds = [FileDiag(file_info[in_name], 'metric') for in_name in in_names]
 
+    assert fds[0].start_t == fds[1].start_t  , 'Start dates are different'
+    assert fds[0].end_t   == fds[1].end_t  , 'Start dates are different'
+
     data = fds[0].append(fds[1])
     diff = fds[0] - fds[1]
 
