@@ -51,7 +51,7 @@ class FileDiag(object):
 
         return metric, self.dframe.index[0], self.dframe.index[-1]
 
-    def append(self, other):
+    def append_metric(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
         assert isinstance(other, FileDiag)
         return self.metric.append(other.metric)
@@ -114,7 +114,7 @@ def main():
     assert fds[0].start_t == fds[1].start_t, 'Start dates are different'
     assert fds[0].end_t == fds[1].end_t, 'End dates are different'
 
-    data = fds[0].append(fds[1])
+    data = fds[0].append_metric(fds[1])
     diff = fds[0] - fds[1]
 
     # Make violin plot grouped by hemisphere, then season
