@@ -49,6 +49,8 @@ class FileDiag(object):
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
+        metric.index = metric['time']
+
         return metric, self.dframe.index[0], self.dframe.index[-1]
 
     def append_metric(self, other):
