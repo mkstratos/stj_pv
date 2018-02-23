@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import pandas as pd
+import pdb
 
 __author__ = 'Michael Kelleher'
 
@@ -24,6 +25,8 @@ def plot_timeseries(dset, hem='nh'):
     else:
         seas_range = [1, 3, 0, 2]
 
+    colour = ['red', 'blue','green']
+
     for axx, sea_idx in enumerate(seas_range):
         sub_axes = [axes[axx]]
         for _ in range(2):
@@ -40,25 +43,26 @@ def plot_timeseries(dset, hem='nh'):
             time_index = pd.DatetimeIndex(seasons[sea_idx][1].time.values)
             times = np.arange(time_index[0].year, time_index[-1].year + 1)
             lines.append(sub_axes[idx].plot(times, means[sea_idx],
-                                            'C{}o-'.format(idx), label=var))
+                                            'o-', c=colour[idx], label=var))
 
             sub_axes[idx].set_xticks(times[::2])
-            sub_axes[idx].yaxis.set_tick_params(labelcolor=f'C{idx}', color=f'C{idx}')
+            sub_axes[idx].yaxis.set_tick_params(labelcolor='{}'.format(colour[idx]), color='{}'.format(colour[idx]))
             sub_axes[idx].set_ylim(ranges[var.split('_')[0]])
 
         sub_axes[-1].spines['right'].set_position(('outward', 25))
-        lns = lines[0] + lines[1] + lines[2]
-        labels = [l[0].get_label() for l in lines]
-        sub_axes[0].legend(lns, labels)
+        if axx == 1:
+            lns = lines[0] + lines[1] + lines[2]
+            labels = [l[0].get_label() for l in lines]
+            sub_axes[0].legend(lns, labels, ncol=3)
         axes[axx].set_title('{}'.format(sea_names[sea_idx]))
 
     plt.suptitle(hem.upper())
     plt.tight_layout()
-    plt.savefig(f'plt_trend_{hem}.png')
+    plt.savefig('plt_trend_{}.png'.format(hem))
 
 def main():
     """Load a STJMetric output file, plot seasonal time series data."""
-    in_f = 'ERAI_MONTHLY_THETA_STJPV_pv2.5_fit8_y010.0.nc'
+    in_f = 'ERAI_PRES_STJPV_pv2.0_fit10_y010.0_1979-01-01_2016-12-31.nc'
     dset = xr.open_dataset(in_f)
     for hem in ['nh', 'sh']:
         plot_timeseries(dset, hem)
