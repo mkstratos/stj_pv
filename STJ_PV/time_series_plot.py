@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import pandas as pd
-import pdb
 
 __author__ = 'Michael Kelleher'
 
@@ -25,8 +24,6 @@ def plot_timeseries(dset, hem='nh'):
     else:
         seas_range = [1, 3, 0, 2]
 
-    colour = ['red', 'blue','green']
-
     for axx, sea_idx in enumerate(seas_range):
         sub_axes = [axes[axx]]
         for _ in range(2):
@@ -43,10 +40,10 @@ def plot_timeseries(dset, hem='nh'):
             time_index = pd.DatetimeIndex(seasons[sea_idx][1].time.values)
             times = np.arange(time_index[0].year, time_index[-1].year + 1)
             lines.append(sub_axes[idx].plot(times, means[sea_idx],
-                                            'o-', c=colour[idx], label=var))
+                                            'C{}o-'.format(idx), label=var))
 
             sub_axes[idx].set_xticks(times[::2])
-            sub_axes[idx].yaxis.set_tick_params(labelcolor='{}'.format(colour[idx]), color='{}'.format(colour[idx]))
+            sub_axes[idx].yaxis.set_tick_params(labelcolor=f'C{idx}', color=f'C{idx}')
             sub_axes[idx].set_ylim(ranges[var.split('_')[0]])
 
         sub_axes[-1].spines['right'].set_position(('outward', 25))
@@ -58,7 +55,7 @@ def plot_timeseries(dset, hem='nh'):
 
     plt.suptitle(hem.upper())
     plt.tight_layout()
-    plt.savefig('plt_trend_{}.png'.format(hem))
+    plt.savefig(f'plt_trend_{hem}.png')
 
 def main():
     """Load a STJMetric output file, plot seasonal time series data."""
