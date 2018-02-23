@@ -19,8 +19,13 @@ def plot_timeseries(dset, hem='nh'):
     _, axes = plt.subplots(2, 2, figsize=(19, 7))
     axes = axes.ravel()
 
-    for sea_idx in range(4):
-        sub_axes = [axes[sea_idx]]
+    if hem == 'nh':
+        seas_range = [0, 2, 1, 3]
+    else:
+        seas_range = [1, 3, 0, 2]
+
+    for axx, sea_idx in enumerate(seas_range):
+        sub_axes = [axes[axx]]
         for _ in range(2):
             sub_axes.append(sub_axes[0].twinx())
 
@@ -45,7 +50,7 @@ def plot_timeseries(dset, hem='nh'):
         lns = lines[0] + lines[1] + lines[2]
         labels = [l[0].get_label() for l in lines]
         sub_axes[0].legend(lns, labels)
-        axes[sea_idx].set_title('{}'.format(sea_names[sea_idx]))
+        axes[axx].set_title('{}'.format(sea_names[sea_idx]))
 
     plt.suptitle(hem.upper())
     plt.tight_layout()
