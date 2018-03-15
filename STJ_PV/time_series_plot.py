@@ -47,9 +47,10 @@ def plot_timeseries(dset, hem='nh'):
             sub_axes[idx].set_ylim(ranges[var.split('_')[0]])
 
         sub_axes[-1].spines['right'].set_position(('outward', 25))
-        lns = lines[0] + lines[1] + lines[2]
-        labels = [l[0].get_label() for l in lines]
-        sub_axes[0].legend(lns, labels)
+        if axx == 1:
+            lns = lines[0] + lines[1] + lines[2]
+            labels = [l[0].get_label() for l in lines]
+            sub_axes[0].legend(lns, labels, ncol=3)
         axes[axx].set_title('{}'.format(sea_names[sea_idx]))
 
     plt.suptitle(hem.upper())
@@ -58,7 +59,7 @@ def plot_timeseries(dset, hem='nh'):
 
 def main():
     """Load a STJMetric output file, plot seasonal time series data."""
-    in_f = 'ERAI_MONTHLY_THETA_STJPV_pv2.5_fit8_y010.0.nc'
+    in_f = 'ERAI_PRES_STJPV_pv2.0_fit10_y010.0_1979-01-01_2016-12-31.nc'
     dset = xr.open_dataset(in_f)
     for hem in ['nh', 'sh']:
         plot_timeseries(dset, hem)
