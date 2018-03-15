@@ -100,6 +100,8 @@ def main():
                       'label': 'NCEP U-max'},
         'ERAI-Theta': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
                        'label': 'ERAI Theta'},
+        'ERAI-Theta5': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
+                        'label': 'ERAI Theta5'},
         'ERAI-Pres': {'file': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
                       'label': 'ERAI PV'},
         'ERAI-KP': {'file': './ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
@@ -108,7 +110,7 @@ def main():
 
     fig_width = 110 / 25.4
     # in_names = ['NCEP-PV', 'NCEP-Umax']
-    in_names = ['ERAI-Pres', 'ERAI-Theta']
+    in_names = ['ERAI-Theta5', 'ERAI-Theta']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     assert fds[0].start_t == fds[1].start_t, 'Start dates are different'
@@ -116,7 +118,6 @@ def main():
 
     data = fds[0].append_metric(fds[1])
     diff = fds[0] - fds[1]
-
     # Make violin plot grouped by hemisphere, then season
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_width * 2))
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
@@ -138,7 +139,7 @@ def main():
         axes[idx, 1].plot(diff.lat[diff.hem == hem])
 
         for kind, dfk in dfh[1].groupby('kind'):
-            axes[idx, 0].plot(dfk.lat, label=kind)
+            axes[idx, 0].plot(dfk.theta, label=kind)
         axes[idx, 0].set_title(HEMS[hem])
         axes[idx, 1].set_title('{} Difference'.format(HEMS[hem]))
         axes[idx, 0].grid(b=True, ls='--')
