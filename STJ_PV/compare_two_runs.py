@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
+import pdb
 
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
@@ -15,24 +16,29 @@ class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
-    def __init__(self, info):
+    def __init__(self, info, opt_hems=None):
         self.name = info['label']
         self.d_s = xr.open_dataset(info['file'])
+
         self.dframe = None
         self.vars = None
 
-        var, self.start_t, self.end_t = self.make_dframe()
+        var, self.start_t, self.end_t = self.make_dframe(opt_hems)
         self.metric = var
 
-    def make_dframe(self):
+    def make_dframe(self, opt_hems=None):
         """Creates dataframe from input netCDF / xarray."""
-        hems = ['nh', 'sh']
+        if opt_hems is None:
+            hems = ['nh', 'sh']
+        else:
+            #in case you want to use equator or only one hemi
+            hems = opt_hems
+
         self.dframe = self.d_s.to_dataframe()
 
         self.vars = set([var.split('_')[0] for var in self.dframe])
         dframes = [[pd.DataFrame({var: self.dframe['{}_{}'.format(var, hem)], 'hem': hem})
                     for var in self.vars] for hem in hems]
-
         dframes_tmp = []
         for frames in dframes:
             metric_hem = None
@@ -42,10 +48,15 @@ class FileDiag(object):
                 if metric_hem is None:
                     metric_hem = frame
                 else:
+
                     metric_hem = metric_hem.merge(frame)
+                   
             dframes_tmp.append(metric_hem)
         metric = dframes_tmp[0].append(dframes_tmp[1])
 
+        if len(hems) == 3: #if eq is also wanted
+            metric = metric.append(dframes_tmp[2])
+      
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
