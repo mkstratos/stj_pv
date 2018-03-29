@@ -16,12 +16,13 @@ class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
-    def __init__(self, info):
+    def __init__(self, info, opts_hem=None):
         self.name = info['label']
         self.d_s = xr.open_dataset(info['file'])
 
         self.dframe = None
         self.vars = None
+        self.opt_hems = opts_hem
 
         var, self.start_t, self.end_t = self.make_dframe()
         self.metric = var
@@ -49,13 +50,13 @@ class FileDiag(object):
                     metric_hem = frame
                 else:
                     metric_hem = metric_hem.merge(frame)
-                   
+
             dframes_tmp.append(metric_hem)
         metric = dframes_tmp[0].append(dframes_tmp[1])
 
-        if len(hems) == 3: #if eq is also wanted
+        if len(hems) == 3:  # If eq is also wanted
             metric = metric.append(dframes_tmp[2])
-      
+
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
@@ -140,12 +141,12 @@ def main():
     diff = fds[0] - fds[1]
     # Make violin plot grouped by hemisphere, then season
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
-    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
-                   split=True, inner='quart', ax=axes[0], cut=0)
+    vp0 = sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
+                         split=True, inner='quart', ax=axes[0], cut=0)
     axes[0].set_yticks(np.arange(30, 60, 10))
 
-    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
-                   split=True, inner='quart', ax=axes[1], cut=0)
+    vp1 = sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
+                         split=True, inner='quart', ax=axes[1], cut=0)
     axes[1].set_yticks(np.arange(-50, -20, 10))
     fig.subplots_adjust(left=0.10, bottom=0.08, right=0.95, top=0.94, hspace=0.0)
     fig.legend(bbox_to_anchor=(0.15, 0.94), loc='upper left', borderaxespad=0.)
