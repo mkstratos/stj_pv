@@ -514,7 +514,11 @@ class STJMaxWind(STJMetric):
             hidx = 1
 
         # Get uwnd on pressure level
-        uwnd_p = self.data.uwnd[self.hemis][:, self.data.lev == self.pres_lev, ...]
+        if self.data.uwnd[self.hemis].shape[1] != 1:
+            uwnd_p = self.data.uwnd[self.hemis][:, self.data.lev == self.pres_lev, ...]
+        else:
+            uwnd_p = self.data.uwnd[self.hemis]
+
         uwnd_p = np.squeeze(uwnd_p)
         dims = uwnd_p.shape
 
