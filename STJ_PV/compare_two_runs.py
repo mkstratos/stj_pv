@@ -111,8 +111,8 @@ def main():
     }
 
     fig_width = 110 / 25.4
-    # in_names = ['NCEP-PV', 'NCEP-Umax']
-    in_names = ['ERAI-Theta5', 'ERAI-Theta']
+    in_names = ['NCEP-PV', 'NCEP-Umax']
+    #in_names = ['ERAI-Theta5', 'ERAI-Theta']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     assert fds[0].start_t == fds[1].start_t, 'Start dates are different'
@@ -130,7 +130,7 @@ def main():
     for axis in axes:
         axis.legend_.remove()
 
-    plt.savefig('plt_dist.png')
+    plt.savefig('plt_dist_{}-{}.png'.format(*in_names))
     plt.close()
 
 
@@ -149,12 +149,12 @@ def main():
 
     axes[0, 0].legend()
     plt.tight_layout()
-    plt.savefig('plt_diff_timeseries.png')
+    plt.savefig('plt_diff_timeseries_{}-{}.png'.format(*in_names))
 
     # Make a bar chart of mean difference
     sns.factorplot(x='season', y='lat', col='hem', data=diff, kind='bar')
     plt.tight_layout()
-    plt.savefig('plt_diff_bar.png')
+    plt.savefig('plt_diff_bar_{}-{}.png'.format(*in_names))
 
 
 if __name__ == "__main__":
