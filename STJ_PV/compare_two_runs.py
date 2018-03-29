@@ -112,7 +112,10 @@ def main():
         'NCEP-Umax': {'file': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
                       'label': 'NCEP U-max'},
         'ERAI-Theta': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
-                       'label': 'ERAI Theta'},
+                       'label': 'ERAI PV'},
+        'ERAI-Uwind': {'file':
+                       './ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
+                       'label': 'ERAI U-Wind'},
         'ERAI-Theta5': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
                         'label': 'ERAI Theta5'},
         'ERAI-Pres': {'file': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
@@ -121,9 +124,14 @@ def main():
                     'label': 'ERAI K-P'}
     }
 
-    fig_width = 110 / 25.4
+    plt.rc('font', size=9)
+    extn = 'eps'
+    sns.set_style('whitegrid')
+    fig_width = 9.5 / 2.54
+    fig_height = 11.5 / 2.54
+
     # in_names = ['NCEP-PV', 'NCEP-Umax']
-    in_names = ['ERAI-Theta5', 'ERAI-Theta']
+    in_names = ['ERAI-Theta', 'ERAI-Uwind']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     assert fds[0].start_t == fds[1].start_t, 'Start dates are different'
@@ -132,16 +140,24 @@ def main():
     data = fds[0].append_metric(fds[1])
     diff = fds[0] - fds[1]
     # Make violin plot grouped by hemisphere, then season
-    fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_width * 2))
+    fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
                    split=True, inner='quart', ax=axes[0], cut=0)
+    axes[0].set_yticks(np.arange(30, 60, 10))
+
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
                    split=True, inner='quart', ax=axes[1], cut=0)
-    fig.legend()
+    axes[1].set_yticks(np.arange(-50, -20, 10))
+    fig.subplots_adjust(left=0.10, bottom=0.08, right=0.95, top=0.94, hspace=0.0)
+    fig.legend(bbox_to_anchor=(0.15, 0.94), loc='upper left', borderaxespad=0.)
+
     for axis in axes:
         axis.legend_.remove()
+        axis.tick_params(axis='y', rotation=90)
+        axis.grid(b=True, ls='--', zorder=-1)
+    fig.suptitle('Seasonal jet latitude distributions')
 
-    plt.savefig('plt_dist.png')
+    plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
     plt.close()
 
 
@@ -160,12 +176,12 @@ def main():
 
     axes[0, 0].legend()
     plt.tight_layout()
-    plt.savefig('plt_diff_timeseries.png')
+    plt.savefig('plt_diff_timeseries_{}-{}.{ext}'.format(ext=extn, *in_names))
 
     # Make a bar chart of mean difference
     sns.factorplot(x='season', y='lat', col='hem', data=diff, kind='bar')
     plt.tight_layout()
-    plt.savefig('plt_diff_bar.png')
+    plt.savefig('plt_diff_bar_{}-{}.{ext}'.format(ext=extn, *in_names))
 
 
 if __name__ == "__main__":
