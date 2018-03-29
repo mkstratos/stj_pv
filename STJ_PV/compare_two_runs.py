@@ -16,23 +16,23 @@ class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
-    def __init__(self, info, opt_hems=None):
+    def __init__(self, info):
         self.name = info['label']
         self.d_s = xr.open_dataset(info['file'])
 
         self.dframe = None
         self.vars = None
 
-        var, self.start_t, self.end_t = self.make_dframe(opt_hems)
+        var, self.start_t, self.end_t = self.make_dframe()
         self.metric = var
 
-    def make_dframe(self, opt_hems=None):
+    def make_dframe(self):
         """Creates dataframe from input netCDF / xarray."""
-        if opt_hems is None:
+        if self.opt_hems is None:
             hems = ['nh', 'sh']
         else:
             #in case you want to use equator or only one hemi
-            hems = opt_hems
+            hems = self.opt_hems
 
         self.dframe = self.d_s.to_dataframe()
 
@@ -48,7 +48,6 @@ class FileDiag(object):
                 if metric_hem is None:
                     metric_hem = frame
                 else:
-
                     metric_hem = metric_hem.merge(frame)
                    
             dframes_tmp.append(metric_hem)
