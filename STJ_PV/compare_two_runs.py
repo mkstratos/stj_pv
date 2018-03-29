@@ -109,7 +109,9 @@ def main():
         'ERAI-KP': {'file': './ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
                     'label': 'ERAI K-P'}
     }
-
+    plt.rc('font', size=14)
+    extn = 'eps'
+    sns.set_style('whitegrid')
     fig_width = 110 / 25.4
     in_names = ['NCEP-PV', 'NCEP-Umax']
     #in_names = ['ERAI-Theta5', 'ERAI-Theta']
@@ -121,16 +123,21 @@ def main():
     data = fds[0].append_metric(fds[1])
     diff = fds[0] - fds[1]
     # Make violin plot grouped by hemisphere, then season
-    fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_width * 2))
+    fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_width * 2), sharex=True)
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
                    split=True, inner='quart', ax=axes[0], cut=0)
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
                    split=True, inner='quart', ax=axes[1], cut=0)
-    fig.legend()
+    fig.subplots_adjust(left=0.14, bottom=0.07, right=0.97, top=0.95, hspace=0.0)
+    fig.legend(bbox_to_anchor=(0.15, 0.93), loc='upper left', borderaxespad=0.)
+
     for axis in axes:
         axis.legend_.remove()
+        axis.tick_params(axis='y', rotation=90)
+        axis.grid(b=True, ls='--', zorder=-1)
+    fig.suptitle('Distribution of seasonal jet latitude')
 
-    plt.savefig('plt_dist_{}-{}.png'.format(*in_names))
+    plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
     plt.close()
 
 
@@ -149,12 +156,12 @@ def main():
 
     axes[0, 0].legend()
     plt.tight_layout()
-    plt.savefig('plt_diff_timeseries_{}-{}.png'.format(*in_names))
+    plt.savefig('plt_diff_timeseries_{}-{}.{ext}'.format(ext=extn, *in_names))
 
     # Make a bar chart of mean difference
     sns.factorplot(x='season', y='lat', col='hem', data=diff, kind='bar')
     plt.tight_layout()
-    plt.savefig('plt_diff_bar_{}-{}.png'.format(*in_names))
+    plt.savefig('plt_diff_bar_{}-{}.{ext}'.format(ext=extn, *in_names))
 
 
 if __name__ == "__main__":
