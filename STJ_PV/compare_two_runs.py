@@ -140,6 +140,9 @@ def main():
     data = fds[0].append_metric(fds[1])
     diff = fds[0] - fds[1]
     # Make violin plot grouped by hemisphere, then season
+    # NOTE: I've changed the seaborn.violinplot code to make the quartile lines
+    # solid rather than dashed, may want to come back to this and figure out a way
+    # to implement it in a nice (non-hacked!) way for others and PR it to seaborn
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
     vp0 = sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
                          split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0)
