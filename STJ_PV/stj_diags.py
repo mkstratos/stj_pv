@@ -72,7 +72,7 @@ class DiagPlots(object):
         for hidx, shem in enumerate([True, False]):
             ax2 = self.plot_zonal_slice(data, shem, hidx, tix, axes)
 
-        axes[0].set_ylabel(r'$\theta$ [K]')
+        axes[0].set_ylabel(r'$\theta$ [K]', rotation='horizontal')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
 
         # Combine legends from axes[1] and its twin
@@ -92,8 +92,13 @@ class DiagPlots(object):
         for lati in self.jet_info['jet_idx']:
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
 
-        axes[3].tick_params(left='off', labelleft='off', labeltop='off')
+        axes[3].tick_params(left='on', labelleft='on', labeltop='off', right='off',
+                            labelright='off')
         axes[3].ticklabel_format(axis='y', style='plain')
+        ytick_lats = np.arange(-60, 60 + 30, 30)
+        _, yticks = pmap(np.zeros(ytick_lats.shape), ytick_lats)
+        axes[3].set_yticks(yticks)
+        axes[3].set_yticklabels(ytick_lats)
         axes[3].set_ylim([map_y[:, 0].min(), map_y[:, 0].max()])
 
         axes[0].text(-88, 399, '(a)', verticalalignment='top', horizontalalignment='left')
@@ -102,13 +107,27 @@ class DiagPlots(object):
         axes[3].set_title('(d)')
         axes[3].set_xlabel(r'u wind [$m\,s^{-1}$]')
 
-        cbar_ax = fig.add_axes([0.15, 0.055, .7, .01])
-        fig.colorbar(cfill, cax=cbar_ax, orientation='horizontal', format='%3.1f',
-                     label=r'u wind [$m\,s^{-1}$]')
+        # Colorbar axis
+        cbar_ax = fig.add_axes([0.06, 0.25, .01, .5])
+        cbar = fig.colorbar(cfill, cax=cbar_ax, orientation='vertical', format='%.0f',
+                            label=r'u wind [$m\,s^{-1}$]')
 
-        fig.subplots_adjust(left=0.1, bottom=0.12, right=0.92, top=0.96,
+        cbar.ax.set_yticklabels(cbar.ax.get_yticklabels(), rotation='vertical')
+        cbar.ax.yaxis.set_ticks_position('left')
+        cbar.ax.yaxis.set_label_position('left')
+
+        fig.subplots_adjust(left=0.15, bottom=0.10, right=0.92, top=0.96,
                             wspace=0.0, hspace=0.27)
+
+        # Basemap is finicky, so subplots_adjust doesn't always work with it well
+        # Use this to set the position of the map so it lines up with the zonal mean
+        # diagram, Axis.get_position() returns the location of each axis, the .bounds
+        # of this gives the [x, y, width, height], which matches the Axis.set_position()
         axes[2].set_position([0.0, 0.12, 0.75, .24])
+        ax3_c = axes[3].get_position().bounds
+        ax2_c = axes[2].get_position().bounds
+        axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
+
         plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m'), EXTN))
 
     def plot_zonal_slice(self, data, shem, hidx, tix, axes):
@@ -140,20 +159,20 @@ class DiagPlots(object):
         # Plot mean theta profile
         axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'k.',
                         ms=2.0 * self.fig_mult,
-                        label=r'$\theta_{%iPVU}$' % self.props.config['pv_value'])
+                        label=r'$\theta_{%i}$' % self.props.config['pv_value'])
 
         # Plot Mean theta fit
         axes[hidx].plot(lat[y_s:y_e], np.mean(theta_fit_eval[tix, ...], axis=0), 'C0-',
-                        label=r'$\theta_{%iPVU}$ Fit' % self.props.config['pv_value'],
+                        label=r'$\theta_{%i}$ Fit' % self.props.config['pv_value'],
                         lw=lwid)
         if y_s is not None:
             axes[hidx].plot(lat[jet_pos],
                             np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos - y_s],
-                            'C0o', ms=5 * self.fig_mult, label='Jet Location')
+                            'C0o', ms=5 * self.fig_mult, label='Jet')
         else:
             axes[hidx].plot(lat[jet_pos],
                             np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos],
-                            'C0o', ms=5 * self.fig_mult, label='Jet Location')
+                            'C0o', ms=5 * self.fig_mult, label='Jet')
 
         # Duplicate the axis
         ax2 = axes[hidx].twinx()
@@ -161,13 +180,15 @@ class DiagPlots(object):
         # Plot meridional derivative of theta on X PVU, have to use a correction for
         # y_e since the y-derivitive is shifted
         if y_e is not None:
-            ax2.plot(lat[y_s:y_e - 1], np.ma.mean(dtheta[tix, 1:, ...], axis=-1), 'C2x--',
-                     label=r'$\partial\theta_{%iPVU}/\partial\phi$' %
-                     self.props.config['pv_value'], lw=lwid)
+            y_s_dth = 1
+            y_e_dth = y_e - 1
         else:
-            ax2.plot(lat[y_s:y_e], np.ma.mean(dtheta[tix, ...], axis=-1), 'C2x--',
-                     label=r'$\partial\theta_{%iPVU}/\partial\phi$' %
-                     self.props.config['pv_value'], lw=lwid)
+            y_s_dth = None
+            y_e_dth = y_e
+
+        ax2.plot(lat[y_s:y_e_dth], np.ma.mean(dtheta[tix, y_s_dth:, ...], axis=-1),
+                 'C2--', label=r'$\partial\theta_{%i}/\partial\phi$' %
+                 self.props.config['pv_value'], lw=lwid)
 
         # Restrict axis to only between 280 - 400K
         axes[hidx].set_ylim([300, 400])
@@ -316,7 +337,7 @@ def main():
 
     jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     diags = DiagPlots(jf_run, stj_metric.STJPV)
-    diags.test_method_plot(dt.datetime(2015, 6, 1))
+    diags.test_method_plot(dt.datetime(2015, 1, 1))
 
     try:
         # Remove log file created by JF_RUN, comment this out if there's a problem
