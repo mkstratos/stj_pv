@@ -13,7 +13,7 @@ import stj_metric
 import run_stj
 
 # Define the plot output extention
-EXTN = 'eps'
+EXTN = 'png'
 
 
 class DiagPlots(object):
@@ -158,10 +158,16 @@ class DiagPlots(object):
         # Duplicate the axis
         ax2 = axes[hidx].twinx()
 
-        # Plot meridional derivative of theta on X PVU
-        ax2.plot(lat[y_s:y_e], np.ma.mean(dtheta[tix, ...], axis=-1), 'C2--',
-                 label=r'$\partial\theta_{%iPVU}/\partial\phi$' %
-                 self.props.config['pv_value'], lw=lwid)
+        # Plot meridional derivative of theta on X PVU, have to use a correction for
+        # y_e since the y-derivitive is shifted
+        if y_e is not None:
+            ax2.plot(lat[y_s:y_e - 1], np.ma.mean(dtheta[tix, 1:, ...], axis=-1), 'C2x--',
+                     label=r'$\partial\theta_{%iPVU}/\partial\phi$' %
+                     self.props.config['pv_value'], lw=lwid)
+        else:
+            ax2.plot(lat[y_s:y_e], np.ma.mean(dtheta[tix, ...], axis=-1), 'C2x--',
+                     label=r'$\partial\theta_{%iPVU}/\partial\phi$' %
+                     self.props.config['pv_value'], lw=lwid)
 
         # Restrict axis to only between 280 - 400K
         axes[hidx].set_ylim([300, 400])
