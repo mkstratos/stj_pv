@@ -13,7 +13,7 @@ import stj_metric
 import run_stj
 
 # Define the plot output extention
-EXTN = 'png'
+EXTN = 'pdf'
 
 
 class DiagPlots(object):
@@ -127,8 +127,9 @@ class DiagPlots(object):
         ax3_c = axes[3].get_position().bounds
         ax2_c = axes[2].get_position().bounds
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
-
         plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m'), EXTN))
+        plt.clf()
+        plt.close()
 
     def plot_zonal_slice(self, data, shem, hidx, tix, axes):
         """
@@ -335,15 +336,19 @@ class DiagPlots(object):
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    diags = DiagPlots(jf_run, stj_metric.STJPV)
-    diags.test_method_plot(dt.datetime(2015, 1, 1))
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
 
-    try:
-        # Remove log file created by JF_RUN, comment this out if there's a problem
-        os.remove(jf_run.config['log_file'])
-    except OSError:
-        print('Log file not found: {}'.format(jf_run.config['log_file']))
+    # This loop does not work well if outputting to .eps files, just run the code twice
+    for date in dates:
+        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+        diags = DiagPlots(jf_run, stj_metric.STJPV)
+        diags.test_method_plot(date)
+
+        try:
+            # Remove log file created by JF_RUN, comment this out if there's a problem
+            os.remove(jf_run.config['log_file'])
+        except OSError:
+            print('Log file not found: {}'.format(jf_run.config['log_file']))
 
 
 if __name__ == "__main__":
