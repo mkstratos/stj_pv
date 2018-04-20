@@ -91,9 +91,8 @@ class FileDiag(object):
 
         df1 = self.metric
         df2 = other.metric
-        import pdb;pdb.set_trace()
-        #assert all(df1.time == df2.time), 'Not all times match, subtraction invalid'
-        assert (df1.time - df2.time).sum() == pd.Timedelta(0)
+        assert (df1.time - df2.time).sum() == pd.Timedelta(0), 'Not all times match'
+
         # Get a set of all variables common to both datasets
         var_names = self.vars.intersection(other.vars)
 
@@ -135,6 +134,9 @@ def main():
         'ERAI-Theta-Day': {'file':
                     'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
                        'label': 'Daily ERAI PV'},
+        'ERAI-Regrid': {'file':
+            'ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
+                        'label': 'ERAI Theta 2.5'},
         'ERAI-Uwind': {'file':
                        'ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
                        'label': 'ERAI U-Wind'},
@@ -153,7 +155,7 @@ def main():
     fig_height = 11.5 / 2.54
 
     # in_names = ['NCEP-PV', 'NCEP-Umax']
-    in_names = ['ERAI-Theta', 'ERAI-Theta-Day']
+    in_names = ['NCEP-PV', 'ERAI-Regrid']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     data = fds[0].append_metric(fds[1])
@@ -186,6 +188,7 @@ def main():
     if fds[0].start_t != fds[1].start_t or fds[0].end_t != fds[1].end_t:
         fds[0].time_subset(fds[1])
     diff = fds[0] - fds[1]
+
     # Make timeseries plot for each hemisphere, and difference in each
     fig, axes = plt.subplots(2, 2, figsize=(15, 5))
     for idx, dfh in enumerate(data.groupby('hem')):
