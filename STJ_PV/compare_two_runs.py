@@ -11,6 +11,8 @@ SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
+NC_DIR = './jet_out'
+
 
 class FileDiag(object):
     """
@@ -18,7 +20,7 @@ class FileDiag(object):
     """
     def __init__(self, info, opts_hem=None):
         self.name = info['label']
-        self.d_s = xr.open_dataset(info['file'])
+        self.d_s = xr.open_dataset('{}/{}'.format(NC_DIR, info['file']))
 
         self.dframe = None
         self.vars = None
@@ -69,12 +71,29 @@ class FileDiag(object):
         assert isinstance(other, FileDiag)
         return self.metric.append(other.metric)
 
+    def time_subset(self, other):
+        """Make two fds objects have matching times."""
+        if self.metric.shape[0] > other.metric.shape[0]:
+            # self is bigger
+            fds0 = self.metric.loc[sorted(other.metric.time[other.metric.hem == 'nh'])]
+            self.metric = fds0
+            self.start_t = self.metric.index[0]
+            self.end_t = self.metric.index[-1]
+        else:
+            # other is bigger
+            fds1 = other.metric.loc[sorted(self.metric.time[self.metric.hem == 'nh'])]
+            other.metric = fds1
+            other.start_t = other.metric.index[0]
+            other.end_t = other.metric.index[-1]
+
     def __sub__(self, other):
         hems = ['nh', 'sh']
 
         df1 = self.metric
         df2 = other.metric
-        assert all(df1.time == df2.time), 'Not all times match, subtraction invalid'
+        import pdb;pdb.set_trace()
+        #assert all(df1.time == df2.time), 'Not all times match, subtraction invalid'
+        assert (df1.time - df2.time).sum() == pd.Timedelta(0)
         # Get a set of all variables common to both datasets
         var_names = self.vars.intersection(other.vars)
 
@@ -107,38 +126,38 @@ class FileDiag(object):
 def main():
     """Selects two files to compare, loads and plots them."""
     file_info = {
-        'NCEP-PV': {'file': './NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
+        'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
                     'label': 'NCEP PV'},
-        'NCEP-Umax': {'file': './NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
+        'NCEP-Umax': {'file': 'NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
                       'label': 'NCEP U-max'},
-        'ERAI-Theta': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
+        'ERAI-Theta': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
                        'label': 'ERAI PV'},
+        'ERAI-Theta-Day': {'file':
+                    'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
+                       'label': 'Daily ERAI PV'},
         'ERAI-Uwind': {'file':
-                       './ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
+                       'ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
                        'label': 'ERAI U-Wind'},
-        'ERAI-Theta5': {'file': './ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
+        'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
                         'label': 'ERAI Theta5'},
-        'ERAI-Pres': {'file': './ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
+        'ERAI-Pres': {'file': 'ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
                       'label': 'ERAI PV'},
-        'ERAI-KP': {'file': './ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
+        'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
                     'label': 'ERAI K-P'}
     }
 
     plt.rc('font', size=9)
-    extn = 'eps'
+    extn = 'png'
     sns.set_style('whitegrid')
     fig_width = 9.5 / 2.54
     fig_height = 11.5 / 2.54
 
     # in_names = ['NCEP-PV', 'NCEP-Umax']
-    in_names = ['ERAI-Theta', 'ERAI-Uwind']
+    in_names = ['ERAI-Theta', 'ERAI-Theta-Day']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
-    assert fds[0].start_t == fds[1].start_t, 'Start dates are different'
-    assert fds[0].end_t == fds[1].end_t, 'End dates are different'
-
     data = fds[0].append_metric(fds[1])
-    diff = fds[0] - fds[1]
+
     # Make violin plot grouped by hemisphere, then season
     # NOTE: I've changed the seaborn.violinplot code to make the quartile lines
     # solid rather than dashed, may want to come back to this and figure out a way
@@ -164,6 +183,9 @@ def main():
     plt.close()
 
 
+    if fds[0].start_t != fds[1].start_t or fds[0].end_t != fds[1].end_t:
+        fds[0].time_subset(fds[1])
+    diff = fds[0] - fds[1]
     # Make timeseries plot for each hemisphere, and difference in each
     fig, axes = plt.subplots(2, 2, figsize=(15, 5))
     for idx, dfh in enumerate(data.groupby('hem')):
