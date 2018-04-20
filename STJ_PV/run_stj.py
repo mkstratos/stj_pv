@@ -193,8 +193,11 @@ class JetFindRun(object):
 
         if self.data_cfg['single_year_file']:
             for year in range(date_s.year, date_e.year + 1):
-                self.log.info('FIND JET FOR %d', year)
-                data = self._get_data(date_s, date_e)
+                _date_s = dt.datetime(year, 1, 1)
+                _date_e = dt.datetime(year, 12, 31)
+                self.log.info('FIND JET FOR %s - %s', _date_s.strftime('%Y-%m-%d'),
+                              _date_e.strftime('%Y-%m-%d'))
+                data = self._get_data(_date_s, _date_e)
                 jet = self.metric(self, data)
 
                 for shemis in [True, False]:
@@ -375,8 +378,9 @@ def main():
     # Generate an STJProperties, allows easy access to these properties across methods.
 
     #jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+    #jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2016, 12, 31)
 
