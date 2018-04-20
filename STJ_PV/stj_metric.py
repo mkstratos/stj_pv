@@ -10,7 +10,7 @@ from scipy import signal as sig
 import utils
 import data_out as dio
 
-from netCDF4 import num2date
+from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
 
@@ -111,7 +111,15 @@ class STJMetric(object):
         self.jet_intens = np.append(self.jet_intens, other.jet_intens, axis=1)
         if self.jet_theta is not None:
             self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
-        self.time = np.append(self.time, other.time, axis=0)
+
+        # Double check the units!
+        if self.data.time_units == other.data.time_units:
+            self.time = np.append(self.time, other.time, axis=0)
+        else:
+            # Convert other's time to our time
+            _other_dates = num2date(other.time, other.data.time_units)
+            _other_time = date2num(_other_dates, self.data.time_units)
+            self.time = np.append(self.time, _other_time, axis=0)
 
 
 class STJPV(STJMetric):
