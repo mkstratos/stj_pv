@@ -7,13 +7,14 @@ import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
+import pandas as pd
 
 import input_data
 import stj_metric
 import run_stj
 
 # Define the plot output extention
-EXTN = 'pdf'
+EXTN = 'png'
 
 
 class DiagPlots(object):
@@ -81,7 +82,9 @@ class DiagPlots(object):
         ax2.legend(h_1 + h_2, l_1 + l_2, loc='upper right', fancybox=False)
 
         # Plot wind map
-        cfill, pmap = self.plot_uwnd(data, axes[2], (tix, zix), map_zm=True)
+        # If the zonal_opt is not 'mean', then plot the jet lat at each longitude
+        zm_opt = self.props.config['zonal_opt'] == 'mean'
+        cfill, pmap = self.plot_uwnd(data, axes[2], (tix, zix), map_zm=zm_opt)
 
         # Add plot of zmzw as function of latitude
         axes[3].spines['right'].set_color('none')
@@ -91,6 +94,10 @@ class DiagPlots(object):
 
         for lati in self.jet_info['jet_idx']:
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
+            x_loc = axes[3].get_xlim()[-1]
+            y_loc = map_y[lati, 0] * 1.03
+            axes[3].text(x_loc, y_loc, '{:.1f}'.format(data.lat[lati]),
+                         verticalalignment='bottom', horizontalalignment='left')
 
         axes[3].tick_params(left='on', labelleft='on', labeltop='off', right='off',
                             labelright='off')
@@ -127,7 +134,7 @@ class DiagPlots(object):
         ax3_c = axes[3].get_position().bounds
         ax2_c = axes[2].get_position().bounds
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
-        plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m'), EXTN))
+        plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m-%d'), EXTN))
         plt.clf()
         plt.close()
 
@@ -283,7 +290,7 @@ class DiagPlots(object):
         else:
             for hidx in [0, 1]:
                 xpt, ypt = pmap(data.lon, self.jet_info['lat_all'][hidx][tix])
-                pmap.plot(xpt, ypt, 'k-')
+                pmap.plot(xpt, ypt, 'k.')
 
         return cfill, pmap
 
@@ -336,11 +343,18 @@ class DiagPlots(object):
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
+    # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
+    dates = pd.date_range('2009-01-20', '2009-02-15', freq='d')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
-        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+        #jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+        jf_run = run_stj.JetFindRun('./conf/stj_config_ncep.yml')
+
+        # Force update_pv and force_write to be False, optional override of zonal-mean
+        jf_run.config['update_pv'] = False
+        jf_run.config['force_write'] = False
+        jf_run.config['zonal_opt'] = 'indv'
         diags = DiagPlots(jf_run, stj_metric.STJPV)
         diags.test_method_plot(date)
 
