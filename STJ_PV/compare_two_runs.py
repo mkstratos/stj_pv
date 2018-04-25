@@ -40,6 +40,8 @@ class FileDiag(object):
         self.dframe = self.d_s.to_dataframe()
 
         self.vars = set([var.split('_')[0] for var in self.dframe])
+        if 'time' in self.vars:
+            self.vars.remove('time')
         dframes = [[pd.DataFrame({var: self.dframe['{}_{}'.format(var, hem)], 'hem': hem})
                     for var in self.vars] for hem in hems]
         dframes_tmp = []
@@ -58,7 +60,6 @@ class FileDiag(object):
 
         if len(hems) == 3:  # If eq is also wanted
             metric = metric.append(dframes_tmp[2])
-
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
@@ -125,11 +126,18 @@ class FileDiag(object):
 def main():
     """Selects two files to compare, loads and plots them."""
     file_info = {
+        'NCEP-mon': {'file':
+                'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
+                     'label': 'NCEP Monthly'},
+        'NCEP-day': {'file':
+                'NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
+                     'label': 'NCEP Daily'},
         'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
                     'label': 'NCEP PV'},
         'NCEP-Umax': {'file': 'NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
                       'label': 'NCEP U-max'},
-        'ERAI-Theta': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0.nc',
+        'ERAI-Theta': {'file':
+            'ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
                        'label': 'ERAI PV'},
         'ERAI-Theta-Day': {'file':
                     'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
@@ -154,8 +162,7 @@ def main():
     fig_width = 9.5 / 2.54
     fig_height = 11.5 / 2.54
 
-    # in_names = ['NCEP-PV', 'NCEP-Umax']
-    in_names = ['NCEP-PV', 'ERAI-Regrid']
+    in_names = ['ERAI-Theta', 'ERAI-Theta-Day']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     data = fds[0].append_metric(fds[1])
@@ -196,7 +203,7 @@ def main():
         axes[idx, 1].plot(diff.lat[diff.hem == hem])
 
         for kind, dfk in dfh[1].groupby('kind'):
-            axes[idx, 0].plot(dfk.theta, label=kind)
+            axes[idx, 0].plot(dfk.lat, label=kind)
         axes[idx, 0].set_title(HEMS[hem])
         axes[idx, 1].set_title('{} Difference'.format(HEMS[hem]))
         axes[idx, 0].grid(b=True, ls='--')
