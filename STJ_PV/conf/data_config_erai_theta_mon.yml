@@ -9,8 +9,6 @@ single_year_file:       True    # Years are in multiple files (if True)
 file_paths:
             'all':      'erai_theta_{year:04d}.nc'
             'ipv':      'erai_theta_{year:04d}.nc'
-            'tpause':   'erai_tpause_{year:04d}.nc'
-            'dyn_trop': 'erai_dyn_trop_theta_{year:04d}.nc'
 
 lon:        'longitude' # Name within netCDF file of 'longitude' variable
 lat:        'latitude'  # Name within netCDF file of 'latitude' variable
