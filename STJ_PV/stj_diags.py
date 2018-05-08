@@ -58,9 +58,9 @@ class DiagPlots(object):
         data.get_data_input()
         self.stj = self.metric(self.props, data)
         tix = 0
-        zix = 7
-        fig = plt.figure(figsize=self._get_figsize())
+        zix = 6
 
+        fig = plt.figure(figsize=self._get_figsize())
         axes = [plt.subplot2grid((3, 4), (0, 0), rowspan=2, colspan=2),
                 plt.subplot2grid((3, 4), (0, 2), rowspan=2, colspan=2),
                 plt.subplot2grid((3, 4), (2, 0), rowspan=1, colspan=3),
@@ -134,7 +134,9 @@ class DiagPlots(object):
         ax3_c = axes[3].get_position().bounds
         ax2_c = axes[2].get_position().bounds
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
-        plt.savefig('plt_jet_props_{}.{}'.format(date.strftime('%Y-%m-%d'), EXTN))
+        plt.savefig('plt_stj_diag_{}_{}K_{}.{}'
+                    .format(self.props.data_cfg['short_name'], data.th_lev[zix],
+                            date.strftime('%Y-%m-%d'), EXTN))
         plt.clf()
         plt.close()
 
@@ -344,12 +346,12 @@ def main():
     """Generate jet finder, make diagnostic plots."""
 
     # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
-    dates = pd.date_range('2009-01-20', '2009-02-15', freq='d')
+    dates = pd.date_range('2009-01-01', '2009-03-01', freq='d')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
         #jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-        jf_run = run_stj.JetFindRun('./conf/stj_config_ncep.yml')
+        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta_daily.yml')
 
         # Force update_pv and force_write to be False, optional override of zonal-mean
         jf_run.config['update_pv'] = False
