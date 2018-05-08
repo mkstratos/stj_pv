@@ -137,8 +137,8 @@ def main():
         'NCEP-Umax': {'file': 'NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
                       'label': 'NCEP U-max'},
         'ERAI-Theta': {'file':
-            'ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                       'label': 'ERAI PV'},
+            'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
+                       'label': 'Monthly ERAI PV'},
         'ERAI-Theta-Day': {'file':
                     'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
                        'label': 'Daily ERAI PV'},
@@ -162,7 +162,7 @@ def main():
     fig_width = 9.5 / 2.54
     fig_height = 11.5 / 2.54
 
-    in_names = ['ERAI-Theta', 'ERAI-Theta-Day']
+    in_names = ['NCEP-mon', 'NCEP-day']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     data = fds[0].append_metric(fds[1])
