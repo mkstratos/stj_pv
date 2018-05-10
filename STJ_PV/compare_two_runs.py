@@ -139,9 +139,18 @@ def main():
         'ERAI-Theta': {'file':
             'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
                        'label': 'Monthly ERAI PV'},
+        'ERAI-Theta-5': {'file':
+            'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_1979-01-01_2016-12-31.nc',
+                         'label': 'B Monthly ERAI PV 5.0˚'},
+        'ERAI-Theta-DM': {'file':
+            'ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
+                          'label': 'A Monthly mean of daily ERAI PV'},
         'ERAI-Theta-Day': {'file':
                     'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                       'label': 'Daily ERAI PV'},
+                           'label': 'Daily ERAI PV'},
+        'ERAI-Theta-Day-5': {'file':
+            'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_1979-01-01_2016-12-31.nc',
+                             'label': 'B Daily ERAI PV 5.0˚'},
         'ERAI-Regrid': {'file':
             'ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
                         'label': 'ERAI Theta 2.5'},
@@ -153,16 +162,23 @@ def main():
         'ERAI-Pres': {'file': 'ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
                       'label': 'ERAI PV'},
         'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
-                    'label': 'ERAI K-P'}
+                    'label': 'ERAI K-P'},
+        'ERAI-Theta_LR': {'file':
+        'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_1979-01-01_2016-12-31.nc',
+                       'label': 'B Monthly ERAI PV'},
+        'ERAI-Theta-Day_LR': {'file':
+            'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_1979-01-01_2016-12-31.nc',
+                           'label': 'A Daily ERAI PV'},
     }
 
     plt.rc('font', size=9)
-    extn = 'png'
+    extn = 'eps'
     sns.set_style('whitegrid')
     fig_width = 9.5 / 2.54
     fig_height = 11.5 / 2.54
 
-    in_names = ['NCEP-mon', 'NCEP-day']
+    in_names = ['ERAI-Regrid', 'NCEP-mon']
+    #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     data = fds[0].append_metric(fds[1])
