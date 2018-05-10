@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Script to compare two or more runs of STJ Find."""
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,9 +8,9 @@ import xarray as xr
 import scipy.stats as sts
 
 #plt.style.use('ggplot')
+NC_DIR = './jet_out'
 
-
-def main(param_name, param_vals, var_name='lat'):
+def main(param_name, param_vals, dates, var_name='lat'):
     """
     Compare jet latitudes of results from sensitivity runs of stj_run.
 
@@ -25,8 +26,9 @@ def main(param_name, param_vals, var_name='lat'):
     opts = {'run_type': 'ERAI_MONTHLY_THETA_STJPV', 'fit': 8, 'y0': 10, 'pv_lev': 2.0}
     opts.pop(param_name)
     opts_var = [{param_name: p_val} for p_val in param_vals]
-    file_fmt = '{run_type}_pv{pv_lev:.1f}_fit{fit:.0f}_y0{y0:03.1f}.nc'
-    files_in  = [file_fmt.format(**var, **opts) for var in opts_var]
+    file_fmt = '{run_type}_pv{pv_lev:.1f}_fit{fit:.0f}_y0{y0:03.1f}_{}_{}.nc'
+    file_fmt = os.path.join(NC_DIR, file_fmt)
+    files_in  = [file_fmt.format(*dates, **var, **opts) for var in opts_var]
     d_in = xr.concat([xr.open_dataset(in_f) for in_f in files_in], dim=param_name)
     d_in[param_name] = param_vals
 
@@ -133,13 +135,15 @@ if __name__ == "__main__":
             'theta': {'name': 'Theta Position', 'units': 'K'},
             'intens': {'name': 'Intensity', 'units': 'm/s'}}
     EXTN = 'eps'
-    sens = {'pv': {}, 'fit': {}}
+    dates = ('1979-01-01', '2016-12-31')
+    sens = {'pv': {}, 'fit': {}, 'y0': {}}
     for var_name in VARS:
-        sens['pv'][var_name] = main('pv_lev', np.arange(1.0, 4.5, 0.5), var_name)
-        sens['fit'][var_name] = main('fit', np.arange(5, 9), var_name)
+        sens['pv'][var_name] = main('pv_lev', np.arange(1.0, 4.5, 0.5), dates, var_name)
+        sens['fit'][var_name] = main('fit', np.arange(5, 9), dates, var_name)
+        sens['y0'][var_name] = main('y0', np.arange(2.5, 15, 2.5), dates, var_name)
 
     for hem in ['NH', 'SH']:
-        for var in ['pv', 'fit']:
+        for var in sens:
             out_line = '{} & {} & '.format(hem, var)
             for season in ['DJF', 'MAM', 'JJA', 'SON']:
                 if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
