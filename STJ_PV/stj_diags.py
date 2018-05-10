@@ -33,7 +33,7 @@ class DiagPlots(object):
         self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
 
         # Figure size set to 129 mm wide, 152 mm tall
-        self.fig_mult = 1.0
+        self.fig_mult = 1.
 
         plt.rc('text', usetex=True)
         plt.rc('text.latex', unicode=True)
@@ -92,8 +92,20 @@ class DiagPlots(object):
         _, map_y = pmap(*np.meshgrid(data.lon, data.lat))
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0], 'C1')
 
-        for lati in self.jet_info['jet_idx']:
+        for hidx, lati in enumerate(self.jet_info['jet_idx']):
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
+            # Mean vs. median
+            lat_median = np.median(self.jet_info['lat_all'][hidx][tix])
+            lat_iqr = (np.percentile(self.jet_info['lat_all'][hidx][tix], 75) -
+                       np.percentile(self.jet_info['lat_all'][hidx][tix], 25))
+
+            _, lat_q1 = pmap(0, lat_median - lat_iqr)
+            _, lat_q2 = pmap(0, lat_median + lat_iqr)
+
+            axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
+            axes[3].axhline(lat_q1, color='k', ls='--', lw=0.8 * self.fig_mult)
+            axes[3].axhline(lat_q2, color='k', ls='--', lw=0.8 * self.fig_mult)
+
             x_loc = axes[3].get_xlim()[-1]
             y_loc = map_y[lati, 0] * 1.03
             axes[3].text(x_loc, y_loc, '{:.1f}'.format(data.lat[lati]),
@@ -292,7 +304,7 @@ class DiagPlots(object):
         else:
             for hidx in [0, 1]:
                 xpt, ypt = pmap(data.lon, self.jet_info['lat_all'][hidx][tix])
-                pmap.plot(xpt, ypt, 'k.')
+                pmap.plot(xpt, ypt, 'k.', ax=axis)
 
         return cfill, pmap
 
@@ -346,7 +358,7 @@ def main():
     """Generate jet finder, make diagnostic plots."""
 
     # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
-    dates = pd.date_range('2009-01-01', '2009-03-01', freq='d')
+    dates = pd.date_range('1983-06-01', '1983-07-01', freq='d')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
