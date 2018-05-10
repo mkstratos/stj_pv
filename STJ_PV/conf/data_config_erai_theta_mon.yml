@@ -5,7 +5,8 @@ short_name: 'ERAI_MONTHLY_THETA'
 # multiple vars/file, single year/file - n_years files
 single_var_file:        False    # Variables are in multiple files (if True)
 single_year_file:       True    # Years are in multiple files (if True)
-
+lon_s: 45
+lon_e: 100
 file_paths:
             'all':      'erai_theta_{year:04d}.nc'
             'ipv':      'erai_theta_{year:04d}.nc'

@@ -142,6 +142,10 @@ class JetFindRun(object):
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
 
+        if 'lon_s' in self.data_cfg and 'lon_e' in self.data_cfg:
+            self.config['output_file'] += ('_lon{lon_s:0d}-{lon_e:0d}'
+                                           .format(**self.data_cfg))
+
         if date_s is not None and isinstance(date_s, dt.datetime):
             self.config['output_file'] += '_{}'.format(date_s.strftime('%Y-%m-%d'))
 
@@ -385,8 +389,8 @@ def main():
     date_e = dt.datetime(2016, 12, 31)
 
     jf_run.run(date_s, date_e)
-    # jf_run.run_sensitivity(sens_param='pv_value', sens_range=np.arange(1.0, 4.5, 0.5),
-    #                        year_s=1979, year_e=2016)
+    #jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(2.5, 15, 2.5),
+    #                       date_s=date_s, date_e=date_e)
     jf_run.log.info('JET FINDING COMPLETE')
 
 

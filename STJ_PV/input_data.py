@@ -198,10 +198,8 @@ class InputData(object):
                 self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
                                                                    file_name)))
                 nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
-            self.props.log.info("\tLOAD: {}".format(var))
-            self.in_data[var] = (nc_file.variables[vname][self.d_select, ...]
-                                 .astype(np.float16))
 
+            # Load coordinate variables
             if first_file:
                 if self.time is None:
                     self._load_time(pv_update)
@@ -212,7 +210,19 @@ class InputData(object):
                     else:
                         setattr(self, dvar, nc_file.variables[v_in_name][:])
 
+                if 'lon_s' in cfg and 'lon_e' in cfg:
+                    # TODO: take account of longitudes being -180 - 180 or 0 - 360
+                    lon_sel = np.logical_and(self.lon >= cfg['lon_s'],
+                                             self.lon <= cfg['lon_e'])
+                    self.lon = self.lon[lon_sel]
+                else:
+                    lon_sel = slice(None)
+
                 first_file = False
+
+            self.props.log.info("\tLOAD: {}".format(var))
+            self.in_data[var] = (nc_file.variables[vname][self.d_select, ..., lon_sel]
+                                 .astype(np.float16))
 
             if cfg['single_var_file']:
                 nc_file.close()
@@ -374,12 +384,23 @@ class InputData(object):
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         ipv_in = nc.Dataset(in_file, 'r')
-        self.ipv = ipv_in.variables[self.data_cfg['ipv']][self.d_select, ...] * 1e6
-        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][self.d_select, ...]
 
         coord_names = ['lat', 'lon']
         for cname in coord_names:
             setattr(self, cname, ipv_in.variables[self.data_cfg[cname]][:])
+
+        if 'lon_s' in self.data_cfg and 'lon_e' in self.data_cfg:
+            # TODO: take account of longitudes being -180 - 180 or 0 - 360
+            lon_sel = np.logical_and(self.lon >= self.data_cfg['lon_s'],
+                                     self.lon <= self.data_cfg['lon_e'])
+            self.lon = self.lon[lon_sel]
+        else:
+            lon_sel = slice(None)
+
+        self.ipv = ipv_in.variables[self.data_cfg['ipv']][self.d_select, ..., lon_sel]
+        self.ipv *= 1e6
+        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][self.d_select, ..., lon_sel]
+
         self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
         ipv_in.close()
 
