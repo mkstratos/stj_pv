@@ -586,17 +586,22 @@ class STJKangPolvani(STJMetric):
         name = 'KangPolvani'
         super(STJKangPolvani, self).__init__(name=name, props=props, data=data)
 
-        self.time = self.data.time[:]
-        self.dates = pd.DatetimeIndex(num2date(self.data.time, self.data.time_units))
+        self.dates = pd.DatetimeIndex(num2date(self.data.time[:], self.data.time_units))
 
-        self.jet_intens = np.zeros([2, self.dates.shape[0]])
-        self.jet_lat = np.zeros([2, self.dates.shape[0]])  #seasonal mean is expected
+        self.jet_intens_daily = np.zeros([2, self.dates.shape[0]])
+        self.jet_lat_daily = np.zeros([2, self.dates.shape[0]])  #seasonal mean is expected
 
         self.jet_lat_mm_dd = np.zeros([2, self.dates.shape[0]])
 
         #seasonal and monthly mean positions
         self.jet_lat_sm = np.zeros([2, 4])
         self.jet_lat_mm = np.zeros([2, 12])
+
+        #output monthly means for comparison
+        num_mon = len(np.unique(self.dates.year))*12
+        self.jet_lat    = np.zeros([2, num_mon])
+        self.jet_intens = np.zeros([2, num_mon])
+
 
     def find_jet(self, shemis=True):
         """
@@ -733,14 +738,26 @@ class STJKangPolvani(STJMetric):
 
         #for each day, find the jet position assuming the *seasonal* mean lat
         seas_idx = get_season(dates.month - 1)
-        self.jet_lat[hidx, :] = self.loop_jet_lat(del_f,
+        self.jet_lat_daily[hidx, :] = self.loop_jet_lat(del_f,
                                                   self.jet_lat_sm[hidx, seas_idx], lat)
 
         #assume the seasonal mean is a valid expected lat of the STJ
-        for tidx in range(self.jet_lat[hidx, :].shape[0]):
-            jet_lat_elem = np.where(lat == self.jet_lat[hidx, tidx])[0]
-            self.jet_intens[hidx, tidx] = np.mean(uwnd.values[tidx, :, jet_lat_elem, :],
+        for tidx in range(self.jet_lat_daily[hidx, :].shape[0]):
+            jet_lat_elem = np.where(lat == self.jet_lat_daily[hidx, tidx])[0]
+            self.jet_intens_daily[hidx, tidx] = np.mean(uwnd.values[tidx, :, jet_lat_elem, :],
                                                   axis=(1, -1), dtype=float)
+
+        #output the monthly mean of daily means for comparing the method 
+        jet_data = xr.DataArray(self.jet_lat_daily[hidx, :], coords=[self.dates],dims=['time'])
+        jet_data_mm = jet_data.resample(freq='MS', dim='time')
+        self.jet_lat[hidx, :] = jet_data_mm.values
+
+        jet_data = xr.DataArray(self.jet_intens_daily[hidx, :], coords=[self.dates],dims=['time'])
+        jet_data_mm = jet_data.resample(freq='MS', dim='time')
+        self.jet_intens[hidx, :] = jet_data_mm.values
+
+        dtimes = [dtime.to_pydatetime() for dtime in jet_data_mm.time.to_index()]
+        self.time = date2num(dtimes, self.data.time_units, self.data.calendar)
 
     def get_jet_loc(self, data, expected_lat, lat):
         """Get jet location based on sign changes of Del(f)."""
@@ -764,7 +781,7 @@ class STJKangPolvani(STJMetric):
         num_mm = self.jet_lat_mm_dd.shape[1] * self.jet_lat_mm_dd.shape[2]
         axis.plot(np.arange(0, num_mm), self.jet_lat_mm_dd.reshape(2, num_mm)[0, :],
                   c='k', linestyle='-')
-        axis.plot(np.arange(0, num_mm), self.jet_lat.reshape(2, num_mm)[0, :],
+        axis.plot(np.arange(0, num_mm), self.jet_lat_daily.reshape(2, num_mm)[0, :],
                   c='red', linestyle='-')
 
         filename = 'KP_mm.eps'

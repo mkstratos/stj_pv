@@ -384,9 +384,9 @@ def main():
     #jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
     #jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
     #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
     date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(2016, 12, 31)
+    date_e = dt.datetime(2015, 12, 31)
 
     jf_run.run(date_s, date_e)
     #jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(2.5, 15, 2.5),

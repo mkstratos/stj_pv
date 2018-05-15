@@ -11,7 +11,8 @@ SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
-NC_DIR = './jet_out'
+#NC_DIR = './jet_out'
+NC_DIR = '.'
 
 
 class FileDiag(object):
@@ -21,7 +22,7 @@ class FileDiag(object):
     def __init__(self, info, opts_hem=None):
         self.name = info['label']
         self.d_s = xr.open_dataset('{}/{}'.format(NC_DIR, info['file']))
-
+        
         self.dframe = None
         self.vars = None
         self.opt_hems = opts_hem
@@ -63,9 +64,14 @@ class FileDiag(object):
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
-        metric.index = metric['time']
+        # Make all times have Hour == 0
+        times = pd.DatetimeIndex(metric['time'])
+        if all(times.hour == times[0].hour):
+            times -= pd.Timedelta(hours=times[0].hour)
 
-        return metric, self.dframe.index[0], self.dframe.index[-1]
+        metric.index = times
+
+        return metric, metric.index[0], metric.index[-1]
 
     def append_metric(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
@@ -86,6 +92,7 @@ class FileDiag(object):
             other.metric = fds1
             other.start_t = other.metric.index[0]
             other.end_t = other.metric.index[-1]
+        
 
     def __sub__(self, other):
         hems = ['nh', 'sh']
@@ -159,9 +166,9 @@ def main():
                        'label': 'ERAI U-Wind'},
         'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
                         'label': 'ERAI Theta5'},
-        'ERAI-Pres': {'file': 'ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
+        'ERAI-Pres': {'file': 'ERAI_PRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
                       'label': 'ERAI PV'},
-        'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
+        'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
                     'label': 'ERAI K-P'},
         'ERAI-Theta_LR': {'file':
         'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_1979-01-01_2016-12-31.nc',
@@ -177,8 +184,12 @@ def main():
     fig_width = 9.5 / 2.54
     fig_height = 11.5 / 2.54
 
-    in_names = ['ERAI-Regrid', 'NCEP-mon']
+    #in_names = ['ERAI-Regrid', 'NCEP-mon']
+    #in_names = ['ERAI-Pres', 'ERAI-KP']
+    in_names = ['ERAI-Pres', 'ERAI-KP']
+
     #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
+
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     data = fds[0].append_metric(fds[1])
@@ -206,7 +217,6 @@ def main():
 
     plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
     plt.close()
-
 
     if fds[0].start_t != fds[1].start_t or fds[0].end_t != fds[1].end_t:
         fds[0].time_subset(fds[1])
