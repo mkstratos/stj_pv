@@ -144,7 +144,7 @@ def main():
         'NCEP-Umax': {'file': 'NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
                       'label': 'NCEP U-max'},
         'ERAI-Theta': {'file':
-            'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
+            'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31_mk.nc',
                        'label': 'Monthly ERAI PV'},
         'ERAI-Theta-5': {'file':
             'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_1979-01-01_2016-12-31.nc',

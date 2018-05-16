@@ -13,9 +13,9 @@ short_name: 'ERAI_PRES'
 single_var_file: True
 single_year_file: False
 file_paths:
-    uwnd: 'u200_19790101-20151231_dm.nc'
-    vwnd: 'v200_19790101-20151231_dm.nc'
-    all: 'v200_19790101-20151231_dm.nc'
+    uwnd: 'u_19790101-20151231_dm_subset_lev.nc'
+    vwnd: 'v_19790101-20151231_dm_subset_lev.nc'
+    all: 'v_19790101-20151231_dm_subset_lev.nc'
 
 lon: 'longitude'      # Name within netCDF file of 'longitude' variable
 lat: 'latitude'      # Name within netCDF file of 'latitude' variable
