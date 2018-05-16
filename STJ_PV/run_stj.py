@@ -16,9 +16,6 @@ import yaml
 import stj_metric
 import input_data as inp
 
-
-import pdb
-
 np.seterr(all='ignore')
 warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 
@@ -82,7 +79,7 @@ class JetFindRun(object):
 
 
         if self.data_cfg['single_var_file']:
-            for var in ['uwnd', 'vwnd', 'tair', 'omega']:   #TODO: Need to change list
+            for var in ['uwnd', 'vwnd', 'tair', 'omega']:   # TODO: Need to change list
                 if var not in self.data_cfg['file_paths']:
                     # This replicates the path in 'all' so each variable points to it
                     # this allows for the same loop no matter if data is in multiple files
@@ -92,6 +89,11 @@ class JetFindRun(object):
             # Sometimes, can't write to original data's path, so wpath is set
             # if it isn't, then wpath == path is fine, set that here
             self.data_cfg['wpath'] = self.data_cfg['path']
+
+        # Pre-define all attributes
+        self.th_levels = None
+        self.p_levels = None
+        self.metric = None
 
         self._set_metric()
         self.log_setup()
@@ -291,14 +293,14 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
     # When either `missing` or `wrong_type` have values, this will evaluate `True`
     if missing or wrong_type:
         print(u'{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
-                                           'KEYS MISSING OR WRONG TYPE', 12 * '<'))
+                                            'KEYS MISSING OR WRONG TYPE', 12 * '<'))
 
 
         for key in missing:
             print(u'    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
         for key in wrong_type:
-            print(u'    {} ({}) IS WRONG TYPE SHOULD BE {}'.format(key, type(config[key]),
-                                                                  required_keys_all[key]))
+            print(u'    {} ({}) IS WRONG TYPE SHOULD BE {}'
+                  .format(key, type(config[key]), required_keys_all[key]))
         mkeys = True
     else:
         mkeys = False
