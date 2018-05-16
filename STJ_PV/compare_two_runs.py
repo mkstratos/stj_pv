@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
 """Script to compare two or more runs of STJ Find."""
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
-import pdb
 
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
+
 NC_DIR = './jet_out'
+if not os.path.exists(NC_DIR):
+    NC_DIR = '.'
 
 
 class FileDiag(object):
@@ -63,9 +66,14 @@ class FileDiag(object):
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
-        metric.index = metric['time']
+        # Make all times have Hour == 0
+        times = pd.DatetimeIndex(metric['time'])
+        if all(times.hour == times[0].hour):
+            times -= pd.Timedelta(hours=times[0].hour)
 
-        return metric, self.dframe.index[0], self.dframe.index[-1]
+        metric.index = times
+
+        return metric, metric.index[0], metric.index[-1]
 
     def append_metric(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
@@ -125,51 +133,54 @@ class FileDiag(object):
 
 def main():
     """Selects two files to compare, loads and plots them."""
-    file_info = {
-        'NCEP-mon': {'file':
-                'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                     'label': 'NCEP Monthly'},
-        'NCEP-day': {'file':
-                'NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                     'label': 'NCEP Daily'},
-        'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
-                    'label': 'NCEP PV'},
-        'NCEP-Umax': {'file': 'NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc',
-                      'label': 'NCEP U-max'},
-        'ERAI-Theta': {'file':
-            'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                       'label': 'Monthly ERAI PV'},
-        'ERAI-Theta-5': {'file':
-            'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_1979-01-01_2016-12-31.nc',
-                         'label': 'B Monthly ERAI PV 5.0˚'},
-        'ERAI-Theta-DM': {'file':
-            'ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                          'label': 'A Monthly mean of daily ERAI PV'},
-        'ERAI-Theta-Day': {'file':
-                    'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                           'label': 'Daily ERAI PV'},
-        'ERAI-Theta-Day-5': {'file':
-            'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_1979-01-01_2016-12-31.nc',
-                             'label': 'B Daily ERAI PV 5.0˚'},
-        'ERAI-Regrid': {'file':
-            'ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_1979-01-01_2016-12-31.nc',
-                        'label': 'ERAI Theta 2.5'},
-        'ERAI-Uwind': {'file':
-                       'ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
-                       'label': 'ERAI U-Wind'},
-        'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
-                        'label': 'ERAI Theta5'},
-        'ERAI-Pres': {'file': 'ERAI_PRES_STJPV_pv2.0_fit10_y010.0.nc',
-                      'label': 'ERAI PV'},
-        'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2016-01-01.nc',
-                    'label': 'ERAI K-P'},
-        'ERAI-Theta_LR': {'file':
-        'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_1979-01-01_2016-12-31.nc',
-                       'label': 'B Monthly ERAI PV'},
-        'ERAI-Theta-Day_LR': {'file':
-            'ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_1979-01-01_2016-12-31.nc',
-                           'label': 'A Daily ERAI PV'},
-    }
+    file_info = {'NCEP-mon':
+                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly'},
+                 'NCEP-day':
+                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily'},
+
+                 'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
+                             'label': 'NCEP PV'},
+                 'NCEP-Umax': {'file': ('NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0'
+                                        '_y010.0.nc'), 'label': 'NCEP U-max'},
+                 'ERAI-Theta':
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV'},
+                 'ERAI-Theta-5':
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_'
+                           '1979-01-01_2016-12-31.nc'),
+                  'label': 'B Monthly ERAI PV 5.0˚'},
+                 'ERAI-Theta-DM':
+                 {'file': ('ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2016-12-31.nc'),
+                  'label': 'A Monthly mean of daily ERAI PV'},
+                 'ERAI-Theta-Day':
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV'},
+                 'ERAI-Theta-Day-5':
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'B Daily ERAI PV 5.0˚'},
+                 'ERAI-Regrid':
+                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
+                 'ERAI-Uwind':
+                 {'file': 'ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
+                  'label': 'ERAI U-Wind'},
+                 'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
+                                 'label': 'ERAI Theta5'},
+                 'ERAI-Pres':
+                 {'file': 'ERAI_PRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
+                  'label': 'ERAI PV'},
+                 'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
+                             'label': 'ERAI K-P'},
+                 'ERAI-Theta_LR':
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV Slice'},
+                 'ERAI-Theta-Day_LR':
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
+                }
 
     plt.rc('font', size=9)
     extn = 'eps'
@@ -177,8 +188,12 @@ def main():
     fig_width = 9.5 / 2.54
     fig_height = 11.5 / 2.54
 
-    in_names = ['ERAI-Regrid', 'NCEP-mon']
+    #in_names = ['ERAI-Regrid', 'NCEP-mon']
+    #in_names = ['ERAI-Pres', 'ERAI-KP']
+    in_names = ['ERAI-Pres', 'ERAI-KP']
+
     #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
+
     fds = [FileDiag(file_info[in_name]) for in_name in in_names]
 
     data = fds[0].append_metric(fds[1])
@@ -188,12 +203,12 @@ def main():
     # solid rather than dashed, may want to come back to this and figure out a way
     # to implement it in a nice (non-hacked!) way for others and PR it to seaborn
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
-    vp0 = sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
-                         split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0)
+    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
+                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0)
     axes[0].set_yticks(np.arange(30, 60, 10))
 
-    vp1 = sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
-                         split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0)
+    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
+                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0)
     axes[1].set_yticks(np.arange(-50, -20, 10))
     fig.subplots_adjust(left=0.10, bottom=0.08, right=0.95, top=0.94, hspace=0.0)
     fig.legend(bbox_to_anchor=(0.15, 0.94), loc='upper left', borderaxespad=0.)
@@ -206,7 +221,6 @@ def main():
 
     plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
     plt.close()
-
 
     if fds[0].start_t != fds[1].start_t or fds[0].end_t != fds[1].end_t:
         fds[0].time_subset(fds[1])
