@@ -12,18 +12,17 @@ SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
 
 HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
 
-NC_DIR = './jet_out'
-if not os.path.exists(NC_DIR):
-    NC_DIR = '.'
-
-
 class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
-    def __init__(self, info, opts_hem=None):
+    def __init__(self, info, opts_hem=None, file_path=None):
         self.name = info['label']
-        self.d_s = xr.open_dataset('{}/{}'.format(NC_DIR, info['file']))
+        #import pdb ; pdb.set_trace()
+        if file_path is None:
+            # If the file path is not provided, the input path in `info` is the abs path
+            file_path = ''
+        self.d_s = xr.open_dataset(os.path.join(file_path, info['file']))
 
         self.dframe = None
         self.vars = None
@@ -195,6 +194,10 @@ def main():
                            '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
                 }
 
+    nc_dir = './jet_out'
+    if not os.path.exists(nc_dir):
+        nc_dir = '.'
+    
     plt.rc('font', size=9)
     extn = 'eps'
     sns.set_style('whitegrid')
@@ -203,11 +206,11 @@ def main():
 
     #in_names = ['ERAI-Regrid', 'NCEP-mon']
     #in_names = ['ERAI-Pres', 'ERAI-KP']
-    in_names = ['ERAI-Theta', 'ERAI-KP']
+    in_names = ['ERAI-Pres', 'ERAI-KP']
 
     #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
 
-    fds = [FileDiag(file_info[in_name]) for in_name in in_names]
+    fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
     data = fds[0].append_metric(fds[1])
 
