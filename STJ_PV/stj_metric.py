@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 """STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
-import sys
-import pdb
-
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
@@ -14,10 +11,8 @@ from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
 
-import matplotlib.pyplot as plt
 from eddy_terms import Kinetic_Eddy_Energies
 
-import matplotlib.pyplot as plt
 
 class STJMetric(object):
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
@@ -587,21 +582,21 @@ class STJKangPolvani(STJMetric):
 
         name = 'KangPolvani'
         super(STJKangPolvani, self).__init__(name=name, props=props, data=data)
-       
+
         self.dates = pd.DatetimeIndex(num2date(self.data.time[:], self.data.time_units))
 
         self.jet_intens_daily = np.zeros([2, self.dates.shape[0]])
-        self.jet_lat_daily = np.zeros([2, self.dates.shape[0]])  #seasonal mean is expected
+        # Seasonal mean is expected
+        self.jet_lat_daily = np.zeros([2, self.dates.shape[0]])
 
-#        self.jet_lat_mm_dd = np.zeros([2, self.dates.shape[0]])
 
-        #seasonal and monthly mean positions
-#        self.jet_lat_sm = np.zeros([2, 4])
-#        self.jet_lat_mm = np.zeros([2, 12])
+        # Seasonal and monthly mean positions
+        # self.jet_lat_sm = np.zeros([2, 4])
+        # self.jet_lat_mm = np.zeros([2, 12])
 
-        #output monthly means for comparison
+        # Output monthly means for comparison
         num_mon = len(np.unique(self.dates.year))*12
-        self.jet_lat    = np.zeros([2, num_mon])
+        self.jet_lat = np.zeros([2, num_mon])
         self.jet_intens = np.zeros([2, num_mon])
 
 
@@ -619,7 +614,7 @@ class STJKangPolvani(STJMetric):
         lat_elem, known_jet_lat, hidx = self.set_hemis(shemis)
 
         uwnd, vwnd = self._prep_data(lat_elem)
-        del_f = self.get_flux_div(uwnd, vwnd, lat_elem, hidx)
+        del_f = self.get_flux_div(uwnd, vwnd, lat_elem)
         self.get_jet_lat(del_f, np.mean(uwnd, axis=-1), self.data.lat[lat_elem], hidx)
 
     def set_hemis(self, shemis):
@@ -679,14 +674,14 @@ class STJKangPolvani(STJMetric):
             self.data.lev = self.data.lev * 100.
 
         #only compute flux div at 200hpa
-        self.wh_200 = np.where(self.data.lev == 20000.)[0] 
+        self.wh_200 = np.where(self.data.lev == 20000.)[0]
         assert len(self.wh_200) != 0, 'Cant find 200 hpa level'
 
         #need surface data for calc shear
-        self.wh_1000 = np.where(self.data.lev == 100000.)[0] 
+        self.wh_1000 = np.where(self.data.lev == 100000.)[0]
         assert len(self.wh_1000) != 0, 'Cant find 1000 hpa level'
-        
-        uwnd = xr.DataArray(self.data.uwnd[:, : , lat_elem, :],
+
+        uwnd = xr.DataArray(self.data.uwnd[:, :, lat_elem, :],
                             coords=[self.dates,
                                     self.data.lev,
                                     self.data.lat[lat_elem],
@@ -702,50 +697,51 @@ class STJKangPolvani(STJMetric):
 
         return uwnd, vwnd
 
-    def get_flux_div(self, uwnd, vwnd, lat_elem, hidx):
+    def get_flux_div(self, uwnd, vwnd, lat_elem):
         """
-        Calculate the meridional eddy momentum flux divergence 
+        Calculate the meridional eddy momentum flux divergence
 
         """
 
         lat = self.data.lat[lat_elem]
 
 
- 
-        k_e = Kinetic_Eddy_Energies(uwnd.values[:,self.wh_200,:,:], vwnd.values[:,self.wh_200,:,:],
-                                    lat, self.props['pres_level'],
-                                    self.data.lon)
+
+        k_e = Kinetic_Eddy_Energies(uwnd.values[:, self.wh_200, :, :],
+                                    vwnd.values[:, self.wh_200, :, :],
+                                    lat, self.props['pres_level'], self.data.lon)
         k_e.get_components()
         k_e.calc_momentum_flux()
 
         del_f = xr.DataArray(np.squeeze(k_e.del_f),
                              coords=[self.dates, self.data.lat[lat_elem]],
                              dims=['time', 'lat'])
-        return del_f 
-        
+        return del_f
+
     def get_jet_lat(self, del_f, uwnd, lat, hidx):
         """
-        Find the 200hpa zero crossing of the meridional eddy momentum flux divergence 
+        Find the 200hpa zero crossing of the meridional eddy momentum flux divergence
 
         """
 
         signchange = ((np.roll(np.sign(del_f), 1) - np.sign(del_f)) != 0).values
-        signchange[:,0], signchange[:,-1] = False, False
- 
+        signchange[:, 0], signchange[:, -1] = False, False
+
         stj_lat = np.zeros(uwnd.shape[0])
         stj_int = np.zeros(uwnd.shape[0])
 
         for t in range(uwnd.shape[0]):
-            shear =  uwnd[t,self.wh_200,signchange[t,:]].values - uwnd[t,self.wh_1000,signchange[t,:]].values   
-            stj_lat[t] = lat[signchange[t,:]][np.argmax(shear)]
+            shear = (uwnd[t, self.wh_200, signchange[t, :]].values -
+                     uwnd[t, self.wh_1000, signchange[t, :]].values)
+            stj_lat[t] = lat[signchange[t, :]][np.argmax(shear)]
             stj_int[t] = uwnd[t, self.wh_200[0], np.where(lat == stj_lat[t])[0]].values
 
-        #output the monthly mean of daily S for comparing the method 
-        jet_data = xr.DataArray(stj_lat, coords=[self.dates],dims=['time'])
+        # Output the monthly mean of daily S for comparing the method
+        jet_data = xr.DataArray(stj_lat, coords=[self.dates], dims=['time'])
         jet_data_mm = jet_data.resample(freq='MS', dim='time')
         self.jet_lat[hidx, :] = jet_data_mm.values
 
-        jet_data = xr.DataArray(stj_int, coords=[self.dates],dims=['time'])
+        jet_data = xr.DataArray(stj_int, coords=[self.dates], dims=['time'])
         jet_data_mm = jet_data.resample(freq='MS', dim='time')
         self.jet_intens[hidx, :] = jet_data_mm.values
 
