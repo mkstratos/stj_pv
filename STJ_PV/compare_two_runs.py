@@ -217,11 +217,13 @@ def main():
     # to implement it in a nice (non-hacked!) way for others and PR it to seaborn
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
-                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0)
+                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0,
+                   dashpattern='-')
     axes[0].set_yticks(np.arange(30, 60, 10))
 
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
-                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0)
+                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0,
+                   dashpattern='-')
     axes[1].set_yticks(np.arange(-50, -20, 10))
     fig.subplots_adjust(left=0.10, bottom=0.08, right=0.95, top=0.94, hspace=0.0)
     fig.legend(bbox_to_anchor=(0.15, 0.94), loc='upper left', borderaxespad=0.)
