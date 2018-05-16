@@ -136,47 +136,60 @@ def main():
     file_info = {'NCEP-mon':
                  {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly'},
+
                  'NCEP-day':
                  {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily'},
 
                  'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
                              'label': 'NCEP PV'},
+
                  'NCEP-Umax': {'file': ('NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0'
                                         '_y010.0.nc'), 'label': 'NCEP U-max'},
+
                  'ERAI-Theta':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV'},
+
                  'ERAI-Theta-5':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_'
                            '1979-01-01_2016-12-31.nc'),
                   'label': 'B Monthly ERAI PV 5.0˚'},
+
                  'ERAI-Theta-DM':
                  {'file': ('ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_'
                            '1979-01-01_2016-12-31.nc'),
                   'label': 'A Monthly mean of daily ERAI PV'},
+
                  'ERAI-Theta-Day':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV'},
+
                  'ERAI-Theta-Day-5':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'B Daily ERAI PV 5.0˚'},
+
                  'ERAI-Regrid':
                  {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
+
                  'ERAI-Uwind':
                  {'file': 'ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
                   'label': 'ERAI U-Wind'},
+
                  'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
                                  'label': 'ERAI Theta5'},
+
                  'ERAI-Pres':
                  {'file': 'ERAI_PRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
                   'label': 'ERAI PV'},
                  'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
                              'label': 'ERAI K-P'},
+
                  'ERAI-Theta_LR':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV Slice'},
+
                  'ERAI-Theta-Day_LR':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
@@ -190,7 +203,7 @@ def main():
 
     #in_names = ['ERAI-Regrid', 'NCEP-mon']
     #in_names = ['ERAI-Pres', 'ERAI-KP']
-    in_names = ['ERAI-Pres', 'ERAI-KP']
+    in_names = ['ERAI-Theta', 'ERAI-KP']
 
     #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
 
