@@ -101,7 +101,10 @@ class InputData(object):
         if pv_update:
             self._load_data(pv_update)
             self._calc_ipv()
-            force_write = self.props.config['force_write']
+            if 'force_write' in self.props.config:
+                force_write = self.props.config['force_write']
+            else:
+                force_write = False
             if self.time.shape[0] >= self.d_select.shape[0] or force_write:
                 # Only write output if it's the entire file
                 self._write_ipv()
