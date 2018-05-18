@@ -181,7 +181,7 @@ def main():
 
                  'ERAI-Pres':
                  {'file': 'ERAI_PRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
-                  'label': 'ERAI PV'},
+                  'label': 'ERAI Pres'},
                  'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
                              'label': 'ERAI K-P'},
 
@@ -197,7 +197,7 @@ def main():
     nc_dir = './jet_out'
     if not os.path.exists(nc_dir):
         nc_dir = '.'
-    
+
     plt.rc('font', size=9)
     extn = 'eps'
     sns.set_style('whitegrid')
@@ -206,7 +206,7 @@ def main():
 
     #in_names = ['ERAI-Regrid', 'NCEP-mon']
     #in_names = ['ERAI-Pres', 'ERAI-KP']
-    in_names = ['ERAI-Pres', 'ERAI-KP']
+    in_names = ['ERAI-Theta', 'ERAI-Pres']
 
     #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
 
