@@ -182,6 +182,11 @@ def main():
                  'ERAI-Pres':
                  {'file': 'ERAI_PRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
                   'label': 'ERAI Pres'},
+
+                 'ERAI-Epv':
+                 {'file': 'ERAI_EPVPRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
+                  'label': 'ERAI EPV Pres'},
+
                  'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
                              'label': 'ERAI K-P'},
 
@@ -206,7 +211,7 @@ def main():
 
     #in_names = ['ERAI-Regrid', 'NCEP-mon']
     #in_names = ['ERAI-Pres', 'ERAI-KP']
-    in_names = ['ERAI-Theta', 'ERAI-Pres']
+    in_names = ['ERAI-Epv', 'ERAI-Theta']
 
     #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
 
