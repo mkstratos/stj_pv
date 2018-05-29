@@ -197,21 +197,29 @@ def main():
                  'ERAI-Theta-Day_LR':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
+
+                 'MERRA-Mon':
+                 {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2015-12-31.nc'), 'label': 'Monthly MERRA PV'},
+                 'JRA-Mon':
+                 {'file': ('JRA55_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
+                           '1979-01-01_2017-12-31.nc'), 'label': 'Monthly JRA-55 PV'},
                 }
 
     nc_dir = './jet_out'
     if not os.path.exists(nc_dir):
         nc_dir = '.'
 
-    plt.rc('font', size=9)
-    extn = 'eps'
+    fig_mult = 2.0
+    plt.rc('font', size=9 * fig_mult)
+    extn = 'png'
     sns.set_style('whitegrid')
-    fig_width = 9.5 / 2.54
-    fig_height = 11.5 / 2.54
+    fig_width = (9.5 / 2.54) * fig_mult
+    fig_height = (11.5 / 2.54) * fig_mult
 
     #in_names = ['ERAI-Regrid', 'NCEP-mon']
     #in_names = ['ERAI-Pres', 'ERAI-KP']
-    in_names = ['ERAI-Epv', 'ERAI-Theta']
+    in_names = ['ERAI-Theta', 'JRA-Mon']
 
     #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
 
@@ -225,12 +233,12 @@ def main():
     # to implement it in a nice (non-hacked!) way for others and PR it to seaborn
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
-                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0,
+                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0 * fig_mult,
                    dashpattern='-')
     axes[0].set_yticks(np.arange(30, 60, 10))
 
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
-                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0,
+                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0 * fig_mult,
                    dashpattern='-')
     axes[1].set_yticks(np.arange(-50, -20, 10))
     fig.subplots_adjust(left=0.10, bottom=0.08, right=0.95, top=0.94, hspace=0.0)
