@@ -18,7 +18,6 @@ class FileDiag(object):
     """
     def __init__(self, info, opts_hem=None, file_path=None):
         self.name = info['label']
-        #import pdb ; pdb.set_trace()
         if file_path is None:
             # If the file path is not provided, the input path in `info` is the abs path
             file_path = ''
@@ -36,7 +35,7 @@ class FileDiag(object):
         if self.opt_hems is None:
             hems = ['nh', 'sh']
         else:
-            #in case you want to use equator or only one hemi
+            # in case you want to use equator or only one hemi
             hems = self.opt_hems
 
         self.dframe = self.d_s.to_dataframe()
@@ -133,11 +132,11 @@ class FileDiag(object):
 def main():
     """Selects two files to compare, loads and plots them."""
     file_info = {'NCEP-mon':
-                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly'},
 
                  'NCEP-day':
-                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily'},
 
                  'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
@@ -147,29 +146,29 @@ def main():
                                         '_y010.0.nc'), 'label': 'NCEP U-max'},
 
                  'ERAI-Theta':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV'},
 
                  'ERAI-Theta-5':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_'
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'),
                   'label': 'B Monthly ERAI PV 5.0˚'},
 
                  'ERAI-Theta-DM':
-                 {'file': ('ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'),
                   'label': 'A Monthly mean of daily ERAI PV'},
 
                  'ERAI-Theta-Day':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV'},
 
                  'ERAI-Theta-Day-5':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_'
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'B Daily ERAI PV 5.0˚'},
 
                  'ERAI-Regrid':
-                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
 
                  'ERAI-Uwind':
@@ -180,31 +179,36 @@ def main():
                                  'label': 'ERAI Theta5'},
 
                  'ERAI-Pres':
-                 {'file': 'ERAI_PRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
-                  'label': 'ERAI Pres'},
+                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2015-12-31.nc'), 'label': 'ERAI Pres'},
 
                  'ERAI-Epv':
-                 {'file': 'ERAI_EPVPRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
+                 {'file': ('ERAI_EPVPRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2015-12-31.nc'),
                   'label': 'ERAI EPV Pres'},
 
-                 'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
-                             'label': 'ERAI K-P'},
+                 'ERAI-KP': {'file': ('ERAI_PRES_KangPolvani_zmedian_'
+                                      '1979-01-01_2015-12-31.nc'), 'label': 'ERAI K-P'},
 
                  'ERAI-Theta_LR':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV Slice'},
 
                  'ERAI-Theta-Day_LR':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
 
                  'MERRA-Mon':
-                 {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2015-12-31.nc'), 'label': 'Monthly MERRA PV'},
                  'JRA-Mon':
-                 {'file': ('JRA55_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('JRA55_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2017-12-31.nc'), 'label': 'Monthly JRA-55 PV'},
-                }
+
+                 'ERAI-Theta_zmean':
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'),
+                  'label': 'Monthly ERAI PV Zonal Mean'}}
 
     nc_dir = './jet_out'
     if not os.path.exists(nc_dir):
@@ -217,11 +221,7 @@ def main():
     fig_width = (9.5 / 2.54) * fig_mult
     fig_height = (11.5 / 2.54) * fig_mult
 
-    #in_names = ['ERAI-Regrid', 'NCEP-mon']
-    #in_names = ['ERAI-Pres', 'ERAI-KP']
-    in_names = ['ERAI-Theta', 'JRA-Mon']
-
-    #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
+    in_names = ['ERAI-Theta', 'ERAI-Theta_zmean']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
