@@ -12,6 +12,7 @@ import pandas as pd
 import input_data
 import stj_metric
 import run_stj
+import utils
 
 # Define the plot output extention
 EXTN = 'png'
@@ -33,7 +34,7 @@ class DiagPlots(object):
         self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
 
         # Figure size set to 129 mm wide, 152 mm tall
-        self.fig_mult = 1.
+        self.fig_mult = 2.
 
         plt.rc('text', usetex=True)
         plt.rc('text.latex', unicode=True)
@@ -53,8 +54,8 @@ class DiagPlots(object):
         date : A :class:`datetime.datetime` instance to select and plot
 
         """
-        data = input_data.InputData(self.props, date_s=date,
-                                    date_e=date + dt.timedelta(seconds=3600 * 32 * 24))
+        data = input_data.InputData(self.props, date_s=date, date_e=date)
+                                    #date_e=date + dt.timedelta(seconds=3600 * 32 * 24))
         data.get_data_input()
         self.stj = self.metric(self.props, data)
         tix = 0
@@ -146,8 +147,9 @@ class DiagPlots(object):
         ax3_c = axes[3].get_position().bounds
         ax2_c = axes[2].get_position().bounds
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
-        plt.savefig('plt_stj_diag_{}_{}K_{}.{}'
-                    .format(self.props.data_cfg['short_name'], data.th_lev[zix],
+        plt.savefig('plt_stj_diag_{}_{:.1f}PVU_{}.{}'
+                    .format(self.props.data_cfg['short_name'],
+                            self.props.config['pv_value'],
                             date.strftime('%Y-%m-%d'), EXTN))
         plt.clf()
         plt.close()
@@ -278,7 +280,20 @@ class DiagPlots(object):
         # pmap = basemap.Basemap(projection='kav7', lon_0=lon_0, resolution='c')
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
-        uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
+
+        # Restrict to below theta == 450, compute U-wind on PV surface use to find jet
+        z_s = data.th_lev <= 450
+        uwnd_ = utils.vinterp(data.uwnd[:, z_s, ...], np.abs(data.ipv[:, z_s, ...]),
+                              np.array([self.props.config['pv_value']]))
+
+        if data.lon.min() < 0:
+            # uwnd = data.uwnd[tix, zix, ...]
+            uwnd = uwnd_
+            lon = data.lon
+        else:
+            # uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
+            uwnd, lon = basemap.addcyclic(uwnd_, data.lon)
+
         map_x, map_y = pmap(*np.meshgrid(lon, data.lat))
 
         cfill = pmap.contourf(map_x, map_y, uwnd, self.contours,
@@ -320,9 +335,12 @@ class DiagPlots(object):
             pv_lev = -1 * np.array([self.stj.pv_lev])
 
         lat, _, extrema = self.stj.set_hemis(shemis)
-        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev)
+        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev, (300, 420))
+        if theta_xpv.ndim == 2:
+            # Increase dimensionality of theta_xpv so it has a time dimension
+            # this makes the same method work if only a single time period is available
+            theta_xpv = theta_xpv[None, ...]
         dims = theta_xpv.shape
-
 
         # ----------------- Code from STJMetric.find_single_jet() ----------------- #
         # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
@@ -335,7 +353,6 @@ class DiagPlots(object):
             y_s, y_e = y_e, y_s
         dims_fit = theta_xpv[:, y_s:y_e, :].shape
         tht_fit_shape = (self.props.config['fit_deg'] + 1, dims_fit[0], dims_fit[-1])
-
         dtheta = np.zeros(dims_fit)
         theta_fit = np.zeros(tht_fit_shape)
         select = np.zeros((dims_fit[0], dims_fit[-1]))
@@ -354,16 +371,19 @@ class DiagPlots(object):
 
         return dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e
 
+
 def main():
     """Generate jet finder, make diagnostic plots."""
 
     # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
-    dates = pd.date_range('1983-06-01', '1983-07-01', freq='d')
+    dates = pd.date_range('2005-11-01', '2006-03-31', freq='MS')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
         #jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta_daily.yml')
+        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
+        #jf_run =  run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        #jf_run =  run_stj.JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
         # Force update_pv and force_write to be False, optional override of zonal-mean
         jf_run.config['update_pv'] = False
