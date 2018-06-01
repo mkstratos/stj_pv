@@ -21,7 +21,12 @@ def main(time_freq):
     files = {'monthly': ('./jet_out/ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
                          '1979-01-01_2016-12-31.nc'),
              'daily': ('./jet_out/ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_'
-                       '1979-01-01_2016-12-31.nc')}
+                       '1979-01-01_2016-12-31.nc'),
+             'ncep': ('./jet_out/NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
+                      '1979-01-01_2016-12-31.nc'),
+             'merra': ('./jet_out/MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
+                       '1979-01-01_2015-12-31.nc')
+             }
 
     in_file = files[time_freq]
     data_in = xr.open_dataset(in_file)
@@ -74,4 +79,4 @@ def main(time_freq):
 
 
 if __name__ == '__main__':
-    main('monthly')
+    main('merra')
