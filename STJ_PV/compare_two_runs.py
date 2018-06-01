@@ -161,7 +161,11 @@ def main():
 
                  'ERAI-Theta-Day':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV'},
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV median'},
+
+                 'ERAI-Theta-Day_zmean':
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV mean'},
 
                  'ERAI-Theta-Day-5':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_'
@@ -221,7 +225,7 @@ def main():
     fig_width = (9.5 / 2.54) * fig_mult
     fig_height = (11.5 / 2.54) * fig_mult
 
-    in_names = ['ERAI-Theta', 'ERAI-Theta_zmean']
+    in_names = ['ERAI-Theta-Day_zmean', 'ERAI-Theta-Day']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 

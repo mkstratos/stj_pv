@@ -20,7 +20,7 @@ def main(time_freq):
     plt.rc('font', size=9)
     files = {'monthly': ('./jet_out/ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
                          '1979-01-01_2016-12-31.nc'),
-             'daily': ('./jet_out/ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_'
+             'daily': ('./jet_out/ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
                        '1979-01-01_2016-12-31.nc'),
              'ncep': ('./jet_out/NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
                       '1979-01-01_2016-12-31.nc'),
@@ -79,4 +79,4 @@ def main(time_freq):
 
 
 if __name__ == '__main__':
-    main('merra')
+    main('daily')
