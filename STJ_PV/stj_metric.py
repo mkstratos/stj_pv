@@ -255,7 +255,7 @@ class STJPV(STJMetric):
 
         return lat, hidx, extrema
 
-    def isolate_pv(self, pv_lev):
+    def isolate_pv(self, pv_lev, theta_bnds=None):
         """
         Get the potential temperature, zonal wind and zonal wind shear for a PV level.
 
@@ -264,6 +264,10 @@ class STJPV(STJMetric):
         pv_lev : float
             PV value (for a particular hemisphere, >0 for NH, <0 for SH) on which to
             interpolate potential temperature and wind
+        theta_bnds : tuple, optional
+            Start and end theta levels to use for interpolation. Default is None,
+            if None, use all theta levels, otherwise restrict so
+            theta_bnds[0] <= theta <= theta_bnds[1]
 
         Returns
         -------
@@ -277,9 +281,21 @@ class STJPV(STJMetric):
             Wind shear between uwnd_xpv and "surface", meaning the lowest valid level
 
         """
-        theta_xpv = utils.vinterp(self.data.th_lev, self.data.ipv[self.hemis], pv_lev)
-        uwnd_xpv = utils.vinterp(self.data.uwnd[self.hemis], self.data.ipv[self.hemis],
-                                 pv_lev)
+        # Temporary? Need to use for JRA data, it doesn't interpolate correctly with
+        # all the data...?
+        if theta_bnds is None:
+            th_slice = slice(None)
+        else:
+            assert theta_bnds[0] < theta_bnds[1], 'Start level not strictly less than end'
+            th_slice = np.logical_and(self.data.th_lev >= theta_bnds[0],
+                                      self.data.th_lev <= theta_bnds[1])
+
+        theta_xpv = utils.vinterp(self.data.th_lev[th_slice],
+                                  self.data.ipv[self.hemis][:, th_slice, ...], pv_lev)
+
+        uwnd_xpv = utils.vinterp(self.data.uwnd[self.hemis][:, th_slice, ...],
+                                 self.data.ipv[self.hemis][:, th_slice, ...], pv_lev)
+
         ushear = self._get_max_shear(uwnd_xpv)
         return theta_xpv, uwnd_xpv, ushear
 
@@ -301,7 +317,12 @@ class STJPV(STJMetric):
         lat, hidx, extrema = self.set_hemis(shemis)
 
         # Get theta on PV==pv_level
-        theta_xpv, uwnd_xpv, ushear = self.isolate_pv(pv_lev)
+        if 'theta_s' in self.data.data_cfg and 'theta_e' in self.data.data_cfg:
+            theta_bnds = (self.data.data_cfg['theta_s'], self.data.data_cfg['theta_e'])
+        else:
+            theta_bnds = None
+
+        theta_xpv, uwnd_xpv, ushear = self.isolate_pv(pv_lev, theta_bnds=theta_bnds)
         dims = theta_xpv.shape
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
@@ -319,10 +340,13 @@ class STJPV(STJMetric):
                     self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
                     self.jet_intens[hidx, tix, xix] = uwnd_xpv[tix, jet_loc[xix], xix]
 
-            if self.props['zonal_opt'].lower() == 'mean':
-
+            if self.props['zonal_opt'].lower() in ['mean', 'median']:
+                if self.props['zonal_opt'].lower() == 'mean':
+                    reduce_fcn = np.ma.mean
+                else:
+                    reduce_fcn = np.ma.median
                 jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
-                self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
+                self.jet_lat[hidx, tix] = reduce_fcn(jet_lat)
 
                 # First take the zonal median of Theta on dyn. tropopause
                 jet_theta = np.nanmedian(theta_xpv[tix, :, :], axis=-1)
@@ -330,13 +354,13 @@ class STJPV(STJMetric):
                 jet_theta = np.ma.masked_where(jet_loc == 0,
                                                jet_theta[jet_loc.astype(int)])
                 # Then save the zonal median of this to the correct position in output
-                self.jet_theta[hidx, tix] = np.ma.median(jet_theta)
+                self.jet_theta[hidx, tix] = reduce_fcn(jet_theta)
 
                 # Now do the same for jet intensity
                 jet_intens = np.nanmedian(uwnd_xpv[tix, :, :], axis=-1)
                 jet_intens = np.ma.masked_where(jet_loc == 0,
                                                 jet_intens[jet_loc.astype(int)])
-                self.jet_intens[hidx, tix] = np.ma.median(jet_intens)
+                self.jet_intens[hidx, tix] = reduce_fcn(jet_intens)
 
     def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""

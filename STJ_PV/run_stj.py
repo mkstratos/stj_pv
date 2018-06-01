@@ -144,6 +144,9 @@ class JetFindRun(object):
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
 
+        # Add the zonal option to the output name
+        self.config['output_file'] += '_z{zonal_opt}'.format(**self.config)
+
         if 'lon_s' in self.data_cfg and 'lon_e' in self.data_cfg:
             self.config['output_file'] += ('_lon{lon_s:0d}-{lon_e:0d}'
                                            .format(**self.data_cfg))
@@ -384,12 +387,13 @@ def main():
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
-    #jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
-    #jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
-    #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly.yml')
+    # jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
+    # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
+    # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(2015, 12, 31)
+    date_e = dt.datetime(2016, 12, 31)
 
     jf_run.run(date_s, date_e)
     #jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(2.5, 15, 2.5),
