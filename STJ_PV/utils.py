@@ -754,12 +754,12 @@ def diffz(data, vcoord, axis=None):
         slc = NDSlicer(axis, data.ndim)
     else:
         slc_vc = NDSlicer(axis, vcoord.ndim)
-        d_z = (vcoord[slc_vc.slice(1, None)] - vcoord[slc_vc.slice(None, -1)])
-        d_z2 = d_z[slc_vc.slice(None, -1)]
-        d_z1 = d_z[slc_vc.slice(1, None)]
+        d_z = (vcoord[slc_vc[1:None]] - vcoord[slc_vc[None:-1]])
+        d_z2 = d_z[slc_vc[None:-1]]
+        d_z1 = d_z[slc_vc[1:None]]
         slc = NDSlicer(0, data.ndim)
 
-    dxdz[slc[1:-1]] = ((d_z2 * data[slc[2, None]] + (d_z1 - d_z2) * data[slc[1:-1]] -
+    dxdz[slc[1:-1]] = ((d_z2 * data[slc[2:None]] + (d_z1 - d_z2) * data[slc[1:-1]] -
                         d_z1 * data[slc[None:-2]]) / (2.0 * d_z1 * d_z2))
 
     # Do forward difference at 0th level [:, 1, :, :] - [:, 0, :, :]
