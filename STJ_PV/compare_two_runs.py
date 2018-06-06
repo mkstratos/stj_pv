@@ -137,7 +137,11 @@ def main():
 
                  'NCEP-day':
                  {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily'},
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily Z-Median'},
+
+                 'NCEP-day-zmean':
+                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily Z-Mean'},
 
                  'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
                              'label': 'NCEP PV'},
@@ -225,7 +229,7 @@ def main():
     fig_width = (9.5 / 2.54) * fig_mult
     fig_height = (11.5 / 2.54) * fig_mult
 
-    in_names = ['ERAI-Theta-Day_zmean', 'ERAI-Theta-Day']
+    in_names = ['NCEP-day', 'NCEP-day-zmean']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 

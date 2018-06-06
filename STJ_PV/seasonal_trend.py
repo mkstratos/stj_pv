@@ -7,7 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import scipy.stats as sts
-import netCDF4 as nc
 import pandas as pd
 
 __author__ = 'Michael Kelleher'
@@ -25,7 +24,9 @@ def main(time_freq):
              'ncep': ('./jet_out/NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
                       '1979-01-01_2016-12-31.nc'),
              'merra': ('./jet_out/MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
-                       '1979-01-01_2015-12-31.nc')
+                       '1979-01-01_2015-12-31.nc'),
+             'ncep-daily': ('./jet_out/NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_'
+                            'zmean_1979-01-01_2016-12-31.nc')
              }
 
     in_file = files[time_freq]
@@ -79,4 +80,4 @@ def main(time_freq):
 
 
 if __name__ == '__main__':
-    main('daily')
+    main('ncep-daily')
