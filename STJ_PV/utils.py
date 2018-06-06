@@ -21,7 +21,7 @@ KPPA = R_D / C_P        # Ratio of gas constants
 class NDSlicer(object):
     """N-Dimensional slice class for numpy arrays."""
 
-    def __init__(self, axis, ndim, start=None, end=None, skip=None):
+    def __init__(self, axis, ndim, start=None, stop=None, step=None):
         """
         Create an n-dimensional slice list.
 
@@ -31,22 +31,39 @@ class NDSlicer(object):
             Axis on which to apply the slice
         ndim : integer
             Total number of dimensions of array to be sliced
-        start, end, skip : integer, optional
-            Index of beginning, end and skip width of the slice [start:end:skip]
+        start, stop, step : integer, optional
+            Index of beginning, stop and step width of the slice [start:stop:step]
             default for each is None.
 
         """
         self.axis = axis
         self.ndim = ndim
         self.start = start
-        self.end = end
-        self.skip = skip
+        self.stop = stop
+        self.step = step
         self.slicer = None
-        self.slice(start, end, skip)
+        self.__getitem__(slice(start, stop, step))
 
-    def slice(self, start=None, end=None, skip=None):
+    def __getitem__(self, key):
+        """Create an n-dimensional slice list."""
+        if isinstance(key, slice):
+            self.start = key.start
+            self.stop = key.stop
+            self.step = key.step
+        elif isinstance(key, int):
+            self.start = key
+            self.stop = key + 1
+            self.step = None
+
+        self.slicer = [slice(None)] * self.ndim
+        self.slicer[self.axis] = slice(self.start, self.stop, self.step)
+        return self.slicer
+
+    def slice(self, start=None, stop=None, step=None):
         """
         Create an n-dimensional slice list.
+
+        This is a legacy compatibility method, calls `self.__getitem__`.
 
         Parameters
         ----------
@@ -54,8 +71,8 @@ class NDSlicer(object):
             Axis on which to apply the slice
         ndim : integer
             Total number of dimensions of array to be sliced
-        start, end, skip : integer, optional
-            Index of beginning, end and skip width of the slice [start:end:skip]
+        start, stop, step : integer, optional
+            Index of beginning, stop and step width of the slice [start:stop:step]
             default for each is None.
 
         Returns
@@ -69,29 +86,21 @@ class NDSlicer(object):
 
             x = np.random.randn(5, 3)
 
-            # Create slicer along 0th axis
+            # Create slicer equivalent to [1:-1, :]
             slc = NDSlicer(0, x.ndim)
-
             print(x)
             [[ 0.68470539  0.87880216 -0.45086367]
              [ 1.06804045  0.63094676 -0.76633033]
              [-1.69841915  0.35207064 -0.4582049 ]
              [-0.56431067  0.62833728 -0.04101542]
              [-0.02760744  2.02814338  0.13195714]]
-
-            # Make a slice equivalent to [1:-1, :]
-            print(x[slc.slice(1, -1)])
+            print(x[slc[1:-1]])
             [[ 1.06804045  0.63094676 -0.76633033]
              [-1.69841915  0.35207064 -0.4582049 ]
              [-0.56431067  0.62833728 -0.04101542]]
 
         """
-        self.start = start
-        self.end = end
-        self.skip = skip
-        self.slicer = [slice(None)] * self.ndim
-        self.slicer[self.axis] = slice(self.start, self.end, self.skip)
-        return self.slicer
+        self.__getitem__(slice(start, stop, step))
 
 
 def vinterp(data, vcoord, vlevels):
@@ -292,10 +301,10 @@ def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
 
         data_interp = np.zeros(out_shape)
 
-        #For contexts when you have a 3d array but 2 dimensions are the same. 
-        cmn_axis = np.where( np.logical_and( np.array(data.shape) != lat.shape[0],
-                                              np.array(data.shape) != theta_in.shape[0]))[0]
-        #cmn_axis = np.where(out_shape == np.array(data.shape))[0]
+        #For contexts when you have a 3d array but 2 dimensions are the same.
+        cmn_axis = np.where(np.logical_and(np.array(data.shape) != lat.shape[0],
+                                           np.array(data.shape) != theta_in.shape[0]))[0]
+        # cmn_axis = np.where(out_shape == np.array(data.shape))[0]
         for idx0 in range(data.shape[cmn_axis]):
 
             data_f = interp.interp2d(lat, theta_in, data.take(idx0, axis=cmn_axis),
@@ -312,11 +321,11 @@ def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
         out_shape[theta_dim] = theta_hr.shape[0]
         data_interp = np.zeros(out_shape)
 
-        #For contexts when you have a 3d array but 2 dimensions are the same. 
-        cmn_axis = np.where( np.logical_and( np.array(data.shape) != lat.shape[0],
-                                              np.array(data.shape) != theta_in.shape[0]))[0]
+        # For contexts when you have a 3d array but 2 dimensions are the same.
+        cmn_axis = np.where(np.logical_and(np.array(data.shape) != lat.shape[0],
+                                           np.array(data.shape) != theta_in.shape[0]))[0]
 
-        #cmn_axis = np.where(out_shape == np.array(data.shape))[0][:]
+        # cmn_axis = np.where(out_shape == np.array(data.shape))[0][:]
         for idx0 in range(data.shape[cmn_axis[0]]):
             for idx1 in range(data.shape[cmn_axis[1]]):
                 data_slice = data.take(idx1, axis=cmn_axis[1]).take(idx0,
@@ -681,26 +690,24 @@ def diff_cfd(data, axis=-1, cyclic=False):
     # Calculate centred differences along longitude direction
     # Eqivalent to: diff = data[..., 2:] - data[..., :-2] for axis == -1
     slc = NDSlicer(axis, data.ndim)
-    diff = data[slc.slice(2, None)] - data[slc.slice(None, -2)]
+    diff = data[slc[2:None]] - data[slc[None:-2]]
 
     if cyclic:
         # Cyclic boundary in "East"
         # Equiv to diff[..., 0] = data[..., 1:2] - data[..., -1:]
-        d_1 = (data[slc.slice(1, 2)] - data[slc.slice(-1, None)])
+        d_1 = (data[slc[1:2]] - data[slc[-1:None]])
         diff = np.append(d_1, diff, axis=axis)
 
         # Cyclic boundary in "West"
         # Equiv to diff[..., -1] = data[..., 0:1] - data[..., -2:-1]
-        diff = np.append(diff, (data[slc.slice(0, 1)] - data[slc.slice(-2, -1)]),
-                         axis=axis)
+        diff = np.append(diff, (data[slc[0:1]] - data[slc[-2:-1]]), axis=axis)
     else:
         # Otherwise edges are forward/backward differences
         # Boundary in "South", (data[..., 1:2] - data[..., 0:1])
-        diff = np.append((data[slc.slice(1, 2)] - data[slc.slice(0, 1)]), diff, axis=axis)
+        diff = np.append((data[slc[1:2]] - data[slc[0:1]]), diff, axis=axis)
 
         # Boundary in "North" (data[..., -1:] - data[..., -2:-1])
-        diff = np.append(diff, (data[slc.slice(-1, None)] - data[slc.slice(-2, -1)]),
-                         axis=axis)
+        diff = np.append(diff, (data[slc[-1:None]] - data[slc[-2:-1]]), axis=axis)
 
     return diff
 
@@ -753,19 +760,16 @@ def diffz(data, vcoord, axis=None):
         d_z1 = d_z[slc_vc.slice(1, None)]
         slc = NDSlicer(0, data.ndim)
 
-    dxdz[slc.slice(1, -1)] = ((d_z2 * data[slc.slice(2, None)] +
-                               (d_z1 - d_z2) * data[slc.slice(1, -1)] -
-                               d_z1 * data[slc.slice(None, -2)]) /
-                              (2.0 * d_z1 * d_z2))
+    dxdz[slc[1:-1]] = ((d_z2 * data[slc[2, None]] + (d_z1 - d_z2) * data[slc[1:-1]] -
+                        d_z1 * data[slc[None:-2]]) / (2.0 * d_z1 * d_z2))
 
     # Do forward difference at 0th level [:, 1, :, :] - [:, 0, :, :]
     dz1 = vcoord[1] - vcoord[0]
-    dxdz[slc.slice(0, 1)] = (data[slc.slice(0, 1)] - data[slc.slice(1, 2)]) / dz1
+    dxdz[slc[0:1]] = (data[slc[0:1]] - data[slc[1:2]]) / dz1
 
     # Do backward difference at Nth level
     dz1 = vcoord[-1] - vcoord[-2]
-    dxdz[slc.slice(-1, None)] = (data[slc.slice(-1, None)] -
-                                 data[slc.slice(-2, -1)]) / dz1
+    dxdz[slc[-1:None]] = (data[slc[-1:None]] - data[slc[-2:-1]]) / dz1
 
     return dxdz
 
