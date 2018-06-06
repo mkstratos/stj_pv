@@ -1,15 +1,20 @@
+---
 path: '/Volumes/FN_2187/erai/Data/ERA_INT/'
 short_name: 'ERAI_MONTHLY_PRES'
 
 # Input file possibilities:
-# n_vars x n_years
-# n_vars x all_years
-# all_vars x n_years
-# all_vars x all_years
+# n_vars x n_years      : 1 file
+# n_vars x all_years    : N variables files
+# all_vars x n_years    : N years files
+# all_vars x all_years  : N years * N variables files
 
-# IPV and Tropopause can be separate files since they _could_ be created outside the input
-# file, so they have their own keys in `file_paths`, but can point to same as 'all'
+# IPV and Tropopause can be separate files since they _could_ be created
+# outside the input file, so they have their own keys in `file_paths`,
+# but can point to same as 'all'
 
+
+# This means you have a file containing all years and variables
+# -------------------------------------------------------------
 # multiple vars/file, multiple years/file - 1 file
 # single_var_file: False
 # single_year_file: False
@@ -17,15 +22,20 @@ short_name: 'ERAI_MONTHLY_PRES'
 #   'all': 'erai_all.nc'
 #   'ipv': 'erai_all.nc'
 
+
+# This means you have a file for each variable containing all years
+# -----------------------------------------------------------------
 # single var/file, multiple years/file - n_vars files (4: u/v/t/pv)
-single_var_file: True       # Variables are in multiple files (if True)
-single_year_file: False     # Years are in multiple files (if True)
+single_var_file: true       # Variables are in multiple files (if True)
+single_year_file: false     # Years are in multiple files (if True)
 file_paths:
     'uwnd': 'uwind.nc'
     'vwnd': 'vwind.nc'
     'tair': 'tair.nc'
     'ipv': 'ipv.nc'
 
+# This means you have a file for each year containing all variables
+# -----------------------------------------------------------------
 # multiple vars/file, single year/file - n_years files
 # single_var_file: False    # Variables are in multiple files (if True)
 # single_year_file: True    # Years are in multiple files (if True)
@@ -33,6 +43,8 @@ file_paths:
 #   'all': 'erai_theta_{year:04d}.nc'
 #   'ipv': 'erai_theta_{year:04d}.nc'
 
+# This means you have a file for each variable, and a file for each year.
+# -----------------------------------------------------------------------
 # single var/file, single year/file - n_vars * n_years files
 # single_var_file: False    # Variables are in multiple files (if True)
 # single_year_file: True    # Years are in multiple files (if True)
@@ -42,15 +54,25 @@ file_paths:
 #   'air': 'air.{year:04d}.nc'
 #   'ipv': 'ipv.{year:04d}.nc'
 
-lon: 'lon'     # Name within netCDF file of 'longitude' variable
-lat: 'lat'     # Name within netCDF file of 'latitude' variable
-lev: 'lev'     # Name within netCDF file of 'level' variable
+lon: 'lon'      # Name within netCDF file of 'longitude' variable
+lat: 'lat'      # Name within netCDF file of 'latitude' variable
+lev: 'lev'      # Name within netCDF file of 'level' variable
 time: 'time'    # Name within netCDF file of 'time' variable
 ztype: 'pres'   # Type of levels (pressure, potential temperature, etc.)
-pfac: 1.0     # Multiply pressure by this to get units of Pascals
+pfac: 1.0       # Multiply pressure by this to get units of Pascals
 
 # Variable names for u/v wind, air temperature and pv
 uwnd: 'uwnd'
 vwnd: 'vwnd'
 tair: 't'
 ipv: 'ipv'
+
+# Optionally, if data is on isobaric levels, an epv
+# variable can be used. Warning: if this is included
+# input_data will search for it, and fail if it's not found
+# epv: 'epv'
+
+# Start and end longitudes (for constructing a sector metric)
+# Optional, comment out if performing global jet metric
+lon_s: 0.0
+lon_e: 360.0
