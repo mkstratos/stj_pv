@@ -278,18 +278,20 @@ class InputData(object):
             th_shape[1] = self.props.th_levels.shape[0]
 
             # Pre-allocate memory for PV and Wind fields
-            self.ipv = np.zeros(th_shape)
-            self.uwnd = np.zeros(th_shape)
+            self.ipv = np.ma.zeros(th_shape)
+            self.uwnd = np.ma.zeros(th_shape)
             chunks = self._gen_chunks()
             self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
                 if 'epv' not in self.in_data:
+                    self.props.log.info('USING U, V, T TO COMPUTE IPV')
                     self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
                         utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
                                   self.in_data['vwnd'][ix_s:ix_e, ...],
                                   self.in_data['tair'][ix_s:ix_e, ...],
                                   self.lev, self.lat, self.lon, self.props.th_levels)
                 else:
+                    self.props.log.info('USING ISOBARIC PV TO COMPUTE IPV')
                     thta = utils.theta(self.in_data['tair'][ix_s:ix_e, ...], self.lev)
                     self.ipv[ix_s:ix_e, ...] = \
                         utils.vinterp(self.in_data['epv'][ix_s:ix_e, ...],
@@ -297,7 +299,6 @@ class InputData(object):
                     self.uwnd[ix_s:ix_e, ...] = \
                         utils.vinterp(self.in_data['uwnd'][ix_s:ix_e, ...],
                                       thta, self.props.th_levels)
-
             self.ipv *= 1e6  # Put PV in units of PVU
             self.th_lev = self.props.th_levels
 
@@ -305,7 +306,6 @@ class InputData(object):
             self.ipv = utils.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
                                        self.in_data['pres'], self.lat, self.lon,
                                        self.lev)
-
         self.props.log.info('Finished calculating IPV')
 
     def _calc_dyn_trop(self):
