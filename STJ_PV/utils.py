@@ -731,7 +731,6 @@ def diffz(data, vcoord, axis=None):
         N-D array of d(data)/d(vcoord), same shape as input `data`
 
     """
-    # TODO: fix this so data and vcoord are interchangeable
     if axis is None:
         # Find matching axis between data and vcoord
         try:
@@ -740,7 +739,7 @@ def diffz(data, vcoord, axis=None):
             axis = vcoord.shape.index(data.shape[0])
 
     # Create array to hold vertical derivative
-    dxdz = np.ones(data.shape)
+    dxdz = np.zeros(data.shape)
 
     # Create an n-dimensional broadcast along matching axis, same as [None, :, None, None]
     # for axis=1, ndim=4
