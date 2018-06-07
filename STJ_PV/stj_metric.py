@@ -289,7 +289,6 @@ class STJPV(STJMetric):
             assert theta_bnds[0] < theta_bnds[1], 'Start level not strictly less than end'
             th_slice = np.logical_and(self.data.th_lev >= theta_bnds[0],
                                       self.data.th_lev <= theta_bnds[1])
-
         theta_xpv = utils.vinterp(self.data.th_lev[th_slice],
                                   self.data.ipv[self.hemis][:, th_slice, ...], pv_lev)
 
@@ -345,11 +344,12 @@ class STJPV(STJMetric):
                     reduce_fcn = np.ma.mean
                 else:
                     reduce_fcn = np.ma.median
+
                 jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
                 self.jet_lat[hidx, tix] = reduce_fcn(jet_lat)
 
                 # First take the zonal median of Theta on dyn. tropopause
-                jet_theta = np.nanmedian(theta_xpv[tix, :, :], axis=-1)
+                jet_theta = reduce_fcn(theta_xpv[tix, :, :], axis=-1)
                 # Mask wherever jet_loc is undefined, jet_loc is a func. of longitude here
                 jet_theta = np.ma.masked_where(jet_loc == 0,
                                                jet_theta[jet_loc.astype(int)])
@@ -357,7 +357,7 @@ class STJPV(STJMetric):
                 self.jet_theta[hidx, tix] = reduce_fcn(jet_theta)
 
                 # Now do the same for jet intensity
-                jet_intens = np.nanmedian(uwnd_xpv[tix, :, :], axis=-1)
+                jet_intens = reduce_fcn(uwnd_xpv[tix, :, :], axis=-1)
                 jet_intens = np.ma.masked_where(jet_loc == 0,
                                                 jet_intens[jet_loc.astype(int)])
                 self.jet_intens[hidx, tix] = reduce_fcn(jet_intens)
