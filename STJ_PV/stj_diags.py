@@ -376,19 +376,20 @@ def main():
     """Generate jet finder, make diagnostic plots."""
 
     # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
-    dates = pd.date_range('2005-11-01', '2006-03-31', freq='MS')
+    dates = pd.date_range('1979-01-01', '1979-12-31', freq='MS')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
         #jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
-        #jf_run =  run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly.yml')
+        jf_run =  run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
         #jf_run =  run_stj.JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
         # Force update_pv and force_write to be False, optional override of zonal-mean
         jf_run.config['update_pv'] = False
         jf_run.config['force_write'] = False
-        jf_run.config['zonal_opt'] = 'indv'
+        jf_run.config['zonal_opt'] = 'mean'
         diags = DiagPlots(jf_run, stj_metric.STJPV)
         diags.test_method_plot(date)
 

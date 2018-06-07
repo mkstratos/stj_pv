@@ -389,7 +389,7 @@ def main():
 
     # jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
     # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
-    jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+    jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
     # jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     date_s = dt.datetime(1979, 1, 1)
