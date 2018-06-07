@@ -5,6 +5,7 @@ Module containing classes for diagnoistic variable calculation and diagnoistic p
 import os
 import datetime as dt
 import numpy as np
+import scipy.stats as sts
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
 import pandas as pd
@@ -96,9 +97,8 @@ class DiagPlots(object):
         for hidx, lati in enumerate(self.jet_info['jet_idx']):
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
             # Mean vs. median
-            lat_median = np.median(self.jet_info['lat_all'][hidx][tix])
-            lat_iqr = (np.percentile(self.jet_info['lat_all'][hidx][tix], 75) -
-                       np.percentile(self.jet_info['lat_all'][hidx][tix], 25))
+            lat_median = np.ma.mean(self.jet_info['lat_all'][hidx][tix])
+            lat_iqr = np.ma.std(self.jet_info['lat_all'][hidx][tix])
 
             _, lat_q1 = pmap(0, lat_median - lat_iqr)
             _, lat_q2 = pmap(0, lat_median + lat_iqr)
@@ -161,7 +161,7 @@ class DiagPlots(object):
         lwid = 2.0 * self.fig_mult
 
         dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
-        jet_pos = np.median(select[tix, :]).astype(int)
+        jet_pos = np.ma.mean(select[tix, :]).astype(int)
 
         # Append the list of jet latitude at each longitude in this hemisphere
         self.jet_info['lat_all'].append(lat[select.astype(int)])
@@ -335,7 +335,15 @@ class DiagPlots(object):
             pv_lev = -1 * np.array([self.stj.pv_lev])
 
         lat, _, extrema = self.stj.set_hemis(shemis)
-        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev, (300, 420))
+        if 'theta_s' in self.props.data_cfg and 'theta_e' in self.props.data_cfg:
+            theta_bnds = (self.props.data_cfg['theta_s'], self.props.data_cfg['theta_e'])
+        else:
+            theta_bnds = None
+
+        if theta_bnds is not None:
+            print('restrict theta: {} {}'.format(*theta_bnds))
+
+        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev, theta_bnds)
         if theta_xpv.ndim == 2:
             # Increase dimensionality of theta_xpv so it has a time dimension
             # this makes the same method work if only a single time period is available
@@ -376,14 +384,14 @@ def main():
     """Generate jet finder, make diagnostic plots."""
 
     # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
-    dates = pd.date_range('1979-01-01', '1979-12-31', freq='MS')
+    dates = pd.date_range('2001-10-01', '2002-02-28', freq='MS')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
         #jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
         # jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
         # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly.yml')
-        jf_run =  run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly.yml')
         #jf_run =  run_stj.JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
         # Force update_pv and force_write to be False, optional override of zonal-mean
