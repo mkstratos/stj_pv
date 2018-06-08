@@ -6,7 +6,8 @@ log_file:   'stj_find_erai_pres_mon_{}.log'
 pv_value:   2.0
 fit_deg:    8
 min_lat:    10.0
-update_pv:  False
+max_lat:    70.0
+update_pv:  false
 update_psi: False
 year_s:     1979
 year_e:     2016
