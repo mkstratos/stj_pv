@@ -185,7 +185,7 @@ def run():
     param_vals = {'pv_lev': np.arange(1.0, 4.5, 0.5),
                   'fit': np.arange(5, 9),
                   'y0': np.arange(2.5, 15, 2.5),
-                  'yN': np.array([60, 65, 70, 75, 80, 85])}
+                  'yN': np.arange(60., 95., 5.)}
     # sens = {'pv': {}, 'fit': {}, 'y0': {}, 'yN': {}}
     sens = {'yN': {}}
 
