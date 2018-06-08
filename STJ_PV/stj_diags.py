@@ -1,11 +1,9 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Module containing classes for diagnoistic variable calculation and diagnoistic plotting.
 """
 import os
-import datetime as dt
 import numpy as np
-import scipy.stats as sts
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
 import pandas as pd
@@ -323,11 +321,9 @@ class DiagPlots(object):
 
         return cfill, pmap
 
-
     def _jet_details(self, shemis=True):
         """Get Jet details using :py:meth:`~STJ_PV.stj_metric.STJPV` API for a hemisphere.
         """
-
         # --------------------- Code from STJMetric.find_jet() --------------------- #
         if shemis and self.stj.pv_lev < 0 or not shemis and self.stj.pv_lev > 0:
             pv_lev = np.array([self.stj.pv_lev])
@@ -353,7 +349,7 @@ class DiagPlots(object):
         # ----------------- Code from STJMetric.find_single_jet() ----------------- #
         # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
         y_s = np.abs(np.abs(lat) - self.props.config['min_lat']).argmin()
-        y_e = None
+        y_e = np.abs(np.abs(lat) - self.props.config['max_lat']).argmin()
 
         # If latitude is in decreasing order, switch start & end
         # This makes sure we're selecting the latitude nearest the equator
@@ -388,11 +384,11 @@ def main():
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
-        #jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
         # jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
         # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly.yml')
-        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly.yml')
-        #jf_run =  run_stj.JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
+        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
+        # jf_run =  run_stj.JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
         # Force update_pv and force_write to be False, optional override of zonal-mean
         jf_run.config['update_pv'] = False
@@ -406,6 +402,7 @@ def main():
             os.remove(jf_run.config['log_file'])
         except OSError:
             print('Log file not found: {}'.format(jf_run.config['log_file']))
+
 
 
 if __name__ == "__main__":
