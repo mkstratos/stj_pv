@@ -7,6 +7,7 @@ Uses CF conventions to ensure standardized output
 from collections import OrderedDict
 import numpy as np
 import netCDF4 as nc
+import yaml
 
 
 class NCOutVar(object):
@@ -132,7 +133,7 @@ class NCOutVar(object):
             self.set_prop(prop, prop_dict[prop])
 
 
-def write_to_netcdf(data_in, out_file):
+def write_to_netcdf(data_in, out_file, file_attrs=None):
     """
     Write (a list of) NCOutVar variable(s) to a netCDF file.
 
@@ -200,5 +201,16 @@ def write_to_netcdf(data_in, out_file):
             out_data.long_name = data.props['long_name']
         out_data[:] = data.data
 
+    # Set CF-conventions attribute
     ncfile.setncattr('Conventions', 'CF-1.6')
+
+    # Set other arbitrary file-wide attributes
+    if file_attrs is not None:
+        for attr, value in file_attrs:
+            if isinstance(value, dict):
+                # Can't write a dict to netCDF attribute, so
+                # make it a yaml-parseable string
+                value = yaml.dump(value)
+            ncfile.setncattr(attr, value)
+
     ncfile.close()

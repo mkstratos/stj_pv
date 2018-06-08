@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
+import subprocess
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
@@ -100,7 +101,16 @@ class STJMetric(object):
         out_vars = [lat_sh_out, lat_nh_out, intens_sh_out, intens_nh_out]
         if self.jet_theta is not None:
             out_vars.extend([theta_sh_out, theta_nh_out])
-        dio.write_to_netcdf(out_vars, self.props['output_file'] + '.nc')
+
+        try:
+            git_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode()
+        except subprocess.CalledProcessError as err:
+            self.log.error(err)
+            git_id = 'NONE'
+
+        file_attrs = [('commit-id', git_id.strip()), ('run_props', self.props)]
+
+        dio.write_to_netcdf(out_vars, self.props['output_file'] + '.nc', file_attrs)
 
     def append(self, other):
         """Append another metric's latitude and theta positon to this one."""
