@@ -14,6 +14,11 @@ import xarray as xr
 
 from eddy_terms import Kinetic_Eddy_Energies
 
+try:
+    GIT_ID = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+except subprocess.CalledProcessError as err:
+    GIT_ID = 'NONE'
+
 
 class STJMetric(object):
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
@@ -102,13 +107,7 @@ class STJMetric(object):
         if self.jet_theta is not None:
             out_vars.extend([theta_sh_out, theta_nh_out])
 
-        try:
-            git_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode()
-        except subprocess.CalledProcessError as err:
-            self.log.error(err)
-            git_id = 'NONE'
-
-        file_attrs = [('commit-id', git_id.strip()), ('run_props', self.props)]
+        file_attrs = [('commit-id', GIT_ID), ('run_props', self.props)]
 
         dio.write_to_netcdf(out_vars, self.props['output_file'] + '.nc', file_attrs)
 
