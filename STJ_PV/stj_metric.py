@@ -346,7 +346,7 @@ class STJPV(STJMetric):
                     reduce_fcn = np.ma.median
 
                 jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
-                self.jet_lat[hidx, tix] = reduce_fcn(jet_lat)
+                self.jet_lat[hidx, tix] = reduce_fcn(np.ma.masked_invalid(jet_lat))
 
                 # First take the zonal median of Theta on dyn. tropopause
                 jet_theta = reduce_fcn(theta_xpv[tix, :, :], axis=-1)
@@ -354,13 +354,13 @@ class STJPV(STJMetric):
                 jet_theta = np.ma.masked_where(jet_loc == 0,
                                                jet_theta[jet_loc.astype(int)])
                 # Then save the zonal median of this to the correct position in output
-                self.jet_theta[hidx, tix] = reduce_fcn(jet_theta)
+                self.jet_theta[hidx, tix] = reduce_fcn(np.ma.masked_invalid(jet_theta))
 
                 # Now do the same for jet intensity
                 jet_intens = reduce_fcn(uwnd_xpv[tix, :, :], axis=-1)
                 jet_intens = np.ma.masked_where(jet_loc == 0,
                                                 jet_intens[jet_loc.astype(int)])
-                self.jet_intens[hidx, tix] = reduce_fcn(jet_intens)
+                self.jet_intens[hidx, tix] = reduce_fcn(np.ma.masked_invalid(jet_intens))
 
     def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""
