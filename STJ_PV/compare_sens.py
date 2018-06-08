@@ -40,18 +40,20 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     fig_width = 129 * fig_mult
     plt.rc('font', family='sans-serif', size=8 * fig_mult)
 
-    fig_size_seas = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
-    fig_seas = plt.subplots(1, 2, figsize=fig_size_seas)
+    fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
+    figure = plt.subplots(2, 2, figsize=fig_size, sharex=True)
+    sens_monthly(d_in, var, param_name, figure)
+    plt.close()
 
-    fig_size_ts = (fig_width / 25.4, (fig_width / 3) / 25.4)
-    fig_ts = plt.subplots(2, 1, figsize=fig_size_ts)
+    fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
+    figure = plt.subplots(1, 2, figsize=fig_size)
+    sens_out = sens_seasonal(d_in, var, param_name, figure)
+    plt.close()
 
-    fig_size_mon = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
-    fig_mon = plt.subplots(2, 2, figsize=fig_size_mon, sharex=True)
-
-    sens_out = sens_seasonal(d_in, var, param_name, fig_seas)
-    sens_monthly(d_in, var, param_name, fig_mon)
-    plot_timeseries(d_in, var, param_name, fig_ts)
+    fig_size = (fig_width / 25.4, (fig_width / 3) / 25.4)
+    figure = plt.subplots(2, 1, figsize=fig_size)
+    plot_timeseries(d_in, var, param_name, figure)
+    plt.close()
 
     return sens_out
 
@@ -70,15 +72,14 @@ def plot_timeseries(d_in, var, param_name, figure):
 
     axes[0].set_title('NH')
     axes[0].legend()
-    axes[0].grid(b=True)
+    axes[0].grid(**GRID_STYLE)
 
     axes[1].set_title('SH')
     axes[1].legend()
-    axes[1].grid(b=True)
+    axes[1].grid(**GRID_STYLE)
 
     plt.tight_layout()
     fig.savefig('plt_compare_{}_{}.{}'.format(var, param_name, EXTN))
-    plt.close()
 
 
 def sens_seasonal(d_in, var, param_name, figure):
@@ -113,7 +114,6 @@ def sens_seasonal(d_in, var, param_name, figure):
         sens_out[('SH', str(season.data))] = sts.linregress(param_vals,
                                                             sh_sm[:, snx])
 
-    grid_style = {'ls': '--', 'lw': 0.5}
     axis[0].set_xlabel(PARAMS[param_name])
     axis[0].set_ylabel('Mean Jet {name} [{units}]'.format(**VARS[var]))
     if param_name == 'fit' and var == 'lat':
@@ -121,11 +121,11 @@ def sens_seasonal(d_in, var, param_name, figure):
     else:
         axis[0].legend()
     axis[0].set_title('(a) Northern Hemisphere')
-    axis[0].grid(b=True, **grid_style)
+    axis[0].grid(**GRID_STYLE)
     axis[1].set_xlabel(PARAMS[param_name])
     axis[1].legend()
     axis[1].set_title('(b) Southern Hemisphere')
-    axis[1].grid(b=True, **grid_style)
+    axis[1].grid(**GRID_STYLE)
 
     if var == 'lat':
         axis[0].set_ylim([25, 45])
@@ -136,7 +136,6 @@ def sens_seasonal(d_in, var, param_name, figure):
                         top=0.87, wspace=0.26)
     plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var]['name']))
     fig.savefig('plt_season_mean_{}_{}.{}'.format(var, param_name, EXTN))
-    plt.close()
     return sens_out
 
 
@@ -169,23 +168,24 @@ def sens_monthly(data_in, var, param_name, figure):
     axes[1, 0].set_title('SH Mean {}'.format(label))
     axes[1, 1].set_title('SH Std {}'.format(label))
     for axis in axes:
-        axis[0].grid(b=True)
-        axis[1].grid(b=True)
+        axis[0].grid(**GRID_STYLE)
+        axis[1].grid(**GRID_STYLE)
         axis[0].set_ylabel(VARS[var]['units'])
         axis[1].set_ylabel(VARS[var]['units'])
+
     plt.tight_layout()
-    fig.savefig('plt_sens_{}_{}_monthly.{}'.format(var, param_name, EXTN))
-    plt.close()
+    plt.savefig('plt_sens_{}_{}_monthly.{}'.format(var, param_name, EXTN))
 
 
 def run():
     """Set dates, variable names, and parameters to plot sensitivity."""
-    run_type = 'NCEP_NCAR_MONTHLY_STJPV'
+    # run_type = 'NCEP_NCAR_MONTHLY_STJPV'
+    run_type = 'ERAI_MONTHLY_THETA_STJPV'
     dates = ('1979-01-01', '2016-12-31')
-    param_vals ={'pv_lev': np.arange(1.0, 4.5, 0.5),
-                 'fit': np.arange(5, 9),
-                 'y0': np.arange(2.5, 15, 2.5),
-                 'yN': np.array([60, 65, 70, 75, 80, 90])}
+    param_vals = {'pv_lev': np.arange(1.0, 4.5, 0.5),
+                  'fit': np.arange(5, 9),
+                  'y0': np.arange(2.5, 15, 2.5),
+                  'yN': np.array([60, 65, 70, 75, 80, 85])}
     # sens = {'pv': {}, 'fit': {}, 'y0': {}, 'yN': {}}
     sens = {'yN': {}}
 
@@ -212,7 +212,7 @@ VARS = {'lat': {'name': 'Latitude Position', 'units': 'deg'},
         'theta': {'name': 'Theta Position', 'units': 'K'},
         'intens': {'name': 'Intensity', 'units': 'm/s'}}
 EXTN = 'png'
-
+GRID_STYLE = {'b': True, 'ls': '--', 'lw': 0.5}
 
 if __name__ == "__main__":
     run()
