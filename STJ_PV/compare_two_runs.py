@@ -135,6 +135,10 @@ def main():
                  {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly'},
 
+                 'NCEP-mon-70max':
+                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_yN70.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly 70Max'},
+
                  'NCEP-day':
                  {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily Z-Median'},
@@ -190,6 +194,16 @@ def main():
                  {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2015-12-31.nc'), 'label': 'ERAI Pres'},
 
+                 'ERAI-Pres-newlev':
+                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31_newlevels.nc'),
+                  'label': 'ERAI Pres new'},
+
+                 'ERAI-Pres-oldlev':
+                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31_oldlevels.nc'),
+                  'label': 'ERAI Pres old'},
+
                  'ERAI-Epv':
                  {'file': ('ERAI_EPVPRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2015-12-31.nc'),
@@ -229,7 +243,7 @@ def main():
     fig_width = (9.5 / 2.54) * fig_mult
     fig_height = (11.5 / 2.54) * fig_mult
 
-    in_names = ['NCEP-day', 'NCEP-day-zmean']
+    in_names = ['NCEP-mon', 'NCEP-mon-70max']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
