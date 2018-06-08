@@ -58,7 +58,8 @@ class JetFindRun(object):
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
                            'zonal_opt': 'mean', 'poly': 'cheby',
                            'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
-                           'update_pv': False, 'year_s': 1979, 'year_e': 2015}
+                           'max_lat': 80.0, 'update_pv': False,
+                           'year_s': 1979, 'year_e': 2015}
         else:
 
             # Open the configuration file, put its contents into a variable to be read by
@@ -76,7 +77,6 @@ class JetFindRun(object):
         if data_cfg_failed:
             print('DATA CONFIG CHECKS FAILED...EXITING')
             sys.exit(1)
-
 
         if self.data_cfg['single_var_file']:
             for var in ['uwnd', 'vwnd', 'tair', 'omega']:   # TODO: Need to change list
@@ -117,20 +117,16 @@ class JetFindRun(object):
 
         if self.config['method'] == 'STJPV':
             self.config['output_file'] = ('{short_name}_{method}_pv{pv_value}_'
-                                          'fit{fit_deg}_y0{min_lat}'
+                                          'fit{fit_deg}_y0{min_lat}_yN{max_lat}'
                                           .format(**dict(self.data_cfg, **self.config)))
 
-            self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
-                                       350.0, 370.0, 395.0, 430.0])
             self.metric = stj_metric.STJPV
 
         elif self.config['method'] == 'STJUMax':
             self.config['output_file'] = ('{short_name}_{method}_pres{pres_level}'
-                                          '_y0{min_lat}'
+                                          '_y0{min_lat}_yN{max_lat}'
                                           .format(**dict(self.data_cfg, **self.config)))
 
-            self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
-                                      250., 200., 150., 100., 70., 50., 30., 20., 10.])
             self.metric = stj_metric.STJMaxWind
 
         elif self.config['method'] == 'KangPolvani':
@@ -239,7 +235,7 @@ class JetFindRun(object):
             Start and end dates, respectively. Optional, defualts to config file defaults
 
         """
-        params_avail = ['fit_deg', 'pv_value', 'min_lat']
+        params_avail = ['fit_deg', 'pv_value', 'min_lat', 'max_lat']
         if sens_param not in params_avail:
             print('SENSITIVITY FOR {} NOT AVAILABLE'.format(sens_param))
             print('POSSIBLE PARAMS:')
@@ -298,7 +294,6 @@ def check_config_req(cfg_file, required_keys_all, id_file=True):
         print(u'{} {:2d} {:^27s} {}'.format(12 * '>', len(missing) + len(wrong_type),
                                             'KEYS MISSING OR WRONG TYPE', 12 * '<'))
 
-
         for key in missing:
             print(u'    MISSING: {} TYPE: {}'.format(key, required_keys_all[key]))
         for key in wrong_type:
@@ -335,7 +330,8 @@ def check_run_config(cfg_file):
             print('NO METHOD FOR HANDLING: {}'.format(config['method']))
 
         elif config['method'] == 'STJPV':
-            opt_keys = {'poly': str, 'fit_deg': int, 'pv_value': float}
+            opt_keys = {'poly': str, 'fit_deg': int, 'pv_value': float,
+                        'min_lat': float, 'max_lat': float}
             _, missing_opt = check_config_req(cfg_file, opt_keys, id_file=False)
             missing_optionals.append(missing_opt)
 
@@ -389,15 +385,15 @@ def main():
 
     # jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
     # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
-    jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
-    # jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2016, 12, 31)
 
-    jf_run.run(date_s, date_e)
-    #jf_run.run_sensitivity(sens_param='min_lat', sens_range=np.arange(2.5, 15, 2.5),
-    #                       date_s=date_s, date_e=date_e)
+    # jf_run.run(date_s, date_e)
+    jf_run.run_sensitivity(sens_param='max_lat', sens_range=np.arange(60.0, 95.0, 5),
+                           date_s=date_s, date_e=date_e)
     jf_run.log.info('JET FINDING COMPLETE')
 
 

@@ -409,7 +409,7 @@ class STJPV(STJMetric):
         """
         # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
         y_s = np.abs(np.abs(lat) - self.props['min_lat']).argmin()
-        y_e = None
+        y_e = np.abs(np.abs(lat) - self.props['max_lat']).argmin()
 
         # If latitude is in decreasing order, switch start & end
         # This makes sure we're selecting the latitude nearest the equator
