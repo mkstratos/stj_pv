@@ -5,9 +5,9 @@ zonal_opt: 'mean'
 method: 'STJPV'
 log_file: 'stj_find_erai_theta_{}.log'
 pv_value: 2.0
-fit_deg: 8
+fit_deg: 6
 min_lat: 10.0
-max_lat: 70.0
+max_lat: 65.0
 update_pv: false
 year_s: 1979
 year_e: 2016
