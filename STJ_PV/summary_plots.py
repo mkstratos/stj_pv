@@ -4,7 +4,9 @@
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
-
+import seaborn as sns
+import pandas as pd
+plt.style.use('fivethirtynine')
 
 __author__ = 'Michael Kelleher'
 
@@ -25,28 +27,29 @@ def main(run_name=None, props=None):
     else:
         props['data'] = run_name
 
-    plt.rc('font', family='sans-serif', size=10)
+    plt.rc('font', family='sans-serif', size=9)
 
     in_file = ('{data}_pv{pv:.1f}_fit{fit}_y0{y0:03.1f}_yN{yN:.1f}_'
                'z{zonal_reduce}_{date_s}_{date_e}'.format(**props))
 
-    data = xr.open_dataset(f'{in_file}.nc')
+    data = xr.open_dataset(f'./jet_out/{in_file}.nc')
 
     month_mean = data.groupby('time.month').mean()
     month_std = data.groupby('time.month').std()
+    seasonal_mean = data.groupby('time.season').mean()
 
-    hem_info = {'nh': {'label': 'Northern Hemisphere', 'lat_r': (20, 50)},
-                'sh': {'label': 'Southern Hemisphere', 'lat_r': (-50, -20)}}
-
-    fig = plt.figure(figsize=(10, 7))
+    fig_width = 17.4 / 2.54
+    figh_height = fig_width * 0.6
+    fig = plt.figure(figsize=(fig_width, figh_height))
     axes = [plt.subplot2grid((2, 2), (0, 0)), plt.subplot2grid((2, 2), (0, 1)),
             plt.subplot2grid((2, 2), (1, 0), colspan=2)]
 
     for hidx, hem in enumerate(['sh', 'nh']):
         sct = axes[hidx].scatter(data[f'lat_{hem}'].values,
                                  data[f'theta_{hem}'].values,
-                                 s=data[f'intens_{hem}'].values * 4,
+                                 s=0.25 * data[f'intens_{hem}'].values**2,
                                  c=data[f'intens_{hem}'].values,
+                                 marker='.',
                                  cmap='inferno', vmin=0., vmax=45., alpha=0.4)
 
         # Hexbins? Maybe...
@@ -57,7 +60,7 @@ def main(run_name=None, props=None):
 
         axes[hidx].set_ylabel('Theta Position [K]')
         if hem == 'nh':
-            cax = fig.add_axes([0.48, 0.51, 0.02, 0.4])
+            cax = fig.add_axes([0.49, 0.51, 0.02, 0.4])
             cbar = plt.colorbar(sct, cax=cax, orientation='vertical')
             cbar.set_label('Jet intensity [m/s]')
             cax.yaxis.set_label_position('left')
@@ -67,30 +70,39 @@ def main(run_name=None, props=None):
             axes[hidx].yaxis.set_label_position('right')
 
         axes[hidx].set_xlabel('Latitude Position [deg]')
-        axes[hidx].set_title(hem_info[hem]['label'])
-        axes[hidx].set_ylim([320, 370])
-        axes[hidx].set_xlim(hem_info[hem]['lat_r'])
+        axes[hidx].set_title(HEM_INFO[hem]['label'])
+        axes[hidx].set_ylim([320, 375])
+        axes[hidx].set_xlim(HEM_INFO[hem]['lat_r'])
 
     ln_nh = axes[2].plot(month_mean.month, month_mean['lat_nh'].values,
-                         'C0o-', label='NH')
-
+                         'C0o-', label='NH', zorder=5)
     axes[2].fill_between(month_mean.month,
                          month_mean['lat_nh'] + month_std['lat_nh'],
                          month_mean['lat_nh'] - month_std['lat_nh'],
-                         color='C0', alpha=0.6)
+                         color='C0', alpha=0.4, zorder=4)
+    axes[2].fill_between(month_mean.month,
+                         month_mean['lat_nh'] + 2 * month_std['lat_nh'],
+                         month_mean['lat_nh'] - 2 * month_std['lat_nh'],
+                         color='C0', alpha=0.1, zorder=3)
 
-    axes[2].set_ylim(hem_info['nh']['lat_r'])
+    axes[2].set_ylim(HEM_INFO['nh']['lat_r'])
     axes[2].set_ylabel('NH Jet Latitude')
 
     axis_sh = axes[2].twinx()
 
     ln_sh = axis_sh.plot(month_mean.month, month_mean['lat_sh'], 'C1o-',
                          label='SH')
+
     axis_sh.fill_between(month_mean.month,
                          month_mean['lat_sh'] + month_std['lat_sh'],
                          month_mean['lat_sh'] - month_std['lat_sh'],
-                         color='C1', alpha=0.6)
-    axis_sh.set_ylim(hem_info['sh']['lat_r'])
+                         color='C1', alpha=0.4)
+
+    axis_sh.fill_between(month_mean.month,
+                         month_mean['lat_sh'] + 2 * month_std['lat_sh'],
+                         month_mean['lat_sh'] - 2 * month_std['lat_sh'],
+                         color='C1', alpha=0.1)
+    axis_sh.set_ylim(HEM_INFO['sh']['lat_r'])
 
     axes[2].tick_params('y', colors='C0')
     axis_sh.tick_params('y', colors='C1')
@@ -102,19 +114,73 @@ def main(run_name=None, props=None):
 
     lns = ln_nh + ln_sh
     labs = [l.get_label() for l in lns]
-    axes[2].legend(lns, labs, loc=0)
-    axes[2].grid(b=True, ls='--')
+    axes[2].legend(lns, labs, loc=0, frameon=False)
+    axes[2].grid(b=False)
+    axis_sh.set_axisbelow(True)
+    axis_sh.grid(b=True, zorder=0)
+    axis_sh.xaxis.grid(b=False)
     axis_sh.invert_yaxis()
 
-    data_name = ' '.join(props['data'].split('_'))
-    plt.suptitle('{}: {pv} PVU, lat [{y0} - {yN}], '
-                 'fit {fit}, zonal {zonal_reduce}'.format(data_name, **props))
-    fig.subplots_adjust(left=0.06, bottom=0.04, right=0.93, top=0.91,
-                        wspace=0.20, hspace=0.20)
-    plt.savefig(f'{in_file}.png')
+    fig.subplots_adjust(left=0.08, bottom=0.05, right=0.92, top=0.94,
+                        wspace=0.23, hspace=0.28)
+    plt.savefig(f'{in_file}.{EXTN}')
+    pair_grid(data, in_file)
 
+
+def pair_grid(data, in_file):
+    """Make PairGrid plot for each hemisphere."""
+    dframe = data.to_dataframe()
+    nh_vars = [f'{var}_nh' for var in ['theta', 'lat', 'intens']]
+    sh_vars = [f'{var}_sh' for var in ['theta', 'lat', 'intens']]
+    df_nh = dframe[nh_vars]
+    df_sh = dframe[sh_vars]
+
+    for hem, dfi in [('nh', df_nh), ('sh', df_sh)]:
+        dfi = dfi.rename(index=str,
+                         columns={f'lat_{hem}': 'Latitude [deg]',
+                                  f'theta_{hem}': 'Theta [K]',
+                                  f'intens_{hem}': 'Intensity [m/s]'})
+        dfi['season'] = SEAS[pd.DatetimeIndex(dfi.index).month].astype(str)
+        grd = sns.PairGrid(dfi, diag_sharey=False, hue='season',
+                           palette=HEM_INFO[hem]['pal'])
+        grd.fig.set_size_inches(17.4 / 2.54, 17.4 / 2.54)
+        grd.map_lower(plt.scatter, marker='o', alpha=0.8, s=6.0)
+        grd.map_diag(sns.kdeplot, lw=2)
+        plt.suptitle(f'{HEM_INFO[hem]["label"]} Properties')
+        grd.fig.subplots_adjust(top=0.92)
+        grd.add_legend(frameon=False)
+
+        # Because we've separated by hue, have to do KDE plots separately
+        for i, j in zip(*np.triu_indices_from(grd.axes, 1)):
+            sns.kdeplot(dfi[grd.x_vars[j]], dfi[grd.y_vars[i]],
+                        shade=True, cmap='Reds', legend=False,
+                        shade_lowest=False, ax=grd.axes[i, j])
+        plt.savefig(f'plt_grid_{hem}_{in_file}.{EXTN}')
+        plt.clf()
+        plt.close()
+
+
+# Color map for seasons
+EXTN = 'pdf'
+
+COLS = {'summer': sns.xkcd_rgb['red'],
+        'winter': sns.xkcd_rgb['denim blue'],
+        'spring': sns.xkcd_rgb['medium green'],
+        'autumn': sns.xkcd_rgb['pumpkin orange']}
+
+HEM_INFO = {'nh': {'label': 'Northern Hemisphere', 'lat_r': (19, 51),
+                   'pal': [COLS['winter'], COLS['spring'],
+                           COLS['summer'], COLS['autumn']]},
+            'sh': {'label': 'Southern Hemisphere', 'lat_r': (-51, -19),
+                   'pal': [COLS['summer'], COLS['autumn'],
+                           COLS['winter'], COLS['spring']]}}
+
+SEAS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM', 'JJA',
+                 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 if __name__ == '__main__':
-    for RNAME in ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
-                  'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV']:
+    DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
+                'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV']
+
+    for RNAME in DATASETS[:1]:
         main(run_name=RNAME)
