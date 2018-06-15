@@ -571,12 +571,12 @@ class STJMaxWind(STJMetric):
                 jet_loc[xix] = self.find_single_jet(uwnd_p[tix, :, xix])
 
             jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
-            self.jet_lat[hidx, tix] = np.ma.median(jet_lat)
+            self.jet_lat[hidx, tix] = np.ma.mean(jet_lat)
 
-            jet_intens = np.nanmedian(uwnd_p[tix, :, :], axis=-1)
+            jet_intens = np.nanmean(uwnd_p[tix, :, :], axis=-1)
             jet_intens = np.ma.masked_where(jet_loc == 0,
                                             jet_intens[jet_loc.astype(int)])
-            self.jet_intens[hidx, tix] = np.ma.median(jet_intens)
+            self.jet_intens[hidx, tix] = np.ma.mean(jet_intens)
 
     def find_single_jet(self, uwnd):
         """
