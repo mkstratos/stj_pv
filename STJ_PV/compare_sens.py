@@ -23,8 +23,8 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     """
     # opts = {'run_type': 'ERAI_MONTHLY_THETA_STJPV',
     #         'fit': 8, 'y0': 10, 'yN': 70, 'pv_lev': 2.0}
-    opts = {'run_type': run_type, 'fit': 8,
-            'y0': 10, 'pv_lev': 2.0, 'yN': 70.0}
+    opts = {'run_type': run_type, 'fit': 6,
+            'y0': 10, 'pv_lev': 2.0, 'yN': 90.0}
     opts.pop(param_name)
     opts_var = [{param_name: p_val} for p_val in param_vals]
     file_fmt = ('{run_type}_pv{pv_lev:.1f}_fit{fit:.0f}_'
@@ -94,8 +94,6 @@ def sens_seasonal(d_in, var, param_name, figure):
     sh_seas = d_in['{}_sh'.format(var)].groupby('time.season')
     nh_sm = nh_seas.mean(axis=1)
     sh_sm = sh_seas.mean(axis=1)
-    # nh_svar = nh_seas.std(axis=1)
-    # sh_svar = sh_seas.std(axis=1)
 
     for snx, season in enumerate(nh_sm.season):
         if param_name == 'fit':
