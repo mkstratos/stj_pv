@@ -6,6 +6,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import yaml
+
 plt.style.use('fivethirtynine')
 
 __author__ = 'Michael Kelleher'
@@ -36,7 +38,6 @@ def main(run_name=None, props=None):
 
     month_mean = data.groupby('time.month').mean()
     month_std = data.groupby('time.month').std()
-    seasonal_mean = data.groupby('time.season').mean()
 
     fig_width = 17.4 / 2.54
     figh_height = fig_width * 0.6
@@ -47,10 +48,9 @@ def main(run_name=None, props=None):
     for hidx, hem in enumerate(['sh', 'nh']):
         sct = axes[hidx].scatter(data[f'lat_{hem}'].values,
                                  data[f'theta_{hem}'].values,
-                                 s=0.25 * data[f'intens_{hem}'].values**2,
-                                 c=data[f'intens_{hem}'].values,
-                                 marker='.',
-                                 cmap='inferno', vmin=0., vmax=45., alpha=0.4)
+                                 s=0.3 * data[f'intens_{hem}'].values**2,
+                                 c=data[f'intens_{hem}'].values, marker='.',
+                                 cmap='inferno', vmin=0., vmax=45., alpha=0.75)
 
         # Hexbins? Maybe...
         # sct = axes[hidx].hexbin(data[f'lat_{hem}'].values,
@@ -115,16 +115,17 @@ def main(run_name=None, props=None):
     lns = ln_nh + ln_sh
     labs = [l.get_label() for l in lns]
     axes[2].legend(lns, labs, loc=0, frameon=False)
-    axes[2].grid(b=False)
-    axis_sh.set_axisbelow(True)
-    axis_sh.grid(b=True, zorder=0)
-    axis_sh.xaxis.grid(b=False)
+    axes[2].set_axisbelow(True)
+    axes[2].grid(b=True, zorder=-1)
+    axes[2].xaxis.grid(b=False)
+    axis_sh.grid(b=False)
     axis_sh.invert_yaxis()
 
     fig.subplots_adjust(left=0.08, bottom=0.05, right=0.92, top=0.94,
                         wspace=0.23, hspace=0.28)
     plt.savefig(f'{in_file}.{EXTN}')
     pair_grid(data, in_file)
+    summary_table(data)
 
 
 def pair_grid(data, in_file):
@@ -160,6 +161,22 @@ def pair_grid(data, in_file):
         plt.close()
 
 
+def summary_table(data_in):
+    """Compute monthly, seasonal, and annual mean for NH and SH."""
+    data_seasonal = data_in.groupby('time.season').mean()
+    data_monthly = data_in.groupby('time.month').mean()
+    out_file = yaml.load(data_in.run_props)['output_file']
+
+    with open(f'seasonal_stats_{out_file}.tex', 'w') as fout:
+        fout.write(data_seasonal.to_dataframe().to_latex())
+
+    with open(f'monthly_stats_{out_file}.tex', 'w') as fout:
+        fout.write(data_monthly.to_dataframe().to_latex())
+
+    with open(f'annual_stats_{out_file}.tex', 'w') as fout:
+        fout.write(data_in.to_dataframe().mean().to_latex())
+
+
 # Color map for seasons
 EXTN = 'pdf'
 
@@ -182,5 +199,5 @@ if __name__ == '__main__':
     DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
                 'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV']
 
-    for RNAME in DATASETS[:1]:
+    for RNAME in DATASETS[2:]:
         main(run_name=RNAME)
