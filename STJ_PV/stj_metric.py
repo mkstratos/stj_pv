@@ -622,15 +622,16 @@ class STJKangPolvani(STJMetric):
         # Seasonal mean is expected
         self.jet_lat_daily = np.zeros([2, self.dates.shape[0]])
 
-
         # Seasonal and monthly mean positions
         # self.jet_lat_sm = np.zeros([2, 4])
         # self.jet_lat_mm = np.zeros([2, 12])
 
         # Output monthly means for comparison
-        num_mon = len(np.unique(self.dates.year))*12
+        num_mon = len(np.unique(self.dates.year)) * 12
         self.jet_lat = np.zeros([2, num_mon])
         self.jet_intens = np.zeros([2, num_mon])
+        self.wh_1000 = None
+        self.wh_200 = None
 
 
     def find_jet(self, shemis=True):
@@ -644,7 +645,7 @@ class STJKangPolvani(STJMetric):
 
         """
 
-        lat_elem, known_jet_lat, hidx = self.set_hemis(shemis)
+        lat_elem, hidx = self.set_hemis(shemis)
 
         uwnd, vwnd = self._prep_data(lat_elem)
         del_f = self.get_flux_div(uwnd, vwnd, lat_elem)
@@ -669,8 +670,6 @@ class STJKangPolvani(STJMetric):
         -------
         lat_elem : array_like
             Latitude element locations for given hemisphere
-        known_jet_lat : int
-            Expected latitude of the subtropical jet
         hidx : int
             Hemisphere index 0 for SH, 1 for NH
 
@@ -690,15 +689,13 @@ class STJKangPolvani(STJMetric):
             self.hemis[lat_axis] = self.data.lat < 0
             lat_elem = np.where(self.data.lat < 0)[0]
             # needed to find the seasonal mean jet let from each zero crossing latitude
-            known_jet_lat = -30.  # estimate based on seasonal zonal mean zonal wind
             hidx = 0
         else:
             self.hemis[lat_axis] = self.data.lat > 0
             lat_elem = np.where(self.data.lat > 0)[0]
-            known_jet_lat = 30.
             hidx = 1
 
-        return lat_elem, known_jet_lat, hidx
+        return lat_elem, hidx
 
     def _prep_data(self, lat_elem):
 
@@ -706,11 +703,11 @@ class STJKangPolvani(STJMetric):
         if self.data.lev.max() < 1100.0:
             self.data.lev = self.data.lev * 100.
 
-        #only compute flux div at 200hpa
+        # Only compute flux div at 200hpa
         self.wh_200 = np.where(self.data.lev == 20000.)[0]
         assert len(self.wh_200) != 0, 'Cant find 200 hpa level'
 
-        #need surface data for calc shear
+        # Need surface data for calc shear
         self.wh_1000 = np.where(self.data.lev == 100000.)[0]
         assert len(self.wh_1000) != 0, 'Cant find 1000 hpa level'
 
@@ -737,8 +734,6 @@ class STJKangPolvani(STJMetric):
         """
 
         lat = self.data.lat[lat_elem]
-
-
 
         k_e = Kinetic_Eddy_Energies(uwnd.values[:, self.wh_200, :, :],
                                     vwnd.values[:, self.wh_200, :, :],
@@ -781,11 +776,10 @@ class STJKangPolvani(STJMetric):
         dtimes = [dtime.to_pydatetime() for dtime in jet_data_mm.time.to_index()]
         self.time = date2num(dtimes, self.data.time_units, self.data.calendar)
 
-
     def get_jet_loc(self, data, expected_lat, lat):
         """Get jet location based on sign changes of Del(f)."""
         signchange = ((np.roll(np.sign(data), 1) - np.sign(data)) != 0).values
-        idx = (np.abs(lat[signchange]-expected_lat)).argmin()
+        idx = (np.abs(lat[signchange] - expected_lat)).argmin()
 
         return lat[signchange][idx]
 
