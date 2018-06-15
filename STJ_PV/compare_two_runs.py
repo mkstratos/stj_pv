@@ -230,20 +230,41 @@ def main():
                  'ERAI-Theta_zmean':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
                            '1979-01-01_2016-12-31.nc'),
-                  'label': 'Monthly ERAI PV Zonal Mean'}}
+                  'label': 'Monthly ERAI PV Zonal Mean'},
+
+                 'ERAI-Monthly_new':
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Monthly ERA-I'},
+
+                 'ERAI-Daily_new':
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Daily ERA-I'},
+
+                 'NCEP-Monthly_new':
+                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Monthly NCEP'},
+
+                 'NCEP-Daily_new':
+                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Daily NCEP'},
+                 }
 
     nc_dir = './jet_out'
     if not os.path.exists(nc_dir):
         nc_dir = '.'
 
-    fig_mult = 2.0
+    fig_mult = 1.0
     plt.rc('font', size=9 * fig_mult)
-    extn = 'png'
+    extn = 'pdf'
     sns.set_style('whitegrid')
-    fig_width = (9.5 / 2.54) * fig_mult
-    fig_height = (11.5 / 2.54) * fig_mult
+    fig_width = (8.4 / 2.54) * fig_mult
+    fig_height = fig_width * 1.3
 
-    in_names = ['NCEP-mon', 'NCEP-mon-70max']
+    in_names = ['NCEP-Monthly_new', 'ERAI-Monthly_new']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
@@ -263,14 +284,17 @@ def main():
                    split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0 * fig_mult,
                    dashpattern='-')
     axes[1].set_yticks(np.arange(-50, -20, 10))
-    fig.subplots_adjust(left=0.10, bottom=0.08, right=0.95, top=0.94, hspace=0.0)
+    for axis in axes:
+        axis.set_xlabel('')
+        axis.set_ylabel('Latitude [deg]')
+    fig.subplots_adjust(left=0.11, bottom=0.05, right=0.98, top=0.98, hspace=0.0)
     fig.legend(bbox_to_anchor=(0.15, 0.94), loc='upper left', borderaxespad=0.)
 
     for axis in axes:
         axis.legend_.remove()
         axis.tick_params(axis='y', rotation=90)
         axis.grid(b=True, ls='--', zorder=-1)
-    fig.suptitle('Seasonal jet latitude distributions')
+    # fig.suptitle('Seasonal jet latitude distributions')
 
     plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
     plt.close()
