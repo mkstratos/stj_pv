@@ -380,11 +380,11 @@ def check_data_config(cfg_file):
     return config, any([missing_req, all(missing_optionals)])
 
 
-def main():
+def main(sens_run=False):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
-    # jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
+    jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
     # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
     # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
@@ -397,25 +397,27 @@ def main():
     # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
 
     # U-Max
-    jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
+    # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
 
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2016, 12, 31)
 
-    jf_run.run(date_s, date_e)
 
-    sens_param_vals = {'pv_lev': np.arange(1.0, 4.5, 0.5),
-                       'fit': np.arange(5, 9),
-                       'min_lat': np.arange(2.5, 15, 2.5),
-                       'max_lat': np.arange(60., 95., 5.)}
+    if sens_run:
+        sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
+                           'fit': np.arange(5, 9),
+                           'min_lat': np.arange(2.5, 15, 2.5),
+                           'max_lat': np.arange(60., 95., 5.)}
 
-    # for sens_param in ['pv_lev', 'fit', 'min_lat']:
-    #     jf_run.run_sensitivity(sens_param=sens_param,
-    #                            sens_range=sens_param_vals[sens_param],
-    #                            date_s=date_s, date_e=date_e)
+        for sens_param in ['pv_value', 'fit', 'min_lat']:
+            jf_run.run_sensitivity(sens_param=sens_param,
+                                   sens_range=sens_param_vals[sens_param],
+                                   date_s=date_s, date_e=date_e)
+    else:
+        jf_run.run(date_s, date_e)
 
     jf_run.log.info('JET FINDING COMPLETE')
 
 
 if __name__ == "__main__":
-    main()
+    main(sens_run=False)
