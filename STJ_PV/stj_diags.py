@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
 import pandas as pd
+import datetime as dt
 
 import input_data
 import stj_metric
@@ -14,7 +15,7 @@ import run_stj
 import utils
 
 # Define the plot output extention
-EXTN = 'png'
+EXTN = 'pdf'
 
 
 class DiagPlots(object):
@@ -90,7 +91,8 @@ class DiagPlots(object):
         axes[3].spines['right'].set_color('none')
         axes[3].spines['top'].set_color('none')
         _, map_y = pmap(*np.meshgrid(data.lon, data.lat))
-        axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0], 'C1')
+        axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0],
+                     '#fc4f30', lw=1.5 * self.fig_mult)
 
         for hidx, lati in enumerate(self.jet_info['jet_idx']):
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
@@ -102,8 +104,8 @@ class DiagPlots(object):
             _, lat_q2 = pmap(0, lat_median + lat_iqr)
 
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
-            axes[3].axhline(lat_q1, color='k', ls='--', lw=0.8 * self.fig_mult)
-            axes[3].axhline(lat_q2, color='k', ls='--', lw=0.8 * self.fig_mult)
+            # axes[3].axhline(lat_q1, color='k', ls='--', lw=0.8 * self.fig_mult)
+            # axes[3].axhline(lat_q2, color='k', ls='--', lw=0.8 * self.fig_mult)
 
             x_loc = axes[3].get_xlim()[-1]
             y_loc = map_y[lati, 0] * 1.03
@@ -379,16 +381,17 @@ class DiagPlots(object):
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
-    dates = pd.date_range('2001-10-01', '2002-02-28', freq='MS')
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
+    # dates = pd.date_range('1981-02-05', '1981-02-20', freq='D')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
         # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
         # jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
         # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly.yml')
-        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_ncep.yml')
         # jf_run =  run_stj.JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
+        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
 
         # Force update_pv and force_write to be False, optional override of zonal-mean
         jf_run.config['update_pv'] = False
@@ -402,7 +405,6 @@ def main():
             os.remove(jf_run.config['log_file'])
         except OSError:
             print('Log file not found: {}'.format(jf_run.config['log_file']))
-
 
 
 if __name__ == "__main__":
