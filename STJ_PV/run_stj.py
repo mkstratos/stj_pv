@@ -101,8 +101,9 @@ class JetFindRun(object):
     def _set_metric(self):
         """Set metric and associated levels."""
         if self.config['method'] == 'STJPV':
-            self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
-                                       350.0, 370.0, 395.0, 430.0])
+            # self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
+            #                            350.0, 370.0, 395.0, 430.0])
+            self.th_levels = np.arange(300, 430, 10)
             self.metric = stj_metric.STJPV
         elif self.config['method'] == 'STJUMax':
             self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
@@ -387,13 +388,32 @@ def main():
     # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
     # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
-    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+
+    # Four main choices
+    # jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+    # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
+
+    # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+    # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+
+    # U-Max
+    jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
+
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2016, 12, 31)
 
-    # jf_run.run(date_s, date_e)
-    jf_run.run_sensitivity(sens_param='max_lat', sens_range=np.arange(60.0, 95.0, 5),
-                           date_s=date_s, date_e=date_e)
+    jf_run.run(date_s, date_e)
+
+    sens_param_vals = {'pv_lev': np.arange(1.0, 4.5, 0.5),
+                       'fit': np.arange(5, 9),
+                       'min_lat': np.arange(2.5, 15, 2.5),
+                       'max_lat': np.arange(60., 95., 5.)}
+
+    # for sens_param in ['pv_lev', 'fit', 'min_lat']:
+    #     jf_run.run_sensitivity(sens_param=sens_param,
+    #                            sens_range=sens_param_vals[sens_param],
+    #                            date_s=date_s, date_e=date_e)
+
     jf_run.log.info('JET FINDING COMPLETE')
 
 
