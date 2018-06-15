@@ -17,16 +17,18 @@ def main(time_freq):
 
     """
     plt.rc('font', size=9)
-    files = {'monthly': ('./jet_out/ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
-                         '1979-01-01_2016-12-31.nc'),
-             'daily': ('./jet_out/ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
-                       '1979-01-01_2016-12-31.nc'),
+    files = {'monthly': ('./jet_out/ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_'
+                         'y010.0_1979-01-01_2016-12-31.nc'),
+             'daily': ('./jet_out/ERAI_DAILY_THETA_STJPV_pv2.0_fit8_'
+                       'y010.0_zmean_1979-01-01_2016-12-31.nc'),
              'ncep': ('./jet_out/NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
                       '1979-01-01_2016-12-31.nc'),
              'merra': ('./jet_out/MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
                        '1979-01-01_2015-12-31.nc'),
-             'ncep-daily': ('./jet_out/NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_'
-                            'zmean_1979-01-01_2016-12-31.nc')
+             'ncep-daily': ('./jet_out/NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_'
+                            'y010.0_zmean_1979-01-01_2016-12-31.nc'),
+             'era-65': ('./ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_'
+                        'y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc')
              }
 
     in_file = files[time_freq]
@@ -80,4 +82,4 @@ def main(time_freq):
 
 
 if __name__ == '__main__':
-    main('ncep-daily')
+    main('era-65')
