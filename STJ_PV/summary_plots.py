@@ -6,7 +6,6 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-import yaml
 
 plt.style.use('fivethirtynine')
 
@@ -126,7 +125,7 @@ def main(run_name=None, props=None):
     out_file = in_file.replace('.', 'p')
     plt.savefig(f'{out_file}.{EXTN}')
     pair_grid(data, out_file)
-    summary_table(data)
+    summary_table(data, out_file)
 
 
 def pair_grid(data, out_file):
@@ -162,12 +161,13 @@ def pair_grid(data, out_file):
         plt.close()
 
 
-def summary_table(data_in):
+def summary_table(data_in, out_file):
     """Compute monthly, seasonal, and annual mean for NH and SH."""
     data_seasonal = data_in.groupby('time.season').mean()
     data_monthly = data_in.groupby('time.month').mean()
-    out_file = yaml.load(data_in.run_props)['output_file']
-    out_file = out_file.replace('.', 'p')
+
+    # Set output precision
+    pd.set_option('display.float_format', lambda x: '%.1f' % x)
 
     with open(f'seasonal_stats_{out_file}.tex', 'w') as fout:
         fout.write(data_seasonal.to_dataframe().to_latex())
@@ -201,5 +201,5 @@ if __name__ == '__main__':
     DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
                 'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV']
 
-    for RNAME in DATASETS[2:]:
+    for RNAME in DATASETS:
         main(run_name=RNAME)
