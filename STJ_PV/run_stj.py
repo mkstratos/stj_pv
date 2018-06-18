@@ -57,8 +57,8 @@ class JetFindRun(object):
             self.config = {'data_cfg': './conf/data_config_default.yml', 'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
                            'zonal_opt': 'mean', 'poly': 'cheby',
-                           'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
-                           'max_lat': 80.0, 'update_pv': False,
+                           'pv_value': 2.0, 'fit_deg': 6, 'min_lat': 10.0,
+                           'max_lat': 65.0, 'update_pv': False,
                            'year_s': 1979, 'year_e': 2015}
         else:
 
@@ -384,13 +384,13 @@ def main(sens_run=False):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
-    jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
+    # jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
     # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
     # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
     # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
     # Four main choices
-    # jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
 
     # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
@@ -402,14 +402,13 @@ def main(sens_run=False):
     date_s = dt.datetime(1979, 1, 1)
     date_e = dt.datetime(2016, 12, 31)
 
-
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
-                           'fit': np.arange(5, 9),
+                           'fit_deg': np.arange(5, 9),
                            'min_lat': np.arange(2.5, 15, 2.5),
                            'max_lat': np.arange(60., 95., 5.)}
 
-        for sens_param in ['pv_value', 'fit', 'min_lat']:
+        for sens_param in sens_param_vals:
             jf_run.run_sensitivity(sens_param=sens_param,
                                    sens_range=sens_param_vals[sens_param],
                                    date_s=date_s, date_e=date_e)
