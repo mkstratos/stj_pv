@@ -1,12 +1,42 @@
+---
+# This is the (relative to the run_sty.py script, or absolute)
+# path to the data config file to be used
 data_cfg: './conf/data_config_default.yml'
+
+# Desired data frequency
 freq: 'mon'
+
+# Zonal option: can be 'mean', 'median', or 'indv' for zonal mean,
+# zonal median, or no zonal averaging (return all longitude locations) resp.
 zonal_opt: 'mean'
+
+# Name of method to be used. See stj_metric.py for possible methods
 method: 'STJPV'
+
+# Default location for log file placement, possibly over-ridden in run_stj
 log_file: "stj_find_{}.log"
+
+# Level of equal PV used in jet identification (for STJPV metric) in PV Units
 pv_value: 2.0
+
+# Degree of polynomial fit for `pv_value`
+# contour (used for differentiation method)
 fit_deg: 8
+
+# Type of polynomial fit to use
+# Chebyshev: 'cheby', 'cby', 'cheb', 'chebyshev'
+# Legendre: 'leg', 'legen', 'legendre'
+# Polynomial; 'poly', 'polynomial'
+poly: 'cheby'
+
+# Latitude to start fit. PV is asymptotic near equator,
+# polynomial fit does not work if it's included
 min_lat: 10.0
-update_pv: False
+
+# Update generated PV files if True
+update_pv: false
+
+# Default start and end years (used if start / end dates are not
+# provided in run_stj, go from 01-01-year_s to 31-12-year_e)
 year_s: 1979
 year_e: 2015
-poly: 'cheby'

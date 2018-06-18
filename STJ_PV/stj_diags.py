@@ -1,20 +1,21 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Module containing classes for diagnoistic variable calculation and diagnoistic plotting.
 """
 import os
-import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
 import pandas as pd
+import datetime as dt
 
 import input_data
 import stj_metric
 import run_stj
+import utils
 
 # Define the plot output extention
-EXTN = 'png'
+EXTN = 'pdf'
 
 
 class DiagPlots(object):
@@ -33,7 +34,7 @@ class DiagPlots(object):
         self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
 
         # Figure size set to 129 mm wide, 152 mm tall
-        self.fig_mult = 1.
+        self.fig_mult = 2.
 
         plt.rc('text', usetex=True)
         plt.rc('text.latex', unicode=True)
@@ -53,8 +54,8 @@ class DiagPlots(object):
         date : A :class:`datetime.datetime` instance to select and plot
 
         """
-        data = input_data.InputData(self.props, date_s=date,
-                                    date_e=date + dt.timedelta(seconds=3600 * 32 * 24))
+        data = input_data.InputData(self.props, date_s=date, date_e=date)
+                                    #date_e=date + dt.timedelta(seconds=3600 * 32 * 24))
         data.get_data_input()
         self.stj = self.metric(self.props, data)
         tix = 0
@@ -90,21 +91,21 @@ class DiagPlots(object):
         axes[3].spines['right'].set_color('none')
         axes[3].spines['top'].set_color('none')
         _, map_y = pmap(*np.meshgrid(data.lon, data.lat))
-        axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0], 'C1')
+        axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0],
+                     '#fc4f30', lw=1.5 * self.fig_mult)
 
         for hidx, lati in enumerate(self.jet_info['jet_idx']):
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
             # Mean vs. median
-            lat_median = np.median(self.jet_info['lat_all'][hidx][tix])
-            lat_iqr = (np.percentile(self.jet_info['lat_all'][hidx][tix], 75) -
-                       np.percentile(self.jet_info['lat_all'][hidx][tix], 25))
+            lat_median = np.ma.mean(self.jet_info['lat_all'][hidx][tix])
+            lat_iqr = np.ma.std(self.jet_info['lat_all'][hidx][tix])
 
             _, lat_q1 = pmap(0, lat_median - lat_iqr)
             _, lat_q2 = pmap(0, lat_median + lat_iqr)
 
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
-            axes[3].axhline(lat_q1, color='k', ls='--', lw=0.8 * self.fig_mult)
-            axes[3].axhline(lat_q2, color='k', ls='--', lw=0.8 * self.fig_mult)
+            # axes[3].axhline(lat_q1, color='k', ls='--', lw=0.8 * self.fig_mult)
+            # axes[3].axhline(lat_q2, color='k', ls='--', lw=0.8 * self.fig_mult)
 
             x_loc = axes[3].get_xlim()[-1]
             y_loc = map_y[lati, 0] * 1.03
@@ -146,8 +147,9 @@ class DiagPlots(object):
         ax3_c = axes[3].get_position().bounds
         ax2_c = axes[2].get_position().bounds
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
-        plt.savefig('plt_stj_diag_{}_{}K_{}.{}'
-                    .format(self.props.data_cfg['short_name'], data.th_lev[zix],
+        plt.savefig('plt_stj_diag_{}_{:.1f}PVU_{}.{}'
+                    .format(self.props.data_cfg['short_name'],
+                            self.props.config['pv_value'],
                             date.strftime('%Y-%m-%d'), EXTN))
         plt.clf()
         plt.close()
@@ -159,7 +161,7 @@ class DiagPlots(object):
         lwid = 2.0 * self.fig_mult
 
         dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
-        jet_pos = np.median(select[tix, :]).astype(int)
+        jet_pos = np.ma.mean(select[tix, :]).astype(int)
 
         # Append the list of jet latitude at each longitude in this hemisphere
         self.jet_info['lat_all'].append(lat[select.astype(int)])
@@ -278,7 +280,20 @@ class DiagPlots(object):
         # pmap = basemap.Basemap(projection='kav7', lon_0=lon_0, resolution='c')
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
-        uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
+
+        # Restrict to below theta == 450, compute U-wind on PV surface use to find jet
+        z_s = data.th_lev <= 450
+        uwnd_ = utils.vinterp(data.uwnd[:, z_s, ...], np.abs(data.ipv[:, z_s, ...]),
+                              np.array([self.props.config['pv_value']]))
+
+        if data.lon.min() < 0:
+            # uwnd = data.uwnd[tix, zix, ...]
+            uwnd = uwnd_
+            lon = data.lon
+        else:
+            # uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
+            uwnd, lon = basemap.addcyclic(uwnd_, data.lon)
+
         map_x, map_y = pmap(*np.meshgrid(lon, data.lat))
 
         cfill = pmap.contourf(map_x, map_y, uwnd, self.contours,
@@ -308,11 +323,9 @@ class DiagPlots(object):
 
         return cfill, pmap
 
-
     def _jet_details(self, shemis=True):
         """Get Jet details using :py:meth:`~STJ_PV.stj_metric.STJPV` API for a hemisphere.
         """
-
         # --------------------- Code from STJMetric.find_jet() --------------------- #
         if shemis and self.stj.pv_lev < 0 or not shemis and self.stj.pv_lev > 0:
             pv_lev = np.array([self.stj.pv_lev])
@@ -320,14 +333,25 @@ class DiagPlots(object):
             pv_lev = -1 * np.array([self.stj.pv_lev])
 
         lat, _, extrema = self.stj.set_hemis(shemis)
-        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev)
-        dims = theta_xpv.shape
+        if 'theta_s' in self.props.data_cfg and 'theta_e' in self.props.data_cfg:
+            theta_bnds = (self.props.data_cfg['theta_s'], self.props.data_cfg['theta_e'])
+        else:
+            theta_bnds = None
 
+        if theta_bnds is not None:
+            print('restrict theta: {} {}'.format(*theta_bnds))
+
+        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev, theta_bnds)
+        if theta_xpv.ndim == 2:
+            # Increase dimensionality of theta_xpv so it has a time dimension
+            # this makes the same method work if only a single time period is available
+            theta_xpv = theta_xpv[None, ...]
+        dims = theta_xpv.shape
 
         # ----------------- Code from STJMetric.find_single_jet() ----------------- #
         # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
         y_s = np.abs(np.abs(lat) - self.props.config['min_lat']).argmin()
-        y_e = None
+        y_e = np.abs(np.abs(lat) - self.props.config['max_lat']).argmin()
 
         # If latitude is in decreasing order, switch start & end
         # This makes sure we're selecting the latitude nearest the equator
@@ -335,7 +359,6 @@ class DiagPlots(object):
             y_s, y_e = y_e, y_s
         dims_fit = theta_xpv[:, y_s:y_e, :].shape
         tht_fit_shape = (self.props.config['fit_deg'] + 1, dims_fit[0], dims_fit[-1])
-
         dtheta = np.zeros(dims_fit)
         theta_fit = np.zeros(tht_fit_shape)
         select = np.zeros((dims_fit[0], dims_fit[-1]))
@@ -354,21 +377,26 @@ class DiagPlots(object):
 
         return dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e
 
+
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    # dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
-    dates = pd.date_range('1983-06-01', '1983-07-01', freq='d')
+    dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
+    # dates = pd.date_range('1981-02-05', '1981-02-20', freq='D')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
-        #jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta_daily.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly.yml')
+        # jf_run = run_stj.JetFindRun('./conf/stj_config_ncep.yml')
+        # jf_run =  run_stj.JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
+        jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
 
         # Force update_pv and force_write to be False, optional override of zonal-mean
         jf_run.config['update_pv'] = False
         jf_run.config['force_write'] = False
-        jf_run.config['zonal_opt'] = 'indv'
+        jf_run.config['zonal_opt'] = 'mean'
         diags = DiagPlots(jf_run, stj_metric.STJPV)
         diags.test_method_plot(date)
 

@@ -70,7 +70,6 @@ class InputData(object):
         """
         if self.time is None:
             self._load_time(self._find_pv_update())
-
         dates = nc.num2date(self.time, self.time_units, self.calendar)
         if date_s is not None and date_e is not None:
             # We have both start and end
@@ -87,7 +86,6 @@ class InputData(object):
         self.time = self.time[self.d_select]
 
     def _find_pv_update(self):
-
         pv_file = os.path.join(self.data_cfg['wpath'],
                                self.data_cfg['file_paths']['ipv'].format(year=self.year))
         return self.config['update_pv'] or not os.path.exists(pv_file)
@@ -101,7 +99,10 @@ class InputData(object):
         if pv_update:
             self._load_data(pv_update)
             self._calc_ipv()
-            force_write = self.props.config['force_write']
+            if 'force_write' in self.props.config:
+                force_write = self.props.config['force_write']
+            else:
+                force_write = False
             if self.time.shape[0] >= self.d_select.shape[0] or force_write:
                 # Only write output if it's the entire file
                 self._write_ipv()
@@ -154,9 +155,17 @@ class InputData(object):
         except KeyError:
             file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
 
+        if not os.path.exists(os.path.join(self.data_cfg['path'], file_name)):
+            # Fall back to 'all' if the input file is not found
+            file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
+
         nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
 
         self.time = nc_file.variables[self.data_cfg['time']][:]
+        if isinstance(self.time, np.ma.MaskedArray):
+            # Some data has masked time, if it is, remove those values
+            # this issue may crop up elsewhere, but sort it there first
+            self.time = self.time.compressed()
 
         # Set time units and calendar properties
         self.time_units = nc_file.variables[self.data_cfg['time']].units
@@ -173,6 +182,9 @@ class InputData(object):
         data_vars = []
         if pv_update:
             data_vars.extend(['uwnd', 'vwnd', 'tair'])
+            if 'epv' in cfg:
+                # If we already have PV on isobaric levels, load only pv, u-wind, t-air
+                data_vars = ['epv', 'uwnd', 'tair']
 
         if cfg['ztype'] == 'theta':
             # If input data is isentropic already..need pressure on theta, not air temp
@@ -266,16 +278,27 @@ class InputData(object):
             th_shape[1] = self.props.th_levels.shape[0]
 
             # Pre-allocate memory for PV and Wind fields
-            self.ipv = np.zeros(th_shape)
-            self.uwnd = np.zeros(th_shape)
+            self.ipv = np.ma.zeros(th_shape)
+            self.uwnd = np.ma.zeros(th_shape)
             chunks = self._gen_chunks()
             self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
             for ix_s, ix_e in chunks:
-                self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
-                    utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
-                              self.in_data['vwnd'][ix_s:ix_e, ...],
-                              self.in_data['tair'][ix_s:ix_e, ...],
-                              self.lev, self.lat, self.lon, self.props.th_levels)
+                if 'epv' not in self.in_data:
+                    self.props.log.info('USING U, V, T TO COMPUTE IPV')
+                    self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
+                        utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
+                                  self.in_data['vwnd'][ix_s:ix_e, ...],
+                                  self.in_data['tair'][ix_s:ix_e, ...],
+                                  self.lev, self.lat, self.lon, self.props.th_levels)
+                else:
+                    self.props.log.info('USING ISOBARIC PV TO COMPUTE IPV')
+                    thta = utils.theta(self.in_data['tair'][ix_s:ix_e, ...], self.lev)
+                    self.ipv[ix_s:ix_e, ...] = \
+                        utils.vinterp(self.in_data['epv'][ix_s:ix_e, ...],
+                                      thta, self.props.th_levels)
+                    self.uwnd[ix_s:ix_e, ...] = \
+                        utils.vinterp(self.in_data['uwnd'][ix_s:ix_e, ...],
+                                      thta, self.props.th_levels)
             self.ipv *= 1e6  # Put PV in units of PVU
             self.th_lev = self.props.th_levels
 
@@ -283,7 +306,6 @@ class InputData(object):
             self.ipv = utils.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
                                        self.in_data['pres'], self.lat, self.lon,
                                        self.lev)
-
         self.props.log.info('Finished calculating IPV')
 
     def _calc_dyn_trop(self):
@@ -335,7 +357,7 @@ class InputData(object):
                  'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
                  'timevar': self.data_cfg['time'], 'time_units': self.time_units,
                  'calendar': self.calendar, 'lat_units': 'degrees_north',
-                 'lon_units': 'degrees_east', 'lev_units': 'K'}
+                 'lon_units': 'degrees_east', 'lev_units': 'K', '_FillValue': 9.0e16}
 
         # IPV in the file should be in 1e-6 PVU
         ipv_out = dout.NCOutVar(self.ipv * 1e-6, props=props, coords=coords)

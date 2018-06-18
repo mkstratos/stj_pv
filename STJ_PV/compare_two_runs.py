@@ -18,7 +18,6 @@ class FileDiag(object):
     """
     def __init__(self, info, opts_hem=None, file_path=None):
         self.name = info['label']
-        #import pdb ; pdb.set_trace()
         if file_path is None:
             # If the file path is not provided, the input path in `info` is the abs path
             file_path = ''
@@ -36,7 +35,7 @@ class FileDiag(object):
         if self.opt_hems is None:
             hems = ['nh', 'sh']
         else:
-            #in case you want to use equator or only one hemi
+            # in case you want to use equator or only one hemi
             hems = self.opt_hems
 
         self.dframe = self.d_s.to_dataframe()
@@ -133,12 +132,20 @@ class FileDiag(object):
 def main():
     """Selects two files to compare, loads and plots them."""
     file_info = {'NCEP-mon':
-                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly'},
 
+                 'NCEP-mon-70max':
+                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_yN70.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly 70Max'},
+
                  'NCEP-day':
-                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily'},
+                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily Z-Median'},
+
+                 'NCEP-day-zmean':
+                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily Z-Mean'},
 
                  'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
                              'label': 'NCEP PV'},
@@ -147,68 +154,116 @@ def main():
                                         '_y010.0.nc'), 'label': 'NCEP U-max'},
 
                  'ERAI-Theta':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV'},
 
                  'ERAI-Theta-5':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_'
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'),
                   'label': 'B Monthly ERAI PV 5.0˚'},
 
                  'ERAI-Theta-DM':
-                 {'file': ('ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'),
                   'label': 'A Monthly mean of daily ERAI PV'},
 
                  'ERAI-Theta-Day':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV'},
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV median'},
+
+                 'ERAI-Theta-Day_zmean':
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV mean'},
 
                  'ERAI-Theta-Day-5':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_'
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'B Daily ERAI PV 5.0˚'},
 
                  'ERAI-Regrid':
-                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_'
+                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_zmedian_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
 
                  'ERAI-Uwind':
-                 {'file': 'ERAI_PRES_STJUMax_pres25000.0_y010.0_1979-01-01_2016-12-31.nc',
-                  'label': 'ERAI U-Wind'},
+                 {'file': ('ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'ERAI U-Wind'},
 
                  'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
                                  'label': 'ERAI Theta5'},
 
                  'ERAI-Pres':
-                 {'file': 'ERAI_PRES_STJPV_pv2.0_fit8_y010.0_1979-01-01_2015-12-31.nc',
-                  'label': 'ERAI PV'},
-                 'ERAI-KP': {'file': 'ERAI_PRES_KangPolvani_1979-01-01_2015-12-31.nc',
-                             'label': 'ERAI K-P'},
+                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2015-12-31.nc'), 'label': 'ERAI Pres'},
+
+                 'ERAI-Pres-newlev':
+                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31_newlevels.nc'),
+                  'label': 'ERAI Pres new'},
+
+                 'ERAI-Pres-oldlev':
+                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31_oldlevels.nc'),
+                  'label': 'ERAI Pres old'},
+
+                 'ERAI-Epv':
+                 {'file': ('ERAI_EPVPRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2015-12-31.nc'), 'label': 'ERAI EPV Pres'},
+
+                 'ERAI-KP': {'file': ('ERAI_DAILY_PRES_KangPolvani_zmean_'
+                                      '1979-01-01_2016-12-31.nc'), 'label': 'ERAI K-P'},
 
                  'ERAI-Theta_LR':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV Slice'},
 
                  'ERAI-Theta-Day_LR':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_lon45-100_'
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
+
+                 'MERRA-Mon':
+                 {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2015-12-31.nc'), 'label': 'Monthly MERRA PV'},
+                 'JRA-Mon':
+                 {'file': ('JRA55_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
+                           '1979-01-01_2017-12-31.nc'), 'label': 'Monthly JRA-55 PV'},
+
+                 'ERAI-Theta_zmean':
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'),
+                  'label': 'Monthly ERAI PV Zonal Mean'},
+
+                 'ERAI-Monthly_new':
+                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Monthly ERA-I'},
+
+                 'ERAI-Daily_new':
+                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Daily ERA-I'},
+
+                 'NCEP-Monthly_new':
+                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Monthly NCEP'},
+
+                 'NCEP-Daily_new':
+                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                           '_zmean_1979-01-01_2016-12-31.nc'),
+                  'label': 'Daily NCEP'},
                 }
 
     nc_dir = './jet_out'
     if not os.path.exists(nc_dir):
         nc_dir = '.'
-    
-    plt.rc('font', size=9)
-    extn = 'eps'
+
+    fig_mult = 1.0
+    plt.rc('font', size=9 * fig_mult)
+    extn = 'pdf'
     sns.set_style('whitegrid')
-    fig_width = 9.5 / 2.54
-    fig_height = 11.5 / 2.54
+    fig_width = (8.4 / 2.54) * fig_mult
+    fig_height = fig_width * 1.3
 
-    #in_names = ['ERAI-Regrid', 'NCEP-mon']
-    #in_names = ['ERAI-Pres', 'ERAI-KP']
-    in_names = ['ERAI-Pres', 'ERAI-KP']
-
-    #in_names = ['ERAI-Theta_LR', 'ERAI-Theta-Day_LR']
+    in_names = ['ERAI-Daily_new', 'ERAI-Monthly_new']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
@@ -220,20 +275,25 @@ def main():
     # to implement it in a nice (non-hacked!) way for others and PR it to seaborn
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
-                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0)
+                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0 * fig_mult,
+                   dashpattern='-')
     axes[0].set_yticks(np.arange(30, 60, 10))
 
     sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
-                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0)
+                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0 * fig_mult,
+                   dashpattern='-')
     axes[1].set_yticks(np.arange(-50, -20, 10))
-    fig.subplots_adjust(left=0.10, bottom=0.08, right=0.95, top=0.94, hspace=0.0)
+    for axis in axes:
+        axis.set_xlabel('')
+        axis.set_ylabel('Latitude [deg]')
+    fig.subplots_adjust(left=0.11, bottom=0.05, right=0.98, top=0.98, hspace=0.0)
     fig.legend(bbox_to_anchor=(0.15, 0.94), loc='upper left', borderaxespad=0.)
 
     for axis in axes:
         axis.legend_.remove()
         axis.tick_params(axis='y', rotation=90)
         axis.grid(b=True, ls='--', zorder=-1)
-    fig.suptitle('Seasonal jet latitude distributions')
+    # fig.suptitle('Seasonal jet latitude distributions')
 
     plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
     plt.close()

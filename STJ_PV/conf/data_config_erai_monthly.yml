@@ -1,0 +1,31 @@
+path: '/Volumes/FN_2187/erai/monthly'
+wpath: '/Volumes/FN_2187/erai/monthly'
+#wpath: '/scratch/mk450/Data/ERA_INT/monthly/'
+short_name: 'ERAI_PRES'
+
+# Input file possibilities:
+# n_vars x all_years
+
+# IPV and Tropopause can be separate files since they _could_ be created outside the input
+# file, so they have their own keys in `file_paths`, but can point to same as 'all'
+
+# all var/file, 1 year / file
+single_var_file: False
+single_year_file: True
+file_paths:
+    all: 'erai_pres_{year:04d}.nc'
+    ipv: 'erai_ipv_pres_{year:04d}.nc'
+
+lon: 'longitude'      # Name within netCDF file of 'longitude' variable
+lat: 'latitude'      # Name within netCDF file of 'latitude' variable
+lev: 'level'    # Name within netCDF file of 'level' variable
+time: 'time'    # Name within netCDF file of 'time' variable
+ztype: 'pres'   # Type of levels (pressure, potential temperature, etc.)
+pfac: 100.0     # Multiply pressure by this to get units of Pascals
+
+# Variable names for u/v wind, air temperature and pv
+tair: 't'
+uwnd: 'u'
+vwnd: 'v'
+epv: 'pv'
+ipv: 'ipv'
