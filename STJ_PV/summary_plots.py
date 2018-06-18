@@ -123,12 +123,13 @@ def main(run_name=None, props=None):
 
     fig.subplots_adjust(left=0.08, bottom=0.05, right=0.92, top=0.94,
                         wspace=0.23, hspace=0.28)
-    plt.savefig(f'{in_file}.{EXTN}')
-    pair_grid(data, in_file)
+    out_file = in_file.replace('.', 'p')
+    plt.savefig(f'{out_file}.{EXTN}')
+    pair_grid(data, out_file)
     summary_table(data)
 
 
-def pair_grid(data, in_file):
+def pair_grid(data, out_file):
     """Make PairGrid plot for each hemisphere."""
     dframe = data.to_dataframe()
     nh_vars = [f'{var}_nh' for var in ['theta', 'lat', 'intens']]
@@ -156,7 +157,7 @@ def pair_grid(data, in_file):
             sns.kdeplot(dfi[grd.x_vars[j]], dfi[grd.y_vars[i]],
                         shade=True, cmap='Reds', legend=False,
                         shade_lowest=False, ax=grd.axes[i, j])
-        plt.savefig(f'plt_grid_{hem}_{in_file}.{EXTN}')
+        plt.savefig(f'plt_grid_{hem}_{out_file}.{EXTN}')
         plt.clf()
         plt.close()
 
@@ -166,6 +167,7 @@ def summary_table(data_in):
     data_seasonal = data_in.groupby('time.season').mean()
     data_monthly = data_in.groupby('time.month').mean()
     out_file = yaml.load(data_in.run_props)['output_file']
+    out_file = out_file.replace('.', 'p')
 
     with open(f'seasonal_stats_{out_file}.tex', 'w') as fout:
         fout.write(data_seasonal.to_dataframe().to_latex())
