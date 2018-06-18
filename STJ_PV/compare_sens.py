@@ -15,16 +15,24 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
 
     Parameters
     ----------
+    run_type : string
+        Dataset and frequency name (e.g. ERAI_MONTHLY_THETA)
     param_name : string
         Name of sensitivity parameter
     param_vals : iterable
         Array or list of values that `param_name` takes
+    dates : tuple
+        Start and end date of jet run dataset
+    var : string, optional
+        Jet variable name (one of: lat, intens, theta) default is lat
 
     """
-    # opts = {'run_type': 'ERAI_MONTHLY_THETA_STJPV',
-    #         'fit': 8, 'y0': 10, 'yN': 70, 'pv_lev': 2.0}
     opts = {'run_type': run_type, 'fit': 6,
-            'y0': 10, 'pv_lev': 2.0, 'yN': 90.0}
+            'y0': 10, 'pv_lev': 2.0, 'yN': 65.0}
+    plot_seas = True
+    plot_mon = False
+    plot_ts = False
+
     opts.pop(param_name)
     opts_var = [{param_name: p_val} for p_val in param_vals]
     file_fmt = ('{run_type}_pv{pv_lev:.1f}_fit{fit:.0f}_'
@@ -36,24 +44,28 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     d_in[param_name] = param_vals
 
     # Figure size set to 129 mm wide, 152 mm tall
-    fig_mult = 2.0
+    fig_mult = 1.0
     fig_width = 129 * fig_mult
     plt.rc('font', family='sans-serif', size=8 * fig_mult)
+    sens_out = None
 
-    fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
-    figure = plt.subplots(2, 2, figsize=fig_size, sharex=True)
-    sens_monthly(d_in, var, param_name, figure)
-    plt.close()
+    if plot_seas:
+        fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
+        figure = plt.subplots(1, 2, figsize=fig_size)
+        sens_out = sens_seasonal(d_in, var, param_name, figure)
+        plt.close()
 
-    fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
-    figure = plt.subplots(1, 2, figsize=fig_size)
-    sens_out = sens_seasonal(d_in, var, param_name, figure)
-    plt.close()
+    if plot_mon:
+        fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
+        figure = plt.subplots(2, 2, figsize=fig_size, sharex=True)
+        sens_monthly(d_in, var, param_name, figure)
+        plt.close()
 
-    fig_size = (fig_width / 25.4, (fig_width / 3) / 25.4)
-    figure = plt.subplots(2, 1, figsize=fig_size)
-    plot_timeseries(d_in, var, param_name, figure)
-    plt.close()
+    if plot_ts:
+        fig_size = (fig_width / 25.4, (fig_width / 3) / 25.4)
+        figure = plt.subplots(2, 1, figsize=fig_size)
+        plot_timeseries(d_in, var, param_name, figure)
+        plt.close()
 
     return sens_out
 
@@ -114,10 +126,10 @@ def sens_seasonal(d_in, var, param_name, figure):
 
     axis[0].set_xlabel(PARAMS[param_name])
     axis[0].set_ylabel('Mean Jet {name} [{units}]'.format(**VARS[var]))
-    if param_name == 'fit' and var == 'lat':
-        axis[0].legend(loc='upper center', bbox_to_anchor=(0.5, 0.5))
-    else:
-        axis[0].legend()
+    # if param_name == 'fit' and var == 'lat':
+    #     axis[0].legend(loc='upper center', bbox_to_anchor=(0.5, 0.5))
+    # else:
+    axis[0].legend()
     axis[0].set_title('(a) Northern Hemisphere')
     axis[0].grid(**GRID_STYLE)
     axis[1].set_xlabel(PARAMS[param_name])
@@ -139,7 +151,7 @@ def sens_seasonal(d_in, var, param_name, figure):
 
 def sens_monthly(data_in, var, param_name, figure):
     """Plot monthly mean and variance for different values of parameters."""
-    fig, axes = figure
+    _, axes = figure
     nh_monthly = data_in['{}_nh'.format(var)].groupby('time.month')
     sh_monthly = data_in['{}_sh'.format(var)].groupby('time.month')
 
@@ -184,22 +196,23 @@ def run():
                   'fit': np.arange(5, 9),
                   'y0': np.arange(2.5, 15, 2.5),
                   'yN': np.arange(60., 95., 5.)}
-    # sens = {'pv': {}, 'fit': {}, 'y0': {}, 'yN': {}}
-    sens = {'yN': {}}
+    sens = {'pv_lev': {}, 'fit': {}, 'y0': {}, 'yN': {}}
 
     for var_name in VARS:
         for param in sens:
             sens[param][var_name] = main(run_type, param, param_vals[param],
                                          dates, var_name)
+    print('Parameter & Hemisphere & DJF & MAM & JJA & SON\\\\')
     for hem in ['NH', 'SH']:
         for var in sens:
-            out_line = '{} & {} & '.format(hem, var)
+            out_line = '{} & {} & '.format(PARAMS[var], hem)
             for season in ['DJF', 'MAM', 'JJA', 'SON']:
                 if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
-                    fmt_str = ' \\textbf{%.4f} & '
+                    fmt_str = ' \\textbf{%.2f} & '
                 else:
-                    fmt_str = ' %.4f & '
+                    fmt_str = ' %.2f & '
                 out_line += fmt_str % sens[var]['lat'][(hem, season)].slope
+            out_line = '{}\\\\'.format(out_line[:-2])
             print(out_line)
 
 
@@ -209,7 +222,7 @@ PARAMS = {'fit': 'Polynomial Fit [deg]', 'y0': 'Minimum Latitude',
 VARS = {'lat': {'name': 'Latitude Position', 'units': 'deg'},
         'theta': {'name': 'Theta Position', 'units': 'K'},
         'intens': {'name': 'Intensity', 'units': 'm/s'}}
-EXTN = 'png'
+EXTN = 'pdf'
 GRID_STYLE = {'b': True, 'ls': '--', 'lw': 0.5}
 
 if __name__ == "__main__":
