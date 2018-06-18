@@ -446,11 +446,11 @@ class InputDataWind(object):
         self.props = props
         self.config = props.config
         self.data_cfg = props.data_cfg
-
-        if 'pres_level' in self.config:
-            self.plev = self.config['pres_level']
-        else:
-            self.plev = None
+        # if 'pres_level' in self.config:
+        #     self.plev = self.config['pres_level']
+        # else:
+        #     self.plev = None
+        self.plev = None
 
         if date_s is not None:
             self.year = date_s.year
