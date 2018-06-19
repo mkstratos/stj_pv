@@ -8,6 +8,14 @@ import pandas as pd
 __author__ = 'Michael Kelleher, Penny Maher'
 
 
+def invert_coords(coords, coord_key):
+    """Invert coordinates to map labels to values."""
+    inv_map = {val: key for key, val in coords[coord_key].items()}
+    labels = [inv_map[key] for key in inv_map]
+    keys = [key for key in inv_map]
+    return labels, keys
+
+
 def main():
     """Load data, make error-bar plots of trends from Phil."""
     data = pd.read_csv('trends.csv')
@@ -17,12 +25,14 @@ def main():
 
     # Coordinates (axis, x of axis)
     coords = {'x': {'Monthly': 0, 'Daily': 1},
-              'axis': {'NH': 0, 'SH': 1},
+              'axis': {'Northern Hemisphere': 0, 'Southern Hemisphere': 1},
               'color': {'NCEP': 2, 'ERAI': 6}}
+    axkey = 'Hemisphere'
+    xkey = 'Frequency'
 
     for _, row in data.iterrows():
-        ax_ix = coords['axis'][row['Hemisphere']]
-        x_ix = coords['x'][row['Frequency']]
+        ax_ix = coords['axis'][row[axkey]]
+        x_ix = coords['x'][row[xkey]]
         cix = coords['color'][row['Reanalysis']]
 
         sct_args = {'marker': 'o', 's': 80, 'zorder': 6, 'c': f'C{cix}'}
@@ -44,16 +54,18 @@ def main():
         axes[ax_ix].hlines(row['Upper'], x_ix - capsize, x_ix + capsize,
                            f'C{cix}')
 
-    for axis in axes:
+    xlabels, xticks = invert_coords(coords, 'x')
+    axlabels, _ = invert_coords(coords, 'axis')
+
+    for idx, axis in enumerate(axes):
         axis.set_xlim([-0.5, 1.5])
         y_max = np.max(np.abs(axis.get_ylim()))
         axis.set_ylim([-y_max, y_max])
         axis.grid(b=True, ls='--', lw=0.5)
-        axis.set_xticks([0, 1])
-        axis.set_xticklabels(['Monthly', 'Daily'])
+        axis.set_xticks(xticks)
+        axis.set_xticklabels(xlabels)
+        axis.set_title(axlabels[idx])
 
-    axes[0].set_title('Northern Hemisphere')
-    axes[1].set_title('Southern Hemisphere')
     axes[0].set_ylabel(u'Latitude Trend [\u00b0 / decade]')
     axes[1].legend()
 
