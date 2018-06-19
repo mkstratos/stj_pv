@@ -4,7 +4,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 from seaborn import despine
-
 __author__ = 'Michael Kelleher, Penny Maher'
 
 
@@ -56,7 +55,8 @@ def main():
                            f'C{cix}')
 
     xlabels, xticks = invert_coords(coords, 'x')
-    axlabels, _ = invert_coords(coords, 'axis')
+    axlabels, axidx = invert_coords(coords, 'axis')
+
     ax_key = ['(a)', '(b)']
 
     for idx, axis in enumerate(axes):
@@ -72,8 +72,9 @@ def main():
         axis.xaxis.set_ticks_position('none')
         axis.set_title(f'{ax_key[idx]} {axlabels[idx]}')
 
+    axes[coords['axis']['Southern Hemisphere']].invert_yaxis()
     axes[0].set_ylabel(u'Latitude Trend [\u00b0 / decade]')
-    leg = axes[1].legend(bbox_to_anchor=(.99, .965), frameon=False)
+    axes[1].legend(bbox_to_anchor=(.99, .965), frameon=False)
 
     plt.tight_layout()
     plt.savefig('plt_trends_all.pdf')
