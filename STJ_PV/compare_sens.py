@@ -191,6 +191,39 @@ def sens_monthly(data_in, var, param_name, figure):
     plt.savefig('plt_sens_{}_{}_monthly.{}'.format(var, param_name, EXTN))
 
 
+def create_table_season(sens):
+    """Create a LaTeX table of numeric sensitivities seasons as columns."""
+    print('Parameter & Hemisphere & DJF & MAM & JJA & SON\\\\')
+    for hem in ['NH', 'SH']:
+        for var in sens:
+            out_line = '{} & {} & '.format(PARAMS[var], hem)
+            for season in ['DJF', 'MAM', 'JJA', 'SON']:
+                if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
+                    fmt_str = ' \\textbf{%.2f} & '
+                else:
+                    fmt_str = ' %.2f & '
+                out_line += fmt_str % sens[var]['lat'][(hem, season)].slope
+            out_line = '{}\\\\'.format(out_line[:-2])
+            print(out_line)
+
+
+def create_table_param(sens):
+    """Create a LaTeX table of numeric sensitivities, parameters as columns."""
+    print(' & & '.join(sens.keys()))
+    print(' & '.join(['NH', 'SH'] * len(sens.keys())))
+    for season in ['DJF', 'MAM', 'JJA', 'SON']:
+        out_line = '{} & '.format(season)
+        for var in sens:
+            for hem in ['NH', 'SH']:
+                if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
+                    fmt_str = ' \\textbf{%.2f} & '
+                else:
+                    fmt_str = ' %.2f & '
+                out_line += fmt_str % sens[var]['lat'][(hem, season)].slope
+        out_line = '{}\\\\'.format(out_line[:-2])
+        print(out_line)
+
+
 def run():
     """Set dates, variable names, and parameters to plot sensitivity."""
     # run_type = 'NCEP_NCAR_MONTHLY_STJPV'
@@ -206,18 +239,7 @@ def run():
         for param in sens:
             sens[param][var_name] = main(run_type, param, param_vals[param],
                                          dates, var_name)
-    print('Parameter & Hemisphere & DJF & MAM & JJA & SON\\\\')
-    for hem in ['NH', 'SH']:
-        for var in sens:
-            out_line = '{} & {} & '.format(PARAMS[var], hem)
-            for season in ['DJF', 'MAM', 'JJA', 'SON']:
-                if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
-                    fmt_str = ' \\textbf{%.2f} & '
-                else:
-                    fmt_str = ' %.2f & '
-                out_line += fmt_str % sens[var]['lat'][(hem, season)].slope
-            out_line = '{}\\\\'.format(out_line[:-2])
-            print(out_line)
+    create_table_param(sens)
 
 
 # Global static information
