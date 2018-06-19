@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """Plot trends from Phil."""
-import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from seaborn import despine
 
 __author__ = 'Michael Kelleher, Penny Maher'
 
@@ -26,7 +26,7 @@ def main():
     # Coordinates (axis, x of axis)
     coords = {'x': {'Monthly': 0, 'Daily': 1},
               'axis': {'Northern Hemisphere': 0, 'Southern Hemisphere': 1},
-              'color': {'NCEP': 2, 'ERAI': 6}}
+              'color': {'NCEP': 0, 'ERAI': 1}}
     axkey = 'Hemisphere'
     xkey = 'Frequency'
 
@@ -35,11 +35,12 @@ def main():
         x_ix = coords['x'][row[xkey]]
         cix = coords['color'][row['Reanalysis']]
 
-        sct_args = {'marker': 'o', 's': 80, 'zorder': 6, 'c': f'C{cix}'}
+        sct_args = {'marker': 'o', 's': 70, 'zorder': 6}
         if row['Upper'] * row['Lower'] > 0:
-            sct_args['edgecolor'] = 'k'
+            sct_args['c'] = f'C{cix}'
         else:
-            sct_args['edgecolor'] = 'face'
+            sct_args['facecolor'] = 'white'
+            sct_args['edgecolor'] = f'C{cix}'
 
         if ax_ix == 1 and x_ix == 0:
             sct_args['label'] = row['Reanalysis']
@@ -47,7 +48,7 @@ def main():
         axes[ax_ix].scatter(x_ix, row['Trend'], **sct_args)
         axes[ax_ix].vlines(x_ix, row['Lower'], row['Upper'],
                            f'C{cix}', lw=2.5, zorder=2)
-        capsize = 0.07
+        capsize = 0.1
 
         axes[ax_ix].hlines(row['Lower'], x_ix - capsize, x_ix + capsize,
                            f'C{cix}')
@@ -56,18 +57,23 @@ def main():
 
     xlabels, xticks = invert_coords(coords, 'x')
     axlabels, _ = invert_coords(coords, 'axis')
+    ax_key = ['(a)', '(b)']
 
     for idx, axis in enumerate(axes):
         axis.set_xlim([-0.5, 1.5])
-        y_max = np.max(np.abs(axis.get_ylim()))
+        y_max = 0.67    # np.max(np.abs(axis.get_ylim()))
         axis.set_ylim([-y_max, y_max])
-        axis.grid(b=True, ls='--', lw=0.5)
+        axis.grid(b=True, ls='--', lw=0.2)
+        despine(ax=axis, left=False, bottom=True, offset=10)
+        axis.axhline(0, color='k', lw=0.7)
+        axis.xaxis.grid(b=False)
         axis.set_xticks(xticks)
         axis.set_xticklabels(xlabels)
-        axis.set_title(axlabels[idx])
+        axis.xaxis.set_ticks_position('none')
+        axis.set_title(f'{ax_key[idx]} {axlabels[idx]}')
 
     axes[0].set_ylabel(u'Latitude Trend [\u00b0 / decade]')
-    axes[1].legend()
+    leg = axes[1].legend(bbox_to_anchor=(.99, .965), frameon=False)
 
     plt.tight_layout()
     plt.savefig('plt_trends_all.pdf')

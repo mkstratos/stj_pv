@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
 import scipy.stats as sts
+from seaborn import despine
 
 NC_DIR = './jet_out/sens'
 
@@ -129,11 +130,14 @@ def sens_seasonal(d_in, var, param_name, figure):
     # if param_name == 'fit' and var == 'lat':
     #     axis[0].legend(loc='upper center', bbox_to_anchor=(0.5, 0.5))
     # else:
-    axis[0].legend()
+    for axi in axis:
+        despine(ax=axi, offset=0)
+
+    axis[0].legend(ncol=2)
     axis[0].set_title('(a) Northern Hemisphere')
     axis[0].grid(**GRID_STYLE)
     axis[1].set_xlabel(PARAMS[param_name])
-    axis[1].legend()
+    axis[1].legend(ncol=2)
     axis[1].set_title('(b) Southern Hemisphere')
     axis[1].grid(**GRID_STYLE)
 
@@ -143,8 +147,8 @@ def sens_seasonal(d_in, var, param_name, figure):
         # axis[1].set_ylim([-45, -25])
         axis[1].set_ylim([-25, -45])
     fig.subplots_adjust(left=0.11, bottom=0.13, right=0.97,
-                        top=0.87, wspace=0.26)
-    plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var]['name']))
+                        top=0.93, wspace=0.26)
+    # plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var]['name']))
     fig.savefig('plt_season_mean_{}_{}.{}'.format(var, param_name, EXTN))
     return sens_out
 
@@ -223,7 +227,7 @@ VARS = {'lat': {'name': 'Latitude Position', 'units': 'deg'},
         'theta': {'name': 'Theta Position', 'units': 'K'},
         'intens': {'name': 'Intensity', 'units': 'm/s'}}
 EXTN = 'pdf'
-GRID_STYLE = {'b': True, 'ls': '--', 'lw': 0.5}
+GRID_STYLE = {'b': True, 'ls': '--', 'lw': 0.3}
 
 if __name__ == "__main__":
     run()
