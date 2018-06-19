@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import xarray as xr
 import scipy.stats as sts
 from seaborn import despine
@@ -30,8 +31,9 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     """
     opts = {'run_type': run_type, 'fit': 6,
             'y0': 10, 'pv_lev': 2.0, 'yN': 65.0}
-    plot_seas = True
+    plot_seas = False
     plot_mon = False
+    plot_mon_std = True
     plot_ts = False
 
     opts.pop(param_name)
@@ -47,6 +49,7 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     # Figure size set to 129 mm wide, 152 mm tall
     fig_mult = 1.0
     fig_width = 129 * fig_mult
+    fig_width_narrow = 84 * fig_mult
     plt.rc('font', family='sans-serif', size=8 * fig_mult)
     sens_out = None
 
@@ -58,8 +61,14 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
 
     if plot_mon:
         fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
-        figure = plt.subplots(2, 2, figsize=fig_size, sharex=True)
+        figure = plt.subplots(1, 2, figsize=fig_size, sharex=True)
         sens_monthly(d_in, var, param_name, figure)
+        plt.close()
+
+    if plot_mon_std:
+        fig_size = (fig_width_narrow / 25.4, (fig_width_narrow * 0.6) / 25.4)
+        figure = plt.subplots(2, 1, figsize=fig_size, sharex=True)
+        sens_monthly_std(d_in, var, param_name, figure)
         plt.close()
 
     if plot_ts:
@@ -169,6 +178,7 @@ def sens_monthly(data_in, var, param_name, figure):
                     ax=axes[0, 0], add_legend=True)
     nh_mvar.plot.line(x='month', hue=param_name,
                       ax=axes[0, 1], add_legend=False)
+
     axes[0, 0].set_xlabel('')
     axes[0, 1].set_xlabel('')
     label = '{name} [{units}]'.format(**VARS[var])
@@ -189,6 +199,41 @@ def sens_monthly(data_in, var, param_name, figure):
 
     plt.tight_layout()
     plt.savefig('plt_sens_{}_{}_monthly.{}'.format(var, param_name, EXTN))
+
+
+def sens_monthly_std(data_in, var, param_name, figure):
+    """Plot monthly mean and variance for different values of parameters."""
+    fig, axes = figure
+    nh_monthly = data_in['{}_nh'.format(var)].groupby('time.month')
+    sh_monthly = data_in['{}_sh'.format(var)].groupby('time.month')
+
+    nh_mvar = nh_monthly.std(axis=1)
+    sh_mvar = sh_monthly.std(axis=1)
+
+    nh_mvar.plot.line(x='month', hue=param_name,
+                      ax=axes[0], add_legend=False)
+    axes[0].set_xlabel('')
+    # label = '{name} [{units}]'.format(**VARS[var])
+    axes[0].set_ylabel('NH [{}]'.format(VARS[var]['units']))
+
+    sh_mvar.plot.line(x='month', hue=param_name,
+                      ax=axes[1], add_legend=False)
+    axes[1].set_ylabel('SH [{}]'.format(VARS[var]['units']))
+    axes[1].set_xticks(np.arange(1, 13))
+    axes[1].set_xticklabels(['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'])
+    axes[1].set_xlabel('')
+
+    for axis in axes:
+        axis.grid(**GRID_STYLE)
+        axis.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
+    fig.subplots_adjust(left=0.14, bottom=0.11, right=0.98, top=0.84, hspace=0.0)
+
+    nparams = nh_mvar.shape[0]
+    axes[0].legend(nh_mvar.coords[nh_mvar.dims[0]].values, ncol=nparams // 2 + 1,
+                   loc='upper left', bbox_to_anchor=(0.0, 1.5), frameon=False,
+                   columnspacing=1.5, handlelength=1.5, labelspacing=0.3)
+    # plt.show()
+    plt.savefig('plt_sens_{}_{}_monthly_std.{}'.format(var, param_name, EXTN))
 
 
 def create_table_season(sens):
@@ -230,7 +275,7 @@ def run():
     run_type = 'ERAI_MONTHLY_THETA_STJPV'
     dates = ('1979-01-01', '2016-12-31')
     param_vals = {'pv_lev': np.arange(1.0, 4.5, 0.5),
-                  'fit': np.arange(5, 9),
+                  'fit': np.arange(3, 9),
                   'y0': np.arange(2.5, 15, 2.5),
                   'yN': np.arange(60., 95., 5.)}
     sens = {'pv_lev': {}, 'fit': {}, 'y0': {}, 'yN': {}}
@@ -239,7 +284,8 @@ def run():
         for param in sens:
             sens[param][var_name] = main(run_type, param, param_vals[param],
                                          dates, var_name)
-    create_table_param(sens)
+    if sens['pv_lev']['lat'] is not None:
+        create_table_param(sens)
 
 
 # Global static information
