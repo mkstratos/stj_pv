@@ -4,47 +4,59 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-# plt.style.use('fivethirtyeight')
 
-__author__ = 'Michael Kelleher'
+__author__ = 'Michael Kelleher, Penny Maher'
 
 
 def main():
-    """
-    Load dataframe of trends, make plots.
-    """
+    """Load data, make error-bar plots of trends from Phil."""
     data = pd.read_csv('trends.csv')
+
     fig_w = 17.4 / 2.54
-    fig_h = fig_w * (9 / 16)
-    hem_name = {'NH': 'Northern Hemisphere', 'SH': 'Southern Hemisphere'}
-    _, axes = plt.subplots(1, 2, figsize=(fig_w, fig_h))
-    for hix, hem in enumerate(['NH', 'SH']):
-        df_h = data[data['Hemisphere'] == hem]
-        lower = df_h.Lower
-        upper = df_h.Upper
-        trend = df_h.Trend
-        x_idx = np.arange(trend.shape[0])
-        labels = ['{Reanalysis} {Freqency}'.format(**df_h.loc[i]) for i in df_h.index]
-        for xix, df_i in enumerate(df_h.index):
-            # axes[hix].plot(xix, trend[df_i], 'o', ms=6.0)
-            sct_args = {'marker': 'o', 's': 80, 'zorder': 6}
+    _, axes = plt.subplots(1, 2, figsize=(fig_w, fig_w * (9 / 16)))
 
-            if upper[df_i] * lower[df_i] > 0:
-                sct_args['edgecolor'] = 'k'
-            else:
-                sct_args['edgecolor'] = 'face'
+    # Coordinates (axis, x of axis)
+    coords = {'x': {'Monthly': 0, 'Daily': 1},
+              'axis': {'NH': 0, 'SH': 1},
+              'color': {'NCEP': 2, 'ERAI': 6}}
 
-            axes[hix].scatter(xix, trend[df_i], **sct_args)
-            axes[hix].vlines(xix, lower[df_i], upper[df_i], 'k', lw=2.5, zorder=2)
+    for _, row in data.iterrows():
+        ax_ix = coords['axis'][row['Hemisphere']]
+        x_ix = coords['x'][row['Frequency']]
+        cix = coords['color'][row['Reanalysis']]
 
-        axes[hix].set_xticks(x_idx)
-        axes[hix].set_xticklabels(labels, rotation=30)
-        axes[hix].set_title(f'{hem_name[hem]}')
-        axes[hix].grid(b=True, ls='-.', lw=0.5)
-        y_max = np.max(np.abs(axes[hix].get_ylim()))
-        axes[hix].set_ylim([-y_max, y_max])
+        sct_args = {'marker': 'o', 's': 80, 'zorder': 6, 'c': f'C{cix}'}
+        if row['Upper'] * row['Lower'] > 0:
+            sct_args['edgecolor'] = 'k'
+        else:
+            sct_args['edgecolor'] = 'face'
 
-    axes[0].set_ylabel('Latitude trend [deg / decade]')
+        if ax_ix == 1 and x_ix == 0:
+            sct_args['label'] = row['Reanalysis']
+
+        axes[ax_ix].scatter(x_ix, row['Trend'], **sct_args)
+        axes[ax_ix].vlines(x_ix, row['Lower'], row['Upper'],
+                           f'C{cix}', lw=2.5, zorder=2)
+        capsize = 0.07
+
+        axes[ax_ix].hlines(row['Lower'], x_ix - capsize, x_ix + capsize,
+                           f'C{cix}')
+        axes[ax_ix].hlines(row['Upper'], x_ix - capsize, x_ix + capsize,
+                           f'C{cix}')
+
+    for axis in axes:
+        axis.set_xlim([-0.5, 1.5])
+        y_max = np.max(np.abs(axis.get_ylim()))
+        axis.set_ylim([-y_max, y_max])
+        axis.grid(b=True, ls='--', lw=0.5)
+        axis.set_xticks([0, 1])
+        axis.set_xticklabels(['Monthly', 'Daily'])
+
+    axes[0].set_title('Northern Hemisphere')
+    axes[1].set_title('Southern Hemisphere')
+    axes[0].set_ylabel(u'Latitude Trend [\u00b0 / decade]')
+    axes[1].legend()
+
     plt.tight_layout()
     plt.savefig('plt_trends_all.pdf')
 
