@@ -404,7 +404,7 @@ def main(sens_run=False):
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
-                           'fit_deg': np.arange(5, 9),
+                           'fit_deg': np.arange(3, 9),
                            'min_lat': np.arange(2.5, 15, 2.5),
                            'max_lat': np.arange(60., 95., 5.)}
 
