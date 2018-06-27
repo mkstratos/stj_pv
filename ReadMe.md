@@ -33,7 +33,7 @@ Then install the required packages as below.
 
 `conda install --file requirements_36.txt -c conda-forge`
 
-**Note**: `basemap==1.0.7` available from Anaconda is not compatable with Python >= 3. Thus the `conda-forge` channel with `v1.1.0` must be used.
+**Note**: `basemap==1.0.7` available from Anaconda is not compatible with Python >= 3. Thus the `conda-forge` channel with `v1.1.0` must be used.
 
 ### Installing for Python 2.7
 `conda install --file requirements_27.txt`
@@ -79,7 +79,7 @@ The highest level code is `run_stj.py`. Within this file the following changes a
     | `freq`        | Input data frequency
     | `zonal_opt`   | Output zonal mean (if 'mean') or individual longitude positions (if != 'mean')
     | `method`      | Jet metric to use. Included are **STJPV** and **STJUMax**
-    | `log_file`    | Log file name and location. If "{}" is included within this string (e.g. `stj_find_{}.log`) the time (from `datetime.now()`) at which the finder was initialised will be put into the file name (e.g. `stj_find_2017-11-02_14-08-32.log`)
+    | `log_file`    | Log file name and location. If ``{}'' is included within this string (e.g. `stj_find_{}.log`) the time (from `datetime.now()`) at which the finder was initialised will be put into the file name (e.g. `stj_find_2017-11-02_14-08-32.log`)
     | `pv_value`    | Potential vorticity level on which potential temperature is interpolated to find the jet (if using **STJPV** metric)
     | `fit_deg`     | Also for **STJPV** metric, use this degree (integer) polynomial to fit the potential temperature on the `pv_value` surface
     | `min_lat`     | Minimum latitude boundary (equatorward) on which to perform interpolation
@@ -113,6 +113,7 @@ The highest level code is `run_stj.py`. Within this file the following changes a
     | `vwnd`                | Name within netCDF file of meridional wind variable
     | `tair`                | Name within netCDF file of atmospheric temperature variable
     | `ipv`                 | Name within netCDF file of isentropic pv variable
+
     **See comments within `conf/data_config_default.yml` for further details**
 
 ## How the STJPV metric works
@@ -120,7 +121,7 @@ The highest level code is `run_stj.py`. Within this file the following changes a
 1. The `run_stj.main()` function creates a `run_stj.JetFindRun` object, based on configuration parameters.
 
 2. Start and end dates are set, and the `run_stj.JetFindRun.run()` method starts the run, where configuration files are checked
-then the selected metric computes the jet postion in each hemisphere at each time.
+then the selected metric computes the jet position in each hemisphere at each time.
 
 3. If Isentropic PV input data does not exist, this is created and written as setup in the data configuration file
 
@@ -129,7 +130,7 @@ then the selected metric computes the jet postion in each hemisphere at each tim
     1. Interpolate to obtain potential temperature ($\Theta$) as a function of latitude on a surface
         of constant IPV, chosen in configuration file
 
-    2. Numerically compute meridional gradient of this surface using a polynomal fit (Chebyshev polynomials of degree 8 used by default)
+    2. Numerically compute meridional gradient of this surface using a polynomial fit (Chebyshev polynomials of degree 8 used by default)
 
     3. The jet location is determined to be at a relative maximum in the northern hemisphere, or minimum
         in the southern hemisphere of the meridional gradient of potential temperature on the PV surface at each time and longitude
