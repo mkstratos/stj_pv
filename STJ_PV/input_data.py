@@ -405,6 +405,7 @@ class InputData(object):
             self._load_time(pv_update=False)
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
+        self.props.log.info("LOAD IPV FROM FILE: {}".format(in_file))
         ipv_in = nc.Dataset(in_file, 'r')
 
         coord_names = ['lat', 'lon']
