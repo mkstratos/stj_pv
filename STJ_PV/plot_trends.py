@@ -36,23 +36,23 @@ def main():
 
         sct_args = {'marker': 'o', 's': 70, 'zorder': 6}
         if row['Upper'] * row['Lower'] > 0:
-            sct_args['c'] = f'C{cix}'
+            sct_args['c'] = 'C{}'.format(cix)
         else:
             sct_args['facecolor'] = 'white'
-            sct_args['edgecolor'] = f'C{cix}'
+            sct_args['edgecolor'] = 'C{}'.format(cix)
 
         if ax_ix == 1 and x_ix == 0:
             sct_args['label'] = row['Reanalysis']
 
         axes[ax_ix].scatter(x_ix, row['Trend'], **sct_args)
         axes[ax_ix].vlines(x_ix, row['Lower'], row['Upper'],
-                           f'C{cix}', lw=2.5, zorder=2)
+                           'C{}'.format(cix), lw=2.5, zorder=2)
         capsize = 0.1
 
         axes[ax_ix].hlines(row['Lower'], x_ix - capsize, x_ix + capsize,
-                           f'C{cix}')
+                           'C{}'.format(cix))
         axes[ax_ix].hlines(row['Upper'], x_ix - capsize, x_ix + capsize,
-                           f'C{cix}')
+                           'C{}'.format(cix))
 
     xlabels, xticks = invert_coords(coords, 'x')
     axlabels, axidx = invert_coords(coords, 'axis')
@@ -70,7 +70,7 @@ def main():
         axis.set_xticks(xticks)
         axis.set_xticklabels(xlabels)
         axis.xaxis.set_ticks_position('none')
-        axis.set_title(f'{ax_key[idx]} {axlabels[idx]}')
+        axis.set_title('{} {}'.format(ax_key[idx], axlabels[idx]))
 
     axes[coords['axis']['Southern Hemisphere']].invert_yaxis()
     axes[0].set_ylabel(u'Latitude Trend [\u00b0 / decade]')

@@ -43,7 +43,7 @@ def main(run_name=None, props=None):
     in_file = ('{data}_pv{pv:.1f}_fit{fit}_y0{y0:03.1f}_yN{yN:.1f}_'
                'z{zonal_reduce}_{date_s}_{date_e}'.format(**props))
 
-    data = xr.open_dataset(f'./jet_out/{in_file}.nc')
+    data = xr.open_dataset('./jet_out/{}.nc'.format(in_file))
 
     month_mean = data.groupby('time.month').mean()
     month_std = data.groupby('time.month').std()
@@ -55,11 +55,12 @@ def main(run_name=None, props=None):
             plt.subplot2grid((2, 2), (1, 0), colspan=2)]
     cline_w = 3.0
     for hidx, hem in enumerate(['sh', 'nh']):
-        sct = axes[hidx].scatter(data[f'lat_{hem}'].values,
-                                 data[f'theta_{hem}'].values,
-                                 s=0.3 * data[f'intens_{hem}'].values**2,
-                                 c=data[f'intens_{hem}'].values // 1, marker='.',
-                                 cmap='inferno', vmin=0., vmax=45., alpha=0.3)
+        sct = axes[hidx].scatter(data['lat_{}'.format(hem)],
+                                 data['theta_{}'.format(hem)],
+                                 s=0.3 * data['intens_{}'.format(hem)]**2,
+                                 c=data['intens_{}'.format(hem)],
+                                 marker='.', cmap='inferno',
+                                 vmin=0., vmax=45., alpha=0.3)
 
         # Hexbins? Maybe...
         # sct = axes[hidx].hexbin(data[f'lat_{hem}'].values,
@@ -133,7 +134,7 @@ def main(run_name=None, props=None):
     fig.subplots_adjust(left=0.08, bottom=0.05, right=0.92, top=0.94,
                         wspace=0.23, hspace=0.28)
     out_file = in_file.replace('.', 'p')
-    plt.savefig(f'{out_file}.{EXTN}')
+    plt.savefig('{}.{}'.format(out_file, EXTN))
     pair_grid(data, out_file)
     summary_table(data, out_file)
 
@@ -141,23 +142,23 @@ def main(run_name=None, props=None):
 def pair_grid(data, out_file):
     """Make PairGrid plot for each hemisphere."""
     dframe = data.to_dataframe()
-    nh_vars = [f'{var}_nh' for var in ['theta', 'lat', 'intens']]
-    sh_vars = [f'{var}_sh' for var in ['theta', 'lat', 'intens']]
+    nh_vars = ['{}_nh'.format(var) for var in ['theta', 'lat', 'intens']]
+    sh_vars = ['{}_sh'.format(var) for var in ['theta', 'lat', 'intens']]
     df_nh = dframe[nh_vars]
     df_sh = dframe[sh_vars]
 
     for hem, dfi in [('nh', df_nh), ('sh', df_sh)]:
         dfi = dfi.rename(index=str,
-                         columns={f'lat_{hem}': 'Latitude [deg]',
-                                  f'theta_{hem}': 'Theta [K]',
-                                  f'intens_{hem}': 'Intensity [m/s]'})
+                         columns={'lat_{}'.format(hem): 'Latitude [deg]',
+                                  'theta_{}'.format(hem): 'Theta [K]',
+                                  'intens_{}'.format(hem): 'Intensity [m/s]'})
         dfi['season'] = SEAS[pd.DatetimeIndex(dfi.index).month].astype(str)
         grd = sns.PairGrid(dfi, diag_sharey=False, hue='season',
                            palette=HEM_INFO[hem]['pal'])
         grd.fig.set_size_inches(17.4 / 2.54, 17.4 / 2.54)
         grd.map_lower(plt.scatter, marker='o', alpha=0.8, s=6.0)
         grd.map_diag(sns.kdeplot, lw=2)
-        plt.suptitle(f'{HEM_INFO[hem]["label"]} Properties')
+        plt.suptitle('{} Properties'.format(HEM_INFO[hem]["label"]))
         grd.fig.subplots_adjust(top=0.92)
         grd.add_legend(frameon=False)
 
@@ -166,7 +167,7 @@ def pair_grid(data, out_file):
             sns.kdeplot(dfi[grd.x_vars[j]], dfi[grd.y_vars[i]],
                         shade=True, cmap='Reds', legend=False,
                         shade_lowest=False, ax=grd.axes[i, j])
-        plt.savefig(f'plt_grid_{hem}_{out_file}.{EXTN}')
+        plt.savefig('plt_grid_{}_{}.{}'.format(hem, out_file, EXTN))
         plt.clf()
         plt.close()
 
@@ -179,13 +180,13 @@ def summary_table(data_in, out_file):
     # Set output precision
     pd.set_option('display.float_format', lambda x: '%.1f' % x)
 
-    with open(f'seasonal_stats_{out_file}.tex', 'w') as fout:
+    with open('seasonal_stats_{}.tex'.format(out_file), 'w') as fout:
         fout.write(data_seasonal.to_dataframe().to_latex())
 
-    with open(f'monthly_stats_{out_file}.tex', 'w') as fout:
+    with open('monthly_stats_{}.tex'.format(out_file), 'w') as fout:
         fout.write(data_monthly.to_dataframe().to_latex())
 
-    with open(f'annual_stats_{out_file}.tex', 'w') as fout:
+    with open('annual_stats_{}.tex'.format(out_file), 'w') as fout:
         fout.write(data_in.to_dataframe().mean().to_latex())
 
 
