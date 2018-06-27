@@ -14,6 +14,7 @@ __author__ = 'Michael Kelleher'
 
 def main(run_name=None, props=None):
     """Load jet run output, make a plot or two."""
+    plt.rc('font', family='sans-serif', size=9)
     if props is None:
         props = {'pv': 2.0,
                  'fit': 6,
@@ -25,10 +26,19 @@ def main(run_name=None, props=None):
 
     if run_name is None:
         props['data'] = 'ERAI_MONTHLY_THETA_STJPV'
+
+    elif run_name == 'sample':
+        props = {'pv': 2.0,
+                 'fit': 6,
+                 'y0': 10.0,
+                 'yN': 65.0,
+                 'zonal_reduce': 'mean',
+                 'date_s': '2016-01-01',
+                 'date_e': '2016-01-03'}
+        props['data'] = 'NCEP_NCAR_DAILY_STJPV'
     else:
         props['data'] = run_name
 
-    plt.rc('font', family='sans-serif', size=9)
 
     in_file = ('{data}_pv{pv:.1f}_fit{fit}_y0{y0:03.1f}_yN{yN:.1f}_'
                'z{zonal_reduce}_{date_s}_{date_e}'.format(**props))
@@ -43,13 +53,13 @@ def main(run_name=None, props=None):
     fig = plt.figure(figsize=(fig_width, figh_height))
     axes = [plt.subplot2grid((2, 2), (0, 0)), plt.subplot2grid((2, 2), (0, 1)),
             plt.subplot2grid((2, 2), (1, 0), colspan=2)]
-
+    cline_w = 3.0
     for hidx, hem in enumerate(['sh', 'nh']):
         sct = axes[hidx].scatter(data[f'lat_{hem}'].values,
                                  data[f'theta_{hem}'].values,
                                  s=0.3 * data[f'intens_{hem}'].values**2,
-                                 c=data[f'intens_{hem}'].values, marker='.',
-                                 cmap='inferno', vmin=0., vmax=45., alpha=0.75)
+                                 c=data[f'intens_{hem}'].values // 1, marker='.',
+                                 cmap='inferno', vmin=0., vmax=45., alpha=0.3)
 
         # Hexbins? Maybe...
         # sct = axes[hidx].hexbin(data[f'lat_{hem}'].values,
@@ -74,7 +84,7 @@ def main(run_name=None, props=None):
         axes[hidx].set_xlim(HEM_INFO[hem]['lat_r'])
 
     ln_nh = axes[2].plot(month_mean.month, month_mean['lat_nh'].values,
-                         'C0o-', label='NH', zorder=5)
+                         'C0o-', lw=cline_w, ms=cline_w * 1.5, label='NH', zorder=5)
     axes[2].fill_between(month_mean.month,
                          month_mean['lat_nh'] + month_std['lat_nh'],
                          month_mean['lat_nh'] - month_std['lat_nh'],
@@ -90,7 +100,7 @@ def main(run_name=None, props=None):
     axis_sh = axes[2].twinx()
 
     ln_sh = axis_sh.plot(month_mean.month, month_mean['lat_sh'], 'C1o-',
-                         label='SH')
+                         lw=cline_w, label='SH')
 
     axis_sh.fill_between(month_mean.month,
                          month_mean['lat_sh'] + month_std['lat_sh'],
@@ -198,8 +208,9 @@ SEAS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM', 'JJA',
                  'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 if __name__ == '__main__':
-    DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
-                'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV']
+    #DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
+    #            'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV']
 
-    for RNAME in DATASETS:
-        main(run_name=RNAME)
+    #for RNAME in DATASETS:
+    #    main(run_name=RNAME)
+    main(run_name='ERAI_MONTHLY_THETA_STJPV')

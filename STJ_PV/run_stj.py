@@ -198,7 +198,7 @@ class JetFindRun(object):
 
         self._set_output(date_s, date_e)
 
-        if self.data_cfg['single_year_file']:
+        if self.data_cfg['single_year_file'] and date_s.year != date_e.year:
             for year in range(date_s.year, date_e.year + 1):
                 _date_s = dt.datetime(year, 1, 1)
                 _date_e = dt.datetime(year, 12, 31)
@@ -390,7 +390,7 @@ def main(sens_run=False):
     # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
     # Four main choices
-    jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+    # jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
     # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
 
     # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
@@ -399,8 +399,13 @@ def main(sens_run=False):
     # U-Max
     # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
 
-    date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(2016, 12, 31)
+    # date_s = dt.datetime(1979, 1, 1)
+    # date_e = dt.datetime(2016, 12, 31)
+
+    # ----------Sample test case-------------
+    jf_run = JetFindRun('./conf/stj_config_sample.yml')
+    date_s = dt.datetime(2016, 1, 1)
+    date_e = dt.datetime(2016, 1, 3)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
