@@ -60,7 +60,7 @@ If isentropic potential vorticity is available, then on isentropic levels:
 * potential vorticity (pv)
 
 
-## How the code is structured and how it works:
+## Code structure and organization:
 ---
 
 
@@ -68,53 +68,58 @@ The highest level code is `run_stj.py`. Within this file the following changes a
 
 1. Two [YAML](http://www.yaml.org/start.html) configuration files are used
     - STJ config (for properties of jet finding metric)
-    - Data config (for properties of input data.
-2. The data configuration file is set within the STJ configuration file. Examples of both can be found in the `conf/` directory.
-	1. The `stj_config_default.yml` file contains the following options:
+    - The data configuration file is set within the STJ configuration file.
+    - Examples of both can be found in the `conf/` directory.
+2. Set start and end dates
+3. Select sensitivity or normal run
+
+### STJ finding Configuration: `stj_config_default.yml`
 
     
-    | Variable Name | Description
-    | ---           | ---
-    | `data_cfg`    | Location of data config file
-    | `freq`        | Input data frequency
-    | `zonal_opt`   | Output zonal mean (if 'mean') or individual longitude positions (if != 'mean')
-    | `method`      | Jet metric to use. Included are **STJPV** and **STJUMax**
-    | `log_file`    | Log file name and location. If ``{}'' is included within this string (e.g. `stj_find_{}.log`) the time (from `datetime.now()`) at which the finder was initialised will be put into the file name (e.g. `stj_find_2017-11-02_14-08-32.log`)
-    | `pv_value`    | Potential vorticity level on which potential temperature is interpolated to find the jet (if using **STJPV** metric)
-    | `fit_deg`     | Also for **STJPV** metric, use this degree (integer) polynomial to fit the potential temperature on the `pv_value` surface
-    | `min_lat`     | Minimum latitude boundary (equatorward) on which to perform interpolation
-    | `max_lat`     | Maximum latitude boundary (poleward) on which to perform interpolation
-    | `update_pv`   | If isentropic PV (IPV) file(s) exist already, re-create them if this is set to `True`. If not, use files that exist
-    | `year_s`      | Year to start jet finding (Jan 1 of this year)
-    | `year_e`      | Year to end jet finding (Dec 31 of this year)
-    |               | Dates may also be set in `run_stj.main()` function
-    | `poly`        | Polynomial to use, one of 'cheby', 'legendre', or 'poly' for Chebyshev, Legendre, or polynomial fit respectively
+| Variable Name | Description
+| ---           | ---
+|`data_cfg`     | Location of data config file
+|`freq`         | Input data frequency
+|`zonal_opt`    | Output zonal mean (if 'mean') or individual longitude positions (if != 'mean')
+|`method`       | Jet metric to use. Included are **STJPV** and **STJUMax**
+|`log_file`     | Log file name and location. If `{}` is included within this string (e.g. `stj_find_{}.log`) the current time (from `datetime.now()`) at which the finder was initialised will be put into the file name (e.g. `stj_find_2017-11-02_14-08-32.log`)
+|`pv_value`     | Potential vorticity level on which potential temperature is interpolated to find the jet (if using **STJPV** metric)
+|`fit_deg`      | Also for **STJPV** metric, use this degree (integer) polynomial to fit the potential temperature on the `pv_value` surface
+|`min_lat`      | Minimum latitude boundary (equatorward) on which to perform interpolation
+|`max_lat`      | Maximum latitude boundary (poleward) on which to perform interpolation
+|`update_pv`    | If isentropic PV (IPV) file(s) exist already, re-create them if this is set to `True`. If not, use files that exist
+|`year_s`       | Year to start jet finding (Jan 1 of this year)
+|`year_e`       | Year to end jet finding (Dec 31 of this year)
+|               | Dates may also be set in `run_stj.main()` function
+|`poly`         | Polynomial to use, one of 'cheby', 'legendre', or 'poly' for Chebyshev, Legendre, or polynomial fit respectively
+**See comments within `conf/stj_config_default.yml` for further details**
 
-    2. The `data_config_default.yml` file contains the following options
+
+### Data configuration: `data_config_default.yml`
 
     
-    | Variable Name         | Description
-    | ---                   | ---
-    | `path`                | Absolute path of input data
-    | `wpath`               | If `path` is _not_ writeable, absolute path to directory where IPV data can be written
-    | `short_name`          | String name to call this dataset
-    | `single_var_file`     | Each variables has its own file (if True)
-    | `single_year_file`    | Each year has its own file (if True)
-    | `file_paths`          | Names (within `path`) of input / output files for atmospheric variables
-    |                       | If `single_var_file==True` then `file_paths` has: `uwnd`, `vwnd`, `tair` (in),  and `ipv` (_output_)
-    |                       | If `single_var_file==False`, then `file_paths` has: `all` (in), and `ipv` (_output_)
-    | `lon`                 | Name within netCDF file of 'longitude' variable
-    | `lat`                 | Name within netCDF file of 'latitude' variable
-    | `lev`                 | Name within netCDF file of 'level' variable
-    | `time`                | Name within netCDF file of 'time' variable
-    | `ztype`               | Type of levels (pressure, potential temperature, etc.)
-    | `pfac`                | Multiply pressure by this (float) to get units of Pascals
-    | `uwnd`                | Name within netCDF file of zonal wind variable
-    | `vwnd`                | Name within netCDF file of meridional wind variable
-    | `tair`                | Name within netCDF file of atmospheric temperature variable
-    | `ipv`                 | Name within netCDF file of isentropic pv variable
+| Variable Name     | Description
+| ---               | ---
+|`path`             | Absolute path of input data
+|`wpath`            | If `path` is _not_ writeable, absolute path to directory where IPV data can be written
+|`short_name`       | String name to call this dataset
+|`single_var_file`  | Each variables has its own file (if True)
+|`single_year_file` | Each year has its own file (if True)
+|`file_paths`       | Names (within `path`) of input / output files for atmospheric variables
+|                   | If `single_var_file==True` then `file_paths` has: `uwnd`, `vwnd`, `tair` (in),  and `ipv` (_output_)
+|                   | If `single_var_file==False`, then `file_paths` has: `all` (in), and `ipv` (_output_)
+|`lon`              | Name within netCDF file of 'longitude' variable
+|`lat`              | Name within netCDF file of 'latitude' variable
+|`lev`              | Name within netCDF file of 'level' variable
+|`time`             | Name within netCDF file of 'time' variable
+|`ztype`            | Type of levels (pressure, potential temperature, etc.)
+|`pfac`             | Multiply pressure by this (float) to get units of Pascals
+|`uwnd`             | Name within netCDF file of zonal wind variable
+|`vwnd`             | Name within netCDF file of meridional wind variable
+|`tair`             | Name within netCDF file of atmospheric temperature variable
+|`ipv`              | Name within netCDF file of isentropic pv variable
 
-    **See comments within `conf/data_config_default.yml` for further details**
+**See comments within `conf/data_config_default.yml` for further details**
 
 ## How the STJPV metric works
 
@@ -123,7 +128,7 @@ The highest level code is `run_stj.py`. Within this file the following changes a
 2. Start and end dates are set, and the `run_stj.JetFindRun.run()` method starts the run, where configuration files are checked
 then the selected metric computes the jet position in each hemisphere at each time.
 
-3. If Isentropic PV input data does not exist, this is created and written as setup in the data configuration file
+3. If Isentropic PV input data does not exist, this is created and written as defined in the data configuration file
 
 4. When using the **STJPV** metric the jet is identified in the following process:
 
