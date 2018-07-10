@@ -1,14 +1,27 @@
 Information on how to run the code and how it works.
 # Running the code
-Use of the [Anaconda Python](https://www.anaconda.com/download/) distribution is reccomended, as is Python 3.6 or newer.
-It is also reccomended to create a new Anaconda environment, so package versions do not conflict between this and other
-projects.
+We reccomend:
+
+* [Anaconda Python](https://www.anaconda.com/download/) distribution
+* Python 3.6
+* Creating a new Anaconda environment (so package versions do not conflict between this and other projects)
 
 Create a new Anaconda environment using:
 
 `conda create -n stjpv python`
 
 Then install the required packages as below.
+
+### Installing for Python 3+
+
+`conda install --file requirements_36.txt -c conda-forge`
+
+**Note**: `basemap==1.0.7` available from Anaconda is not compatible with Python >= 3. Thus the `conda-forge` channel with `v1.1.0` must be used.
+
+**Note 2**: Currently netCDF is not available from conda for Python 3.7, when installing, Python may be downgraded from 3.7 to 3.6
+
+### Installing for Python 2.7
+`conda install --file requirements_27.txt`
 
 ## Required Python modules
 
@@ -27,16 +40,6 @@ Then install the required packages as below.
 
 	basemap
 	matplotlib
-
-
-### Installing for Python 3+
-
-`conda install --file requirements_36.txt -c conda-forge`
-
-**Note**: `basemap==1.0.7` available from Anaconda is not compatible with Python >= 3. Thus the `conda-forge` channel with `v1.1.0` must be used.
-
-###Â Installing for Python 2.7
-`conda install --file requirements_27.txt`
 
 ## Data dependencies
 ---
@@ -137,7 +140,7 @@ then the selected metric computes the jet position in each hemisphere at each ti
 
     2. Numerically compute meridional gradient of this surface using a polynomial fit (Chebyshev polynomials of degree 8 used by default)
 
-    3. The jet location is determined to be at a relative maximumÂ in the northern hemisphere, or minimum
+    3. The jet location is determined to be at a relative maximum in the northern hemisphere, or minimum
         in the southern hemisphere of the meridional gradient of potential temperature on the PV surface at each time and longitude
 
     4. If multiple extrema exist, the jet latitude has the largest zonal wind shear between the
