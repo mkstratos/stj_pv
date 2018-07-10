@@ -23,6 +23,23 @@ Then install the required packages as below.
 ### Installing for Python 2.7
 `conda install --file requirements_27.txt`
 
+## Sample data
+Once the Python environment is set up, clone this repository with:
+`git clone https://mkelleher@bitbucket.org/penmaher/stj_pv.git`
+
+Or create your own fork [here](https://bitbucket.org/penmaher/stj_pv/fork)
+
+Enter the top-level code directory, and try the sample case:
+
+---
+
+    cd stj_pv/STJ_PV
+    python run_stj.py
+
+This will output a file called: `NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_2009-01-23_2009-01-25.nc`
+which has the latitude and theta position, and intensity in northern and southern hemispheres, each their own variable.
+
+
 ## Required Python modules
 
 #### Required for running the jet metric:
