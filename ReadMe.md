@@ -20,7 +20,7 @@ Then install the required packages as below.
 
 **Note 2**: Currently netCDF is not available from conda for Python 3.7, when installing, Python may be downgraded from 3.7 to 3.6
 
-### Installing for Python 2.7
+### Installing for Python 2.7
 `conda install --file requirements_27.txt`
 
 ## Required Python modules
@@ -140,7 +140,7 @@ then the selected metric computes the jet position in each hemisphere at each ti
 
     2. Numerically compute meridional gradient of this surface using a polynomial fit (Chebyshev polynomials of degree 8 used by default)
 
-    3. The jet location is determined to be at a relative maximum in the northern hemisphere, or minimum
+    3. The jet location is determined to be at a relative maximumï¿½in the northern hemisphere, or minimum
         in the southern hemisphere of the meridional gradient of potential temperature on the PV surface at each time and longitude
 
     4. If multiple extrema exist, the jet latitude has the largest zonal wind shear between the
