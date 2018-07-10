@@ -180,8 +180,8 @@ def main():
                            '1979-01-01_2016-12-31.nc'), 'label': 'B Daily ERAI PV 5.0˚'},
 
                  'ERAI-Regrid':
-                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
+                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit6_y010.0_yN65.0_'
+                           'zmean_1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
 
                  'ERAI-Uwind':
                  {'file': ('ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_'
@@ -263,7 +263,7 @@ def main():
     fig_width = (8.4 / 2.54) * fig_mult
     fig_height = fig_width * 1.3
 
-    in_names = ['ERAI-Uwind', 'ERAI-Monthly_new']
+    in_names = ['ERAI-Regrid', 'NCEP-Monthly_new']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
