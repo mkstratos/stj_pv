@@ -3,6 +3,7 @@
 """Plot trends from Phil."""
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from seaborn import despine
 __author__ = 'Michael Kelleher, Penny Maher'
 
@@ -15,9 +16,9 @@ def invert_coords(coords, coord_key):
     return labels, keys
 
 
-def main():
+def plot_data(info):
     """Load data, make error-bar plots of trends from Phil."""
-    data = pd.read_csv('trends.csv')
+    data = pd.read_csv(info['data_file'])
 
     fig_w = 17.4 / 2.54
     _, axes = plt.subplots(1, 2, figsize=(fig_w, fig_w * (9 / 16)))
@@ -25,26 +26,31 @@ def main():
     # Coordinates (axis, x of axis)
     coords = {'x': {'Monthly': 0, 'Daily': 1},
               'axis': {'Northern Hemisphere': 0, 'Southern Hemisphere': 1},
-              'color': {'NCEP': 0, 'ERAI': 1}}
+              'color': {'NCEP': 0, 'ERAI': 1, 'MERRA': 2},
+              'xplus': {'NCEP': -0.11, 'ERAI': 0.0, 'MERRA': 0.11}}
     axkey = 'Hemisphere'
     xkey = 'Frequency'
 
     for _, row in data.iterrows():
         ax_ix = coords['axis'][row[axkey]]
-        x_ix = coords['x'][row[xkey]]
+        x_ix = coords['x'][row[xkey]] + coords['xplus'][row['Reanalysis']]
         cix = coords['color'][row['Reanalysis']]
 
-        sct_args = {'marker': 'o', 's': 70, 'zorder': 6}
+        sct_args = {'NCEP': {'marker': 'o', 's': info['ms'], 'zorder': 6},
+                    'ERAI': {'marker': 'o', 's': info['ms'], 'zorder': 7},
+                    'MERRA': {'marker': 'o', 's': info['ms'], 'zorder': 8}}
+
         if row['Upper'] * row['Lower'] > 0:
-            sct_args['c'] = 'C{}'.format(cix)
+            sct_args[row['Reanalysis']]['c'] = 'C{}'.format(cix)
         else:
-            sct_args['facecolor'] = 'white'
-            sct_args['edgecolor'] = 'C{}'.format(cix)
+            sct_args[row['Reanalysis']]['facecolor'] = 'white'
+            sct_args[row['Reanalysis']]['edgecolor'] = 'C{}'.format(cix)
 
         if ax_ix == 1 and x_ix == 0:
             sct_args['label'] = row['Reanalysis']
 
-        axes[ax_ix].scatter(x_ix, row['Trend'], **sct_args)
+        axes[ax_ix].scatter(x_ix, row[info['data_name']],
+                            **sct_args[row['Reanalysis']])
         axes[ax_ix].vlines(x_ix, row['Lower'], row['Upper'],
                            'C{}'.format(cix), lw=2.5, zorder=2)
         capsize = 0.1
@@ -61,23 +67,44 @@ def main():
 
     for idx, axis in enumerate(axes):
         axis.set_xlim([-0.5, 1.5])
-        y_max = 0.67    # np.max(np.abs(axis.get_ylim()))
-        axis.set_ylim([-y_max, y_max])
+        if info['data_name'] == 'Mean':
+            axis.set_ylim(info['y_lim'][idx])
+        else:
+            axis.set_ylim(info['y_lim'])
+
         axis.grid(b=True, ls='--', lw=0.2)
         despine(ax=axis, left=False, bottom=True, offset=10)
         axis.axhline(0, color='k', lw=0.7)
         axis.xaxis.grid(b=False)
         axis.set_xticks(xticks)
         axis.set_xticklabels(xlabels)
-        axis.xaxis.set_ticks_position('none')
+        #axis.xaxis.set_ticks_position('none')
         axis.set_title('{} {}'.format(ax_key[idx], axlabels[idx]))
 
     axes[coords['axis']['Southern Hemisphere']].invert_yaxis()
-    axes[0].set_ylabel(u'Latitude Trend [\u00b0 / decade]')
-    axes[1].legend(bbox_to_anchor=(.99, .965), frameon=False)
+    axes[0].set_ylabel(info['ylabel'])
+    axes[1].legend(bbox_to_anchor=info['legend'], frameon=False)
 
     plt.tight_layout()
-    plt.savefig('plt_trends_all.pdf')
+    plt.savefig('plt_{data_name}_all.pdf'.format(**info))
+
+
+
+def main():
+    """Setup info for plots, call plot creation function."""
+    info = {'trends': {'data_name': 'Trend', 'data_file': 'trends.csv',
+                       'ylabel': u'Latitude Trend [\u00b0 / decade]',
+                       'y_lim': [-0.67, 0.67],
+                       'legend': (0.99, 0.965),
+                       'ms': 70},
+            'means': {'data_name': 'Mean',
+                      'data_file': 'position.csv',
+                      'ylabel': u'Latitude Position [\u00b0]',
+                      'y_lim': ([28, 38], [-38, -28]),
+                      'legend': (0.4, 0.965),
+                      'ms': 30}}
+
+    plot_data(info['means'])
 
 
 if __name__ == '__main__':
