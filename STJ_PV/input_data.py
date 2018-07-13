@@ -230,11 +230,18 @@ class InputData(object):
                 else:
                     lon_sel = slice(None)
 
+                if 'lev_s' in cfg and 'lev_e' in cfg:
+                    lev_sel = np.logical_and(self.lev >= cfg['lev_s'],
+                                             self.lev <= cfg['lev_e'])
+                    self.lev = self.lev[lev_sel]
+                else:
+                    lev_sel = slice(None)
+
                 first_file = False
 
+            select = (self.d_select, lev_sel, slice(None), lon_sel)
             self.props.log.info("\tLOAD: {}".format(var))
-            self.in_data[var] = (nc_file.variables[vname][self.d_select, ..., lon_sel]
-                                 .astype(np.float16))
+            self.in_data[var] = nc_file.variables[vname][select].astype(np.float16)
 
             if cfg['single_var_file']:
                 nc_file.close()
@@ -254,7 +261,8 @@ class InputData(object):
             n_chunks = ideal_chunks
         if (dset_size / total_mem) > 0.01:
             n_times = self.in_data['uwnd'].shape[0]
-            cwidth = n_times // n_chunks
+            # This sets the chunk width to at least 1
+            cwidth = max(1, n_times // n_chunks)
             chunks = [[ix, ix + cwidth] for ix in range(0, n_times + cwidth, cwidth)]
             # Using the above range, the last chunk generated is beyond the shape of axis0
             chunks.pop(-1)
