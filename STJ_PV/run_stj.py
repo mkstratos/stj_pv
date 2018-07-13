@@ -380,32 +380,35 @@ def check_data_config(cfg_file):
     return config, any([missing_req, all(missing_optionals)])
 
 
-def main(sens_run=False):
+def main(sample_run=True, sens_run=False):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
-    # jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
-    # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
-    # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-    # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
+    if sample_run:
+        # ----------Sample test case-------------
+        jf_run = JetFindRun('./conf/stj_config_sample.yml')
+        date_s = dt.datetime(2016, 1, 1)
+        date_e = dt.datetime(2016, 1, 3)
+    else:
+        # ----------Other cases-------------
+        # jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
+        # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
+        # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
-    # Four main choices
-    # jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
+        # Four main choices
+        jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+        # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
 
-    # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-    # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+        # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+        # jf_run = JetFindRun('./conf/stj_config_merra_monthly.yml')
 
-    # U-Max
-    # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
+        # U-Max
+        # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
 
-    # date_s = dt.datetime(1979, 1, 1)
-    # date_e = dt.datetime(2016, 12, 31)
-
-    # ----------Sample test case-------------
-    jf_run = JetFindRun('./conf/stj_config_sample.yml')
-    date_s = dt.datetime(2016, 1, 1)
-    date_e = dt.datetime(2016, 1, 3)
+        date_s = dt.datetime(1979, 1, 1)
+        date_e = dt.datetime(2016, 12, 31)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
@@ -424,4 +427,4 @@ def main(sens_run=False):
 
 
 if __name__ == "__main__":
-    main(sens_run=False)
+    main(sample_run=True, sens_run=False)
