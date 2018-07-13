@@ -36,6 +36,12 @@ def main(run_name=None, props=None):
                  'date_s': '2016-01-01',
                  'date_e': '2016-01-03'}
         props['data'] = 'NCEP_NCAR_DAILY_STJPV'
+
+    elif run_name == 'MERRA_MONTHLY_STJPV':
+        props['data'] = run_name
+        props['date_s'] = '1980-01-01'
+        props['date_e'] = '2017-12-31'
+
     else:
         props['data'] = run_name
 
@@ -214,4 +220,4 @@ if __name__ == '__main__':
 
     #for RNAME in DATASETS:
     #    main(run_name=RNAME)
-    main(run_name='ERAI_MONTHLY_THETA_STJPV')
+    main(run_name='MERRA_MONTHLY_STJPV')

@@ -28,7 +28,9 @@ def main(time_freq):
              'ncep-daily': ('./jet_out/NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_'
                             'y010.0_zmean_1979-01-01_2016-12-31.nc'),
              'era-65': ('./ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_'
-                        'y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc')
+                        'y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc'),
+             'merra': ('./jet_out/MERRA_MONTHLY_STJPV_pv2.0_fit6_y010.0_'
+                       'yN65.0_zmean_1980-01-01_2017-12-31.nc')
              }
 
     in_file = files[time_freq]
@@ -83,4 +85,4 @@ def main(time_freq):
 
 
 if __name__ == '__main__':
-    main('era-65')
+    main('merra')
