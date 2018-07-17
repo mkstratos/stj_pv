@@ -200,8 +200,8 @@ class JetFindRun(object):
 
         if self.data_cfg['single_year_file'] and date_s.year != date_e.year:
             for year in range(date_s.year, date_e.year + 1):
-                _date_s = dt.datetime(year, 1, 1)
-                _date_e = dt.datetime(year, 12, 31)
+                _date_s = dt.datetime(year, 1, 1, 0, 0)
+                _date_e = dt.datetime(year, 12, 31, 23, 59)
                 self.log.info('FIND JET FOR %s - %s', _date_s.strftime('%Y-%m-%d'),
                               _date_e.strftime('%Y-%m-%d'))
                 data = self._get_data(_date_s, _date_e)
@@ -403,6 +403,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
         # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
         # jf_run = JetFindRun('./conf/stj_config_merra_monthly.yml')
+        # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
 
         # U-Max
         # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
