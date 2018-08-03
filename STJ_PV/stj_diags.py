@@ -3,16 +3,14 @@
 Module containing classes for diagnoistic variable calculation and diagnoistic plotting.
 """
 import os
+import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
-import pandas as pd
-import datetime as dt
 
 import input_data
 import stj_metric
 import run_stj
-import utils
 
 # Define the plot output extention
 EXTN = 'pdf'
@@ -34,7 +32,7 @@ class DiagPlots(object):
         self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
 
         # Figure size set to 129 mm wide, 152 mm tall
-        self.fig_mult = 2.
+        self.fig_mult = 1.
 
         plt.rc('text', usetex=True)
         plt.rc('text.latex', unicode=True)
@@ -55,7 +53,6 @@ class DiagPlots(object):
 
         """
         data = input_data.InputData(self.props, date_s=date, date_e=date)
-                                    #date_e=date + dt.timedelta(seconds=3600 * 32 * 24))
         data.get_data_input()
         self.stj = self.metric(self.props, data)
         tix = 0
@@ -91,19 +88,20 @@ class DiagPlots(object):
         axes[3].spines['right'].set_color('none')
         axes[3].spines['top'].set_color('none')
         _, map_y = pmap(*np.meshgrid(data.lon, data.lat))
+
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0],
                      '#fc4f30', lw=1.5 * self.fig_mult)
 
         for hidx, lati in enumerate(self.jet_info['jet_idx']):
-            axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
+            axes[3].axhline(map_y[lati, 0], color='k', lw=1.8 * self.fig_mult)
             # Mean vs. median
-            lat_median = np.ma.mean(self.jet_info['lat_all'][hidx][tix])
-            lat_iqr = np.ma.std(self.jet_info['lat_all'][hidx][tix])
+            # lat_median = np.ma.mean(self.jet_info['lat_all'][hidx][tix])
+            # lat_iqr = np.ma.std(self.jet_info['lat_all'][hidx][tix])
 
-            _, lat_q1 = pmap(0, lat_median - lat_iqr)
-            _, lat_q2 = pmap(0, lat_median + lat_iqr)
+            # _, lat_q1 = pmap(0, lat_median - lat_iqr)
+            # _, lat_q2 = pmap(0, lat_median + lat_iqr)
 
-            axes[3].axhline(map_y[lati, 0], color='k', lw=1.5 * self.fig_mult)
+            axes[3].axhline(map_y[lati, 0], color='k', lw=1.8 * self.fig_mult)
             # axes[3].axhline(lat_q1, color='k', ls='--', lw=0.8 * self.fig_mult)
             # axes[3].axhline(lat_q2, color='k', ls='--', lw=0.8 * self.fig_mult)
 
@@ -147,10 +145,11 @@ class DiagPlots(object):
         ax3_c = axes[3].get_position().bounds
         ax2_c = axes[2].get_position().bounds
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
-        plt.savefig('plt_stj_diag_{}_{:.1f}PVU_{}.{}'
+        out_file = ('plt_stj_diag_{}_{:.0f}K_{}'
                     .format(self.props.data_cfg['short_name'],
-                            self.props.config['pv_value'],
-                            date.strftime('%Y-%m-%d'), EXTN))
+                            data.th_lev[zix], date.strftime('%Y-%m-%d')))
+        out_file = out_file.replace('.', 'p')
+        plt.savefig('{}.{}'.format(out_file, EXTN))
         plt.clf()
         plt.close()
 
@@ -281,18 +280,11 @@ class DiagPlots(object):
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
 
-        # Restrict to below theta == 450, compute U-wind on PV surface use to find jet
-        z_s = data.th_lev <= 450
-        uwnd_ = utils.vinterp(data.uwnd[:, z_s, ...], np.abs(data.ipv[:, z_s, ...]),
-                              np.array([self.props.config['pv_value']]))
-
         if data.lon.min() < 0:
-            # uwnd = data.uwnd[tix, zix, ...]
-            uwnd = uwnd_
+            uwnd = data.uwnd[tix, zix, ...]
             lon = data.lon
         else:
-            # uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
-            uwnd, lon = basemap.addcyclic(uwnd_, data.lon)
+            uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
 
         map_x, map_y = pmap(*np.meshgrid(lon, data.lat))
 
@@ -300,9 +292,9 @@ class DiagPlots(object):
                               cmap='RdBu_r', ax=axis, extend='both')
 
         pmap.drawcoastlines(ax=axis, linewidth=0.5)
-        lat_spc = 15.
-        lon_spc = 30.
-        line_props = {'ax': axis, 'linewidth': 0.4, 'dashes': [3, 3]}
+        lat_spc = 30
+        lon_spc = 60
+        line_props = {'ax': axis, 'linewidth': 0.1, 'dashes': [3, 10]}
         pmap.drawparallels(np.arange(-90, 90 + lat_spc, lat_spc), **line_props)
         pmap.drawmeridians(np.arange(0, 360 + lon_spc, lon_spc), **line_props)
         pmap.drawparallels(np.arange(-90, 90 + lat_spc * 2, lat_spc * 2),

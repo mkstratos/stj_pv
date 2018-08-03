@@ -32,7 +32,7 @@ def plot_timeseries(dset, hem='nh'):
         lines = []
         for idx, var in enumerate(in_vars):
             seasons = [i for i in iter(dset[var].groupby('time.season'))]
-            sea_names = [sea[0] for sea  in seasons]
+            sea_names = [sea[0] for sea in seasons]
 
             means = [np.abs((seas[1].values[::3] + seas[1].values[1::3] +
                              seas[1].values[2::3])) / 3 for seas in seasons]
@@ -43,7 +43,8 @@ def plot_timeseries(dset, hem='nh'):
                                             'C{}o-'.format(idx), label=var))
 
             sub_axes[idx].set_xticks(times[::2])
-            sub_axes[idx].yaxis.set_tick_params(labelcolor=f'C{idx}', color=f'C{idx}')
+            sub_axes[idx].yaxis.set_tick_params(labelcolor='C{}'.format(idx),
+                                                color='C{}'.format(idx))
             sub_axes[idx].set_ylim(ranges[var.split('_')[0]])
 
         sub_axes[-1].spines['right'].set_position(('outward', 25))
@@ -55,7 +56,8 @@ def plot_timeseries(dset, hem='nh'):
 
     plt.suptitle(hem.upper())
     plt.tight_layout()
-    plt.savefig(f'plt_trend_{hem}.png')
+    plt.savefig('plt_trend_{}.png'.format(hem))
+
 
 def main():
     """Load a STJMetric output file, plot seasonal time series data."""
@@ -63,6 +65,7 @@ def main():
     dset = xr.open_dataset(in_f)
     for hem in ['nh', 'sh']:
         plot_timeseries(dset, hem)
+
 
 if __name__ == '__main__':
     main()

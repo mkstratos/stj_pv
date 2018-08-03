@@ -180,12 +180,12 @@ def main():
                            '1979-01-01_2016-12-31.nc'), 'label': 'B Daily ERAI PV 5.0˚'},
 
                  'ERAI-Regrid':
-                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
+                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit6_y010.0_yN65.0_'
+                           'zmean_1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
 
                  'ERAI-Uwind':
                  {'file': ('ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'ERAI U-Wind'},
+                           '1979-01-01_2016-12-31.nc'), 'label': 'ERA-I U Max'},
 
                  'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
                                  'label': 'ERAI Theta5'},
@@ -209,7 +209,7 @@ def main():
                            '1979-01-01_2015-12-31.nc'), 'label': 'ERAI EPV Pres'},
 
                  'ERAI-KP': {'file': ('ERAI_DAILY_PRES_KangPolvani_zmean_'
-                                      '1979-01-01_2016-12-31.nc'), 'label': 'ERAI K-P'},
+                                      '1979-01-01_2016-12-31.nc'), 'label': 'ERA-I K-P'},
 
                  'ERAI-Theta_LR':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_'
@@ -234,7 +234,7 @@ def main():
                  'ERAI-Monthly_new':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
                            '_zmean_1979-01-01_2016-12-31.nc'),
-                  'label': 'Monthly ERA-I'},
+                  'label': 'ERA-I PV Grad'},
 
                  'ERAI-Daily_new':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
@@ -263,7 +263,7 @@ def main():
     fig_width = (8.4 / 2.54) * fig_mult
     fig_height = fig_width * 1.3
 
-    in_names = ['ERAI-Daily_new', 'ERAI-Monthly_new']
+    in_names = ['ERAI-Regrid', 'NCEP-Monthly_new']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 

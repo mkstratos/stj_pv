@@ -57,8 +57,8 @@ class JetFindRun(object):
             self.config = {'data_cfg': './conf/data_config_default.yml', 'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
                            'zonal_opt': 'mean', 'poly': 'cheby',
-                           'pv_value': 2.0, 'fit_deg': 12, 'min_lat': 10.0,
-                           'max_lat': 80.0, 'update_pv': False,
+                           'pv_value': 2.0, 'fit_deg': 6, 'min_lat': 10.0,
+                           'max_lat': 65.0, 'update_pv': False,
                            'year_s': 1979, 'year_e': 2015}
         else:
 
@@ -198,10 +198,10 @@ class JetFindRun(object):
 
         self._set_output(date_s, date_e)
 
-        if self.data_cfg['single_year_file']:
+        if self.data_cfg['single_year_file'] and date_s.year != date_e.year:
             for year in range(date_s.year, date_e.year + 1):
-                _date_s = dt.datetime(year, 1, 1)
-                _date_e = dt.datetime(year, 12, 31)
+                _date_s = dt.datetime(year, 1, 1, 0, 0)
+                _date_e = dt.datetime(year, 12, 31, 23, 59)
                 self.log.info('FIND JET FOR %s - %s', _date_s.strftime('%Y-%m-%d'),
                               _date_e.strftime('%Y-%m-%d'))
                 data = self._get_data(_date_s, _date_e)
@@ -380,47 +380,53 @@ def check_data_config(cfg_file):
     return config, any([missing_req, all(missing_optionals)])
 
 
-def main(sens_run=False):
+def main(sample_run=True, sens_run=False):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
-    #era-i data options
-    jf_run = JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
-    # jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-    # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
 
-    #other method options
-    #jf_run = JetFindRun('./conf/stj_kp_erai_daily_gv.yml')
-    #jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
-    # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
+    if sample_run:
+        # ----------Sample test case-------------
+        jf_run = JetFindRun('./conf/stj_config_sample.yml')
+        date_s = dt.datetime(2016, 1, 1)
+        date_e = dt.datetime(2016, 1, 3)
+    else:
+        # ----------Other cases-------------
+        # jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
+        # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
+        # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
 
-    #other data options
-    #jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
-    #jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-    # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
-    # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
+        # Four main choices
+        jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
+        # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
 
+        # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
+        # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
+        # jf_run = JetFindRun('./conf/stj_config_merra_monthly.yml')
+        # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
 
-    date_s = dt.datetime(1979, 1, 1)
-    date_e = dt.datetime(2016, 12, 31)
+        # U-Max
+        # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
 
+        date_s = dt.datetime(1979, 1, 1)
+        date_e = dt.datetime(2016, 12, 31)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
-                           'fit': np.arange(5, 9),
+                           'fit_deg': np.arange(3, 9),
                            'min_lat': np.arange(2.5, 15, 2.5),
                            'max_lat': np.arange(60., 95., 5.)}
 
-        for sens_param in ['pv_value', 'fit', 'min_lat']:
+        for sens_param in sens_param_vals:
             jf_run.run_sensitivity(sens_param=sens_param,
                                    sens_range=sens_param_vals[sens_param],
                                    date_s=date_s, date_e=date_e)
     else:
         jf_run.run(date_s, date_e)
->>>>>>> 4d16358a83ed41150b31c4a3d2a16fa706f1579d
 
     jf_run.log.info('JET FINDING COMPLETE')
 
 
 if __name__ == "__main__":
-    main(sens_run=False)
+    main(sample_run=True, sens_run=False)

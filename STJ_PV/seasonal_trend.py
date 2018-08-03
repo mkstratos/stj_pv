@@ -28,7 +28,9 @@ def main(time_freq):
              'ncep-daily': ('./jet_out/NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_'
                             'y010.0_zmean_1979-01-01_2016-12-31.nc'),
              'era-65': ('./ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_'
-                        'y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc')
+                        'y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc'),
+             'merra': ('./jet_out/MERRA_MONTHLY_STJPV_pv2.0_fit6_y010.0_'
+                       'yN65.0_zmean_1980-01-01_2017-12-31.nc')
              }
 
     in_file = files[time_freq]
@@ -51,35 +53,36 @@ def main(time_freq):
         fig, axes = plt.subplots(2, 1, figsize=(15, 8), sharex=True)
         for hidx, hem in enumerate(hem_desc):
             for sidx, season in enumerate(seasons):
-                hvar = f'{var}_{hem}'
+                hvar = '{}_{}'.format(var, hem)
 
                 years = pd.DatetimeIndex(seasonal.time.values[sidx:-1:4]).year
                 trend = sts.linregress(years, seasonal[hvar].values[sidx:-1:4])
 
                 if trend.pvalue < 1 - confidence:
                     axes[hidx].plot(years, trend.slope * years + trend.intercept,
-                                    f'C{cols[hem][season]}--', lw=0.8)
-                    label = (f'{season} {trend.slope:.3f}'
-                             f' ({trend.rvalue**2:.3f}, {trend.pvalue:.2f})')
+                                    'C{}--'.format(cols[hem][season]), lw=0.8)
+                    label = ('{} {:.3f} ({:.3f}, {:.2f})'
+                             .format(season, trend.slope, trend.rvalue**2, trend.pvalue))
                 else:
-                    label = (f'{season}')
+                    label = season
+
                 if var == 'lat':
                     axes[hidx].set_yticks(yticks[hem])
                     axes[hidx].set_ylim(ylims[hem])
                 axes[hidx].plot(years, seasonal[hvar].values[sidx:-1:4],
-                                f'C{cols[hem][season]}', label=label, lw=1.5)
-                axes[hidx].set_ylabel(f'{hem} {jet_vars[var]} trend')
+                                'C{}'.format(cols[hem][season]), label=label, lw=1.5)
+                axes[hidx].set_ylabel('{} {} trend'.format(hem, jet_vars[var]))
                 axes[hidx].tick_params(axis='y', rotation=90)
                 axes[hidx].grid(b=True, ls='--', lw=0.6)
                 axes[hidx].legend()
 
             axes[1].set_xlabel('Season end year')
-            fig.suptitle(f'Trend of {jet_vars[var]}')
+            fig.suptitle('Trend of {}'.format(jet_vars[var]))
             plt.tight_layout()
-            fig.savefig(f'plt_{var}_trend_{time_freq}.png')
+            fig.savefig('plt_{}_trend_{}.png'.format(var, time_freq))
             fig.subplots_adjust(top=0.93)
             plt.close()
 
 
 if __name__ == '__main__':
-    main('era-65')
+    main('merra')
