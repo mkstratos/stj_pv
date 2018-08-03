@@ -7,72 +7,6 @@ from common_modules import list_common_elements
 __author__ = "Penelope Maher"
 
 
-def LoopTestTropoLevel(dTdz, dz, list_elem,guess_trop_height, P_spline):
-    'In the 2km layer above does the lapse rate exceed 2K/km?'
-    # loop over the data above the estimated tropopause height
-    # don't include last elem as its zero
-
-    store_dz = 0.0
-    tropopause_level = None
-
-    #assume the lowest layer above 500 hPa and a lapse rate less than 2 is H. 
-    #then test to make sure there is not a layer above in which it is large
-
-    elem = np.where(np.array(list_elem) == guess_trop_height)[0]
-
-    if len(elem) != 1:
-        pdb.set_tace()
-
-    for i in list_elem[0:elem[0]+1][::-1]: #from middle atmos up, only between guess and above
-
-        if tropopause_level is None:    
-            store_dz = store_dz + dz[i]
-            if np.abs(store_dz) >= 2.0:  # 2 km layer above tropopause estimate reached
-                #between guess and i, does gamma exceed 2?
-                gamma_2km_above = dTdz[i:(guess_trop_height+1)]
-                if len(gamma_2km_above) >= 1:
-                    if gamma_2km_above.max() < 2.0:
-                        tropopause_level = guess_trop_height
-                    else:
-                        # Lapse rate exceeds 2.0K/km in the 2km layer above tropopause
-                        tropopause_level = None
-                else:
-                    #for testing only
-                    pdb.set_trace()
-
-            if np.abs(store_dz) < 2.0:
-                # if the layers above never add up to 2 km
-                # print 'There is not a 2km layer above the tropopause.'
-                tropopause_level = None
-
-    return tropopause_level
-
-
-def IterateCheckTropoHeight(dTdz, dz, T_spline, P_spline, H_threshold):
-    'In the 2km layer above does the lapse rate exceed 2K/km?'
-
-    rate_lt_2km = np.where(dTdz <= H_threshold)[0]  #where is the lapse rate less than 2
-    upper_tropo = np.where(P_spline <=500.) [0]
-    common_list = list_common_elements(rate_lt_2km.tolist(),upper_tropo.tolist())
-    common_list.sort() #ensure list is ordered
-    tropopause_level = None
-
-    for j in common_list[::-1]:
-        if tropopause_level is None:
-            guess_trop_height = j
-            #assume lowest level of 2km threshold is tropopause height then test for it
-            tropopause_level = LoopTestTropoLevel(dTdz=dTdz, dz=dz, list_elem=common_list,
-                                                  guess_trop_height=guess_trop_height,
-                                                  P_spline=P_spline)
- 
-    if tropopause_level is None:
-        print 'Tropopause height not found'
-        pdb.set_trace()
-
-
-    return tropopause_level
-
-
 def TropopauseHeightLevel(T_spline, P_spline, tck):
     """
     WMO definition of tropopause is the 2K/km threshold.
@@ -119,6 +53,74 @@ def TropopauseHeightLevel(T_spline, P_spline, tck):
 
 
     return TropHeightIndex, pressure_tropopause, temperature_tropopause, dTdz
+
+
+
+def IterateCheckTropoHeight(dTdz, dz, T_spline, P_spline, H_threshold):
+    'In the 2km layer above does the lapse rate exceed 2K/km?'
+
+    rate_lt_2km = np.where(dTdz <= H_threshold)[0]  #where is the lapse rate less than 2
+    upper_tropo = np.where(P_spline <=500.) [0]
+    common_list = list_common_elements(rate_lt_2km.tolist(),upper_tropo.tolist())
+    common_list.sort() #ensure list is ordered
+    tropopause_level = None
+
+    for j in common_list[::-1]:
+        if tropopause_level is None:
+            guess_trop_height = j
+            #assume lowest level of 2km threshold is tropopause height then test for it
+            tropopause_level = LoopTestTropoLevel(dTdz=dTdz, dz=dz, list_elem=common_list,
+                                                  guess_trop_height=guess_trop_height,
+                                                  P_spline=P_spline)
+ 
+    if tropopause_level is None:
+        print 'Tropopause height not found'
+        pdb.set_trace()
+
+
+    return tropopause_level
+
+def LoopTestTropoLevel(dTdz, dz, list_elem,guess_trop_height, P_spline):
+    'In the 2km layer above does the lapse rate exceed 2K/km?'
+    # loop over the data above the estimated tropopause height
+    # don't include last elem as its zero
+
+    store_dz = 0.0
+    tropopause_level = None
+
+    #assume the lowest layer above 500 hPa and a lapse rate less than 2 is H. 
+    #then test to make sure there is not a layer above in which it is large
+
+    elem = np.where(np.array(list_elem) == guess_trop_height)[0]
+
+    if len(elem) != 1:
+        pdb.set_tace()
+
+    for i in list_elem[0:elem[0]+1][::-1]: #from middle atmos up, only between guess and above
+
+        if tropopause_level is None:    
+            store_dz = store_dz + dz[i]
+            if np.abs(store_dz) >= 2.0:  # 2 km layer above tropopause estimate reached
+                #between guess and i, does gamma exceed 2?
+                gamma_2km_above = dTdz[i:(guess_trop_height+1)]
+                if len(gamma_2km_above) >= 1:
+                    if gamma_2km_above.max() < 2.0:
+                        tropopause_level = guess_trop_height
+                    else:
+                        # Lapse rate exceeds 2.0K/km in the 2km layer above tropopause
+                        tropopause_level = None
+                else:
+                    #for testing only
+                    pdb.set_trace()
+
+            if np.abs(store_dz) < 2.0:
+                # if the layers above never add up to 2 km
+                # print 'There is not a 2km layer above the tropopause.'
+                tropopause_level = None
+
+    return tropopause_level
+
+
 
 
 def TestTropoHeightPlot(T_spline, P_spline, dTdz, pressure_tropopause):
