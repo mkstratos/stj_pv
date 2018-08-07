@@ -138,6 +138,7 @@ class STJPV(STJMetric):
         Class containing properties about the current search for the STJ
     data : :py:meth:`~STJ_PV.input_data.InputData`
         Input data class containing a year (or more) of required data
+
     """
 
     def __init__(self, props, data):
@@ -233,7 +234,7 @@ class STJPV(STJMetric):
             Hemisphere index 0 for SH, 1 for NH
         extrema : function
             Function used to identify extrema in meridional PV gradient, either
-            :py:meth:`scipy.signal.argrelmax` if SH, or :py:meth:`scipy.signal.argrelmin`
+            :func:`scipy.signal.argrelmax` if SH, or :func:`scipy.signal.argrelmin`
             for NH
 
         """
@@ -500,6 +501,7 @@ class STJMaxWind(STJMetric):
         Class containing properties about the current search for the STJ
     data : :py:meth:`~STJ_PV.input_data.InputData`
         Input data class containing a year (or more) of required data
+
     """
 
     def __init__(self, props, data):

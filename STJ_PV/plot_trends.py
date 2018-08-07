@@ -46,8 +46,8 @@ def plot_data(info):
             sct_args[row['Reanalysis']]['facecolor'] = 'white'
             sct_args[row['Reanalysis']]['edgecolor'] = 'C{}'.format(cix)
 
-        if ax_ix == 1 and x_ix == 0:
-            sct_args['label'] = row['Reanalysis']
+        if ax_ix == 1 and coords['x'][row[xkey]] == 0:
+            sct_args[row['Reanalysis']]['label'] = row['Reanalysis']
 
         axes[ax_ix].scatter(x_ix, row[info['data_name']],
                             **sct_args[row['Reanalysis']])
@@ -104,7 +104,7 @@ def main():
                       'legend': (0.4, 0.965),
                       'ms': 30}}
 
-    plot_data(info['means'])
+    plot_data(info['trends'])
 
 
 if __name__ == '__main__':

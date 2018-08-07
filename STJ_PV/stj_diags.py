@@ -311,7 +311,7 @@ class DiagPlots(object):
         else:
             for hidx in [0, 1]:
                 xpt, ypt = pmap(data.lon, self.jet_info['lat_all'][hidx][tix])
-                pmap.plot(xpt, ypt, 'k.', ax=axis)
+                pmap.plot(xpt, ypt, 'ko', ms=1.8, ax=axis)
 
         return cfill, pmap
 
@@ -388,7 +388,7 @@ def main():
         # Force update_pv and force_write to be False, optional override of zonal-mean
         jf_run.config['update_pv'] = False
         jf_run.config['force_write'] = False
-        jf_run.config['zonal_opt'] = 'mean'
+        jf_run.config['zonal_opt'] = 'indv'
         diags = DiagPlots(jf_run, stj_metric.STJPV)
         diags.test_method_plot(date)
 

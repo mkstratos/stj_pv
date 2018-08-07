@@ -220,11 +220,21 @@ def main():
                            '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
 
                  'MERRA-Mon':
-                 {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2015-12-31.nc'), 'label': 'Monthly MERRA PV'},
+                 {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
+                           '1980-01-01_2017-12-31.nc'), 'label': 'Monthly MERRA'},
+
+                 'MERRA-Day':
+                 {'file': ('MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
+                           '1980-01-01_2017-12-31.nc'), 'label': 'Daily MERRA PV "Bad"'},
+
+                 'MERRA-Day-old':
+                 {'file': ('MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
+                           '1980-01-01_2017-12-31_old.nc'),
+                  'label': 'Daily MERRA PV Old'},
+
                  'JRA-Mon':
-                 {'file': ('JRA55_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2017-12-31.nc'), 'label': 'Monthly JRA-55 PV'},
+                 {'file': ('JRA55_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'Monthly JRA-55 PV'},
 
                  'ERAI-Theta_zmean':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
@@ -234,7 +244,7 @@ def main():
                  'ERAI-Monthly_new':
                  {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
                            '_zmean_1979-01-01_2016-12-31.nc'),
-                  'label': 'ERA-I PV Grad'},
+                  'label': 'Monthly ERA-I'},
 
                  'ERAI-Daily_new':
                  {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
@@ -263,7 +273,7 @@ def main():
     fig_width = (8.4 / 2.54) * fig_mult
     fig_height = fig_width * 1.3
 
-    in_names = ['ERAI-Regrid', 'NCEP-Monthly_new']
+    in_names = ['MERRA-Mon', 'ERAI-Monthly_new']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
