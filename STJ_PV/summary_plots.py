@@ -22,7 +22,7 @@ def main(run_name=None, props=None):
                  'yN': 65.0,
                  'zonal_reduce': 'mean',
                  'date_s': '1979-01-01',
-                 'date_e': '2016-12-31'}
+                 'date_e': '2017-12-31'}
 
     if run_name is None:
         props['data'] = 'ERAI_MONTHLY_THETA_STJPV'
@@ -37,14 +37,13 @@ def main(run_name=None, props=None):
                  'date_e': '2016-01-03'}
         props['data'] = 'NCEP_NCAR_DAILY_STJPV'
 
-    elif run_name == 'MERRA_MONTHLY_STJPV':
+    elif 'MERRA' in run_name:
         props['data'] = run_name
         props['date_s'] = '1980-01-01'
         props['date_e'] = '2017-12-31'
 
     else:
         props['data'] = run_name
-
 
     in_file = ('{data}_pv{pv:.1f}_fit{fit}_y0{y0:03.1f}_yN{yN:.1f}_'
                'z{zonal_reduce}_{date_s}_{date_e}'.format(**props))
@@ -88,6 +87,7 @@ def main(run_name=None, props=None):
         axes[hidx].set_xlabel('Latitude Position [deg]')
         axes[hidx].set_title(HEM_INFO[hem]['label'])
         axes[hidx].set_ylim([320, 375])
+        # axes[hidx].set_ylim([330, 385])
         axes[hidx].set_xlim(HEM_INFO[hem]['lat_r'])
 
     ln_nh = axes[2].plot(month_mean.month, month_mean['lat_nh'].values,
@@ -187,13 +187,17 @@ def summary_table(data_in, out_file):
     pd.set_option('display.float_format', lambda x: '%.1f' % x)
 
     with open('seasonal_stats_{}.tex'.format(out_file), 'w') as fout:
-        fout.write(data_seasonal.to_dataframe().to_latex())
+        annual = pd.DataFrame({'Annual': data_in.to_dataframe().mean()}).T
+        seasonal = data_seasonal.to_dataframe()
+        annual = annual.append(seasonal)
+        fout.write(annual.to_latex())
 
     with open('monthly_stats_{}.tex'.format(out_file), 'w') as fout:
         fout.write(data_monthly.to_dataframe().to_latex())
 
     with open('annual_stats_{}.tex'.format(out_file), 'w') as fout:
-        fout.write(data_in.to_dataframe().mean().to_latex())
+        annual = pd.DataFrame({'Annual': data_in.to_dataframe().mean()})
+        fout.write(annual.T.to_latex())
 
 
 # Color map for seasons
@@ -215,9 +219,10 @@ SEAS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM', 'JJA',
                  'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 if __name__ == '__main__':
-    #DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
-    #            'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV']
+    DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
+                'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV',
+                'MERRA_MONTHLY_STJPV', 'MERRA_DAILY_STJPV']
 
-    #for RNAME in DATASETS:
+    #for RNAME in DATASETS[1:]:
     #    main(run_name=RNAME)
-    main(run_name='MERRA_MONTHLY_STJPV')
+    main(run_name=DATASETS[3])
