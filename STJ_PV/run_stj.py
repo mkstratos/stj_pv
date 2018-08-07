@@ -39,13 +39,8 @@ class JetFindRun(object):
         Output data frequency (time, spatial)
     method : STJMetric
         Jet finder type
-    log : logger
+    log : :py:class:`logging.Logger`
         Debug log
-
-    Methods
-    -------
-    :py:meth:`~log_setup`
-    :py:meth:`~run`
 
     """
 
