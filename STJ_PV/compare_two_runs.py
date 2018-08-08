@@ -330,7 +330,7 @@ def main():
     plt.savefig('plt_diff_timeseries_{}-{}.{ext}'.format(ext=extn, *in_names))
 
     # Make a bar chart of mean difference
-    sns.factorplot(x='season', y='lat', col='hem', data=diff, kind='bar')
+    sns.catplot(x='season', y='lat', col='hem', data=diff, kind='bar')
     plt.tight_layout()
     plt.savefig('plt_diff_bar_{}-{}.{ext}'.format(ext=extn, *in_names))
 
