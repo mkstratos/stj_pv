@@ -6,3 +6,7 @@
 *.png
 *.log
 *.nc
+.mypy_cache*
+.ipynb_checkpoints*
+.pytest_cache*
+STJ_PV/doc/_build
