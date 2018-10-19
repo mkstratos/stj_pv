@@ -78,12 +78,12 @@ def plot_data(info):
         axis.xaxis.grid(b=False)
         axis.set_xticks(xticks)
         axis.set_xticklabels(xlabels)
-        #axis.xaxis.set_ticks_position('none')
+        # axis.xaxis.set_ticks_position('none')
         axis.set_title('{} {}'.format(ax_key[idx], axlabels[idx]))
 
     axes[coords['axis']['Southern Hemisphere']].invert_yaxis()
     axes[0].set_ylabel(info['ylabel'])
-    axes[1].legend(bbox_to_anchor=info['legend'], frameon=False)
+    axes[1].legend(bbox_to_anchor=info['legend'], frameon=True, framealpha=1.)
 
     plt.tight_layout()
     plt.savefig('plt_{data_name}_all.pdf'.format(**info))
@@ -104,7 +104,7 @@ def main():
                       'legend': (0.4, 0.965),
                       'ms': 30}}
 
-    plot_data(info['trends'])
+    plot_data(info['means'])
 
 
 if __name__ == '__main__':
