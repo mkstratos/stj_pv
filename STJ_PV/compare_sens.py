@@ -8,7 +8,7 @@ import xarray as xr
 import scipy.stats as sts
 from seaborn import despine
 
-NC_DIR = './jet_out/sens'
+NC_DIR = './jet_out/sens/daily'
 
 
 def main(run_type, param_name, param_vals, dates, var='lat'):
@@ -31,7 +31,7 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     """
     opts = {'run_type': run_type, 'fit': 6,
             'y0': 10, 'pv_lev': 2.0, 'yN': 65.0}
-    plot_seas = False
+    plot_seas = True
     plot_mon = False
     plot_mon_std = True
     plot_ts = False
@@ -61,7 +61,7 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
 
     if plot_mon:
         fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
-        figure = plt.subplots(1, 2, figsize=fig_size, sharex=True)
+        figure = plt.subplots(2, 2, figsize=fig_size, sharex=True)
         sens_monthly(d_in, var, param_name, figure)
         plt.close()
 
@@ -158,7 +158,7 @@ def sens_seasonal(d_in, var, param_name, figure):
     fig.subplots_adjust(left=0.11, bottom=0.13, right=0.97,
                         top=0.93, wspace=0.26)
     # plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var]['name']))
-    fig.savefig('plt_season_mean_{}_{}.{}'.format(var, param_name, EXTN))
+    fig.savefig('{}/plt_season_mean_{}_{}.{}'.format(OUT_DIR, var, param_name, EXTN))
     return sens_out
 
 
@@ -198,7 +198,7 @@ def sens_monthly(data_in, var, param_name, figure):
         axis[1].set_ylabel(VARS[var]['units'])
 
     plt.tight_layout()
-    plt.savefig('plt_sens_{}_{}_monthly.{}'.format(var, param_name, EXTN))
+    plt.savefig('{}/plt_sens_{}_{}_monthly.{}'.format(OUT_DIR, var, param_name, EXTN))
 
 
 def sens_monthly_std(data_in, var, param_name, figure):
@@ -233,7 +233,8 @@ def sens_monthly_std(data_in, var, param_name, figure):
                    loc='upper left', bbox_to_anchor=(0.0, 1.5), frameon=False,
                    columnspacing=1.5, handlelength=1.5, labelspacing=0.3)
     # plt.show()
-    plt.savefig('plt_sens_{}_{}_monthly_std.{}'.format(var, param_name, EXTN))
+    plt.savefig('{}/plt_sens_{}_{}_monthly_std.{}'
+                .format(OUT_DIR, var, param_name, EXTN))
 
 
 def create_table_season(sens):
@@ -272,14 +273,14 @@ def create_table_param(sens):
 def run():
     """Set dates, variable names, and parameters to plot sensitivity."""
     # run_type = 'NCEP_NCAR_MONTHLY_STJPV'
-    run_type = 'ERAI_MONTHLY_THETA_STJPV'
-    dates = ('1979-01-01', '2016-12-31')
+    run_type = 'NCEP_NCAR_DAILY_STJPV'
+    dates = ('1979-01-01', '2017-12-31')
     param_vals = {'pv_lev': np.arange(1.0, 4.5, 0.5),
                   'fit': np.arange(3, 9),
                   'y0': np.arange(2.5, 15, 2.5),
                   'yN': np.arange(60., 95., 5.)}
-    sens = {'pv_lev': {}, 'fit': {}, 'y0': {}, 'yN': {}}
 
+    sens = {'pv_lev': {}, 'fit': {}, 'y0': {}, 'yN': {}}
     for var_name in VARS:
         for param in sens:
             sens[param][var_name] = main(run_type, param, param_vals[param],
@@ -296,6 +297,7 @@ VARS = {'lat': {'name': 'Latitude Position', 'units': 'deg'},
         'intens': {'name': 'Intensity', 'units': 'm/s'}}
 EXTN = 'pdf'
 GRID_STYLE = {'b': True, 'ls': '--', 'lw': 0.3}
+OUT_DIR = './plots/sens/daily'
 
 if __name__ == "__main__":
     run()
