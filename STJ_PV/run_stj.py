@@ -241,10 +241,16 @@ class JetFindRun(object):
 
         for param_val in sens_range:
             self.log.info('----- RUNNING WITH %s = %f -----', sens_param, param_val)
+            # Save original config value
+            param_orig = self.config[sens_param]
+
             self.config[sens_param] = param_val
             self._set_output(date_s, date_e)
             self.log.info('OUTPUT TO: %s', self.config['output_file'])
             self.run(date_s, date_e)
+
+            # Reset to original config value
+            self.config[sens_param] = param_orig
 
 
 def check_config_req(cfg_file, required_keys_all, id_file=True):
@@ -379,7 +385,6 @@ def main(sample_run=True, sens_run=False):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
-
     if sample_run:
         # ----------Sample test case-------------
         jf_run = JetFindRun('./conf/stj_config_sample.yml')
@@ -405,7 +410,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
 
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(2016, 12, 31)
+        date_e = dt.datetime(2017, 12, 31)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
