@@ -175,7 +175,7 @@ class JetFindRun(object):
 
         return data
 
-    def run(self, date_s=None, date_e=None):
+    def run(self, date_s=None, date_e=None, save=True):
         """
         Find the jet, save location to a file.
 
@@ -215,7 +215,10 @@ class JetFindRun(object):
             for shemis in [True, False]:
                 jet_all.find_jet(shemis)
 
-        jet_all.save_jet()
+        if save:
+            jet_all.save_jet()
+        else:
+            return jet_all
 
     def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
         """
