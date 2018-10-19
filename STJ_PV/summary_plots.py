@@ -49,7 +49,7 @@ def main(run_name=None, props=None):
                'z{zonal_reduce}_{date_s}_{date_e}'.format(**props))
 
     data = xr.open_dataset('./jet_out/{}.nc'.format(in_file))
-
+    print(f'DATA COMMIT: {data.attrs["commit-id"]}')
     month_mean = data.groupby('time.month').mean()
     month_std = data.groupby('time.month').std()
 
@@ -225,4 +225,4 @@ if __name__ == '__main__':
 
     #for RNAME in DATASETS[1:]:
     #    main(run_name=RNAME)
-    main(run_name=DATASETS[3])
+    main(run_name=DATASETS[5])
