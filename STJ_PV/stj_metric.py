@@ -339,11 +339,23 @@ class STJPV(STJMetric):
             if tix % 50 == 0 and dims[0] > 50:
                 self.log.info('COMPUTING JET POSITION FOR %d', tix)
             self.tix = tix
-            jet_loc = np.zeros(dims[-1])
+            jet_loc = np.zeros(dims[-1], dtype=int)
             for xix in range(dims[-1]):
                 self.xix = xix
-                jet_loc[xix] = self.find_single_jet(theta_xpv[tix, :, xix],
-                                                    lat, ushear[tix, :, xix], extrema)
+                try:
+                    jet_loc[xix] = self.find_single_jet(theta_xpv[tix, :, xix],
+                                                        lat, ushear[tix, :, xix],
+                                                        extrema)
+                except TypeError as err:
+                    # This can happen on fitting the polynomial:
+                    # `raise TypeError("expected non-empty vector for x")`
+                    # If that's the error we get, just set the position to 0,
+                    # which is later masked, otherwise raise the error
+                    if 'non-empty' in err.args[0]:
+                        jet_loc[xix] = 0
+                    else:
+                        raise
+
                 if not self.props['zonal_opt'].lower() == 'mean':
                     self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
                     self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
