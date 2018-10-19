@@ -44,6 +44,22 @@ STJ_PV.utils module
     :undoc-members:
     :show-inheritance:
 
+Comparison Utilities
+--------------------
+
+**Compare Two Runs**
+
+.. automodule:: STJ_PV.compare_two_runs
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+**Compare Runs Map**
+
+.. automodule:: STJ_PV.compare_runs_map
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
 Module contents
 ---------------

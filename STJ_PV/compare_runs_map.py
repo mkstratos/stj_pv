@@ -22,15 +22,16 @@ INFO = {'ERAI-PVGrad':
         {'file': ('ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_'
                   '1979-01-01_2016-12-31.nc'), 'label': 'U Max'}}
 
+
 def draw_map_lines(pmap, axis):
     """
     Draw lat/lon and coast lines on a Basemap.
 
     Parameters
     ----------
-    pmap : `mpl_toolkits.basemap.Basemap`
+    pmap : :class:`mpl_toolkits.basemap.Basemap`
         A `Basemap` onto which lines will be drawn
-    axis : :class:`matplotlib.axes.Axis`
+    axis : :class:`matplotlib.axes.Axes`
         Axis reference for `pmap`
 
     Returns
@@ -86,8 +87,6 @@ def get_pvgrad_pos(date):
 
 def main(width=174, figscale=1.0, extn='png'):
     """Load data, make plots."""
-
-
     # Parameters, labels, etc.
     in_names = ['ERAI-PVGrad', 'ERAI-Uwind']
     labels = [INFO[name]['label'] for name in in_names]
