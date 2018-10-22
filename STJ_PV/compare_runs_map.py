@@ -96,6 +96,8 @@ def plot_annotations(fig, axes, cfill):
         sns.despine(ax=axes[idx, 0], left=False, bottom=idx == 0, offset=4)
         # Set the lineplot grid to have `grid_style`
         axes[idx, 0].grid(**grid_style)
+        # Rotate y-axis ticks so SH/NH have same
+        axes[idx, 0].tick_params(axis='y', rotation=90)
 
     # Add colorbar axis
     cax = fig.add_axes([0.5, 0.04, 0.45, 0.015])
@@ -104,7 +106,7 @@ def plot_annotations(fig, axes, cfill):
     # cbar.ax.yaxis.set_label_position('right')
 
     # Make colorbar border thinner
-    cbar.outline.set_linewidth(0.1)
+    cbar.outline.set_linewidth(0.01)
 
     fig.subplots_adjust(left=0.07, bottom=0.05,
                         right=0.94, top=0.98,
@@ -150,7 +152,7 @@ def main(width=174, figscale=1.0, extn='png'):
 
         # Plot timeseries for each method
         for kind, dfk in dfh[1].groupby('kind'):
-            axes[idx, 0].plot(dfk.lat, label=kind, color=cols[kind], lw=1.5)
+            axes[idx, 0].plot(dfk.lat, label=kind, color=cols[kind], lw=2.0)
 
         # Label the timeseries
         axes[idx, 0].set_ylabel(c2r.HEMS[hem])
@@ -162,13 +164,12 @@ def main(width=174, figscale=1.0, extn='png'):
         # Show which date is being plotted in the map with a verical line
         axes[idx, 0].axvline(dates[hem], color='k', ls='--', lw=1.1)
 
-        # Rotate y-axis ticks so SH/NH have same
         # left-ward extent, limit the y-axis
-        axes[idx, 0].tick_params(axis='y', rotation=90)
         axes[idx, 0].set_ylim(HEM_LIMS[hem])
 
         # Open ERAI data to extract zonal wind
         dsw = xr.open_dataset(f'{wind_dir}/erai_theta_{dates[hem].year}.nc')
+
         # Select the correct day and level from the u-wind
         uwnd = dsw.sel(time=dates[hem], level=theta_lev).u
 
@@ -187,14 +188,14 @@ def main(width=174, figscale=1.0, extn='png'):
 
         # Extract the kind for the zonal mean of the first kind (labels[0])
         _umax = dfh[1][dfh[1].kind == labels[1]]
-        # Generate 40 longitude, 40 latitude points from
-        # the identified zonal mean position for the particular
-        # day, transform them to the `pmap` coordinates
-        umax_map = pmap(np.linspace(0, 360, 40),
-                        [_umax[_umax.time == dates[hem]].lat[0]] * 40)
 
-        pmap.plot(*umax_map, color=cols[labels[1]], ax=axes[idx, 1],
-                  linewidth=1.5, zorder=5)
+        # Draw the parallel (latitude line) for this zonal mean jet location
+        # the `latmax` parameter is needed (set to the same latitude) so that
+        # the 80deg (N/S) is not drawn as well as the desired jet location
+        pmap.drawparallels(_umax[_umax.time == dates[hem]].lat,
+                           linewidth=2.0, color=cols[labels[1]],
+                           ax=axes[idx, 1], dashes=[1, 0],
+                           latmax=_umax[_umax.time == dates[hem]].lat[0])
 
         # Create and run an stj_metric.STJPVMetric, don't save,
         # just return lat position
@@ -210,7 +211,7 @@ def main(width=174, figscale=1.0, extn='png'):
         # to map coords then plot it on pmap
         pvgrad_map = pmap(lon[:-1], pv_grad_lat[hem_idx, 0])
         pmap.plot(*pvgrad_map, 'o', color=cols[labels[0]],
-                  ms=0.6, ax=axes[idx, 1])
+                  ms=1.5, ax=axes[idx, 1])
 
         # Label the map with the selected date, align the title to
         # the right, the padding is set by plt.rcParams['axes.titlepad'],
