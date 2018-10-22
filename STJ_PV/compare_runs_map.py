@@ -10,7 +10,6 @@ import seaborn as sns
 import compare_two_runs as c2r
 from mpl_toolkits import basemap as bmp
 import run_stj
-
 __author__ = 'Michael Kelleher'
 
 HEM_LIMS = {'nh': [23, 54], 'sh': [-54, -23]}
@@ -85,6 +84,33 @@ def get_pvgrad_pos(date):
     return jet.jet_lat
 
 
+def plot_annotations(fig, axes, cfill):
+    """Annotate the map and line plots.
+    """
+    grid_style = {'b': True, 'ls': '-', 'color': 'lightgrey', 'lw': 0.5}
+    axes[0, 0].legend(ncol=2, fontsize=plt.rcParams['font.size'])
+    axes[0, 0].tick_params(bottom='off', labelbottom='off')
+    for idx in range(axes.shape[0]):
+
+        # Remove borders from timeseries plot
+        sns.despine(ax=axes[idx, 0], left=False, bottom=idx == 0, offset=4)
+        # Set the lineplot grid to have `grid_style`
+        axes[idx, 0].grid(**grid_style)
+
+    # Add colorbar axis
+    cax = fig.add_axes([0.5, 0.04, 0.45, 0.015])
+    cbar = fig.colorbar(cfill, cax=cax, orientation='horizontal')
+    # cbar.ax.yaxis.set_ticks_position('right')
+    # cbar.ax.yaxis.set_label_position('right')
+
+    # Make colorbar border thinner
+    cbar.outline.set_linewidth(0.1)
+
+    fig.subplots_adjust(left=0.07, bottom=0.05,
+                        right=0.94, top=0.98,
+                        wspace=0.03, hspace=0.03)
+
+
 def main(width=174, figscale=1.0, extn='png'):
     """Load data, make plots."""
     # Parameters, labels, etc.
@@ -124,20 +150,17 @@ def main(width=174, figscale=1.0, extn='png'):
 
         # Plot timeseries for each method
         for kind, dfk in dfh[1].groupby('kind'):
-            axes[idx, 0].plot(dfk.lat, label=kind, color=cols[kind])
+            axes[idx, 0].plot(dfk.lat, label=kind, color=cols[kind], lw=1.5)
 
         # Label the timeseries
         axes[idx, 0].set_ylabel(c2r.HEMS[hem])
-        axes[idx, 0].grid(b=True, ls='--')
+
         # Restrict to 2010-2016
         axes[idx, 0].set_xlim([pd.Timestamp('2010-01-01'),
                                pd.Timestamp('2016-06-30')])
 
         # Show which date is being plotted in the map with a verical line
         axes[idx, 0].axvline(dates[hem], color='k', ls='--', lw=1.1)
-
-        # Remove borders from timeseries plot
-        sns.despine(ax=axes[idx, 0], left=False, bottom=True, offset=0)
 
         # Rotate y-axis ticks so SH/NH have same
         # left-ward extent, limit the y-axis
@@ -155,21 +178,23 @@ def main(width=174, figscale=1.0, extn='png'):
 
         # Generate a {s/n}pstere Basemap
         pmap = bmp.Basemap(projection=f'{hem[0]}pstere',
-                           lon_0=0, boundinglat=0, resolution='c', round=True)
+                           lon_0=0, boundinglat=0,
+                           resolution='c', round=True)
 
         map_x, map_y = pmap(*np.meshgrid(lon, lat))
         cfill = pmap.contourf(map_x, map_y, uwnd, u_contours,
                               cmap='RdBu_r', ax=axes[idx, 1], extend='both')
 
         # Extract the kind for the zonal mean of the first kind (labels[0])
-        _umax = dfh[1][dfh[1].kind == labels[0]]
+        _umax = dfh[1][dfh[1].kind == labels[1]]
         # Generate 40 longitude, 40 latitude points from
         # the identified zonal mean position for the particular
         # day, transform them to the `pmap` coordinates
         umax_map = pmap(np.linspace(0, 360, 40),
                         [_umax[_umax.time == dates[hem]].lat[0]] * 40)
 
-        pmap.plot(*umax_map, color=cols[labels[0]], ax=axes[idx, 1])
+        pmap.plot(*umax_map, color=cols[labels[1]], ax=axes[idx, 1],
+                  linewidth=1.5, zorder=5)
 
         # Create and run an stj_metric.STJPVMetric, don't save,
         # just return lat position
@@ -189,21 +214,11 @@ def main(width=174, figscale=1.0, extn='png'):
 
         # Label the map with the selected date, align the title to
         # the right, the padding is set by plt.rcParams['axes.titlepad'],
-        # rather than here, for some reason
+        # rather than hlightgreyere, for some reason
         axes[idx, 1].set_title(dates[hem].strftime('%b %Y'), loc='right')
         draw_map_lines(pmap, axes[idx, 1])
 
-    axes[0, 0].legend(ncol=2, fontsize=plt.rcParams['font.size'])
-    axes[0, 0].tick_params(bottom='off', labelbottom='off')
-
-    cax = fig.add_axes([0.5, 0.04, 0.45, 0.015])
-    cbar = fig.colorbar(cfill, cax=cax, orientation='horizontal')
-    cbar.ax.yaxis.set_ticks_position('right')
-    cbar.ax.yaxis.set_label_position('right')
-
-    fig.subplots_adjust(left=0.07, bottom=0.05,
-                        right=0.94, top=0.98,
-                        wspace=0.03, hspace=0.03)
+    plot_annotations(fig, axes, cfill)
     plt.savefig('plt_diag_ts_map_{}-{}.{ext}'.format(ext=extn, *in_names))
 
 
