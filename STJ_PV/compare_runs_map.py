@@ -87,7 +87,7 @@ def get_pvgrad_pos(date):
 def plot_annotations(fig, axes, cfill):
     """Annotate the map and line plots.
     """
-    grid_style = {'b': True, 'ls': '-', 'color': 'lightgrey', 'lw': 0.5}
+    grid_style = {'b': True, 'ls': '-', 'color': 'lightgrey', 'lw': 0.2}
     axes[0, 0].legend(ncol=2, fontsize=plt.rcParams['font.size'])
     axes[0, 0].tick_params(bottom='off', labelbottom='off')
     for idx in range(axes.shape[0]):
@@ -100,16 +100,16 @@ def plot_annotations(fig, axes, cfill):
         axes[idx, 0].tick_params(axis='y', rotation=90)
 
     # Add colorbar axis
-    cax = fig.add_axes([0.5, 0.04, 0.45, 0.015])
+    cax = fig.add_axes([0.5375, 0.035, 0.45, 0.015])
     cbar = fig.colorbar(cfill, cax=cax, orientation='horizontal')
     # cbar.ax.yaxis.set_ticks_position('right')
     # cbar.ax.yaxis.set_label_position('right')
 
-    # Make colorbar border thinner
-    cbar.outline.set_linewidth(0.01)
+    # Remove border from colorbar
+    cbar.outline.set_color('none')
 
     fig.subplots_adjust(left=0.07, bottom=0.05,
-                        right=0.94, top=0.98,
+                        right=0.99, top=0.98,
                         wspace=0.03, hspace=0.03)
 
 
