@@ -38,14 +38,15 @@ def draw_map_lines(pmap, axis):
     None
 
     """
-    lat_spc = 30
+    lat_spc = 15
     lon_spc = 60
-    line_props = {'ax': axis, 'linewidth': 0.2, 'dashes': [3, 10]}
+    line_props = {'ax': axis, 'linewidth': 0.2, 'dashes': [4, 10],
+                  'color': '#555555'}
     pmap.drawparallels(np.arange(-90, 90 + lat_spc, lat_spc), **line_props)
     pmap.drawmeridians(np.arange(0, 360 + lon_spc, lon_spc), **line_props)
     pmap.drawparallels(np.arange(-90, 90 + lat_spc * 2, lat_spc * 2),
                        labels=[True, False, False, False], **line_props)
-    pmap.drawcoastlines(linewidth=line_props['linewidth'], ax=axis)
+    pmap.drawcoastlines(linewidth=0.1, color='#333333', ax=axis)
     circle = pmap.drawmapboundary(linewidth=2, color='white', ax=axis,
                                   zorder=6, fill_color='none')
     circle.set_clip_on(False)
@@ -113,13 +114,26 @@ def plot_annotations(fig, axes, cfill):
                         wspace=0.03, hspace=0.03)
 
 
+def plot_labels(fig, figscale):
+    """Put a, b, c, ... on plots."""
+    labels = {'a': {'x': 0.07, 'y': 0.95}, 'b': {'x': 0.07, 'y': 0.5},
+              'c': {'x': 0.6, 'y': 0.95}, 'd': {'x': 0.6, 'y': 0.5}}
+
+    for label in labels:
+        fig.text(**labels[label], s=f'({label})', fontsize=figscale * 9.0)
+
+
 def main(width=174, figscale=1.0, extn='png'):
     """Load data, make plots."""
     # Parameters, labels, etc.
     in_names = ['ERAI-PVGrad', 'ERAI-Uwind']
     labels = [INFO[name]['label'] for name in in_names]
+
     dates = {'nh': pd.Timestamp('2010-07-01'),
              'sh': pd.Timestamp('2016-03-01')}
+    # dates = {'nh': pd.Timestamp('2015-12-01'),
+    #          'sh': pd.Timestamp('2014-08-01')}
+
     nc_dir = './jet_out'
     wind_dir = '/Volumes/FN_2187/erai/monthly/'
     theta_lev = 350
@@ -153,6 +167,12 @@ def main(width=174, figscale=1.0, extn='png'):
         # Plot timeseries for each method
         for kind, dfk in dfh[1].groupby('kind'):
             axes[idx, 0].plot(dfk.lat, label=kind, color=cols[kind], lw=2.0)
+            sct_opts = {'edgecolor': cols[kind], 'facecolor': 'white',
+                        'marker': 'o', 'zorder': 5}
+
+            axes[idx, 0].scatter(dfk[dfk.time == dates[hem]].time.values,
+                                 dfk[dfk.time == dates[hem]].lat.values,
+                                 **sct_opts)
 
         # Label the timeseries
         axes[idx, 0].set_ylabel(c2r.HEMS[hem])
@@ -162,7 +182,7 @@ def main(width=174, figscale=1.0, extn='png'):
                                pd.Timestamp('2016-06-30')])
 
         # Show which date is being plotted in the map with a verical line
-        axes[idx, 0].axvline(dates[hem], color='k', ls='--', lw=1.1)
+        axes[idx, 0].axvline(dates[hem], color='k', ls='--', lw=1.1, zorder=0)
 
         # left-ward extent, limit the y-axis
         axes[idx, 0].set_ylim(HEM_LIMS[hem])
@@ -193,7 +213,7 @@ def main(width=174, figscale=1.0, extn='png'):
         # the `latmax` parameter is needed (set to the same latitude) so that
         # the 80deg (N/S) is not drawn as well as the desired jet location
         pmap.drawparallels(_umax[_umax.time == dates[hem]].lat,
-                           linewidth=2.0, color=cols[labels[1]],
+                           linewidth=2.4, color=cols[labels[1]],
                            ax=axes[idx, 1], dashes=[1, 0],
                            latmax=_umax[_umax.time == dates[hem]].lat[0])
 
@@ -209,9 +229,16 @@ def main(width=174, figscale=1.0, extn='png'):
 
         # Transform the longitude and latitude points of the identified jet
         # to map coords then plot it on pmap
-        pvgrad_map = pmap(lon[:-1], pv_grad_lat[hem_idx, 0])
+        pvgrad_map = pmap(lon[:-1:2], pv_grad_lat[hem_idx, 0][::2])
         pmap.plot(*pvgrad_map, 'o', color=cols[labels[0]],
-                  ms=1.5, ax=axes[idx, 1])
+                  ms=0.9, ax=axes[idx, 1])
+
+        _pvgrad = dfh[1][dfh[1].kind == labels[0]]
+        pmap.drawparallels(_pvgrad[_pvgrad.time == dates[hem]].lat,
+                           linewidth=2.4, color=cols[labels[0]],
+                           ax=axes[idx, 1], dashes=[1, 0],
+                           latmax=_pvgrad[_pvgrad.time == dates[hem]].lat[0],
+                           zorder=6)
 
         # Label the map with the selected date, align the title to
         # the right, the padding is set by plt.rcParams['axes.titlepad'],
@@ -220,6 +247,7 @@ def main(width=174, figscale=1.0, extn='png'):
         draw_map_lines(pmap, axes[idx, 1])
 
     plot_annotations(fig, axes, cfill)
+    plot_labels(fig, figscale)
     plt.savefig('plt_diag_ts_map_{}-{}.{ext}'.format(ext=extn, *in_names))
 
 
