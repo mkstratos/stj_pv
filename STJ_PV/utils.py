@@ -75,7 +75,7 @@ class NDSlicer(object):
 
         self.slicer = [slice(None)] * self.ndim
         self.slicer[self.axis] = slice(self.start, self.stop, self.step)
-        return self.slicer
+        return tuple(self.slicer)
 
     def slice(self, start=None, stop=None, step=None):
         """
