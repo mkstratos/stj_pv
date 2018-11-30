@@ -12,7 +12,10 @@ from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
 
-from eddy_terms import Kinetic_Eddy_Energies
+try:
+    from eddy_terms import Kinetic_Eddy_Energies
+except ModuleNotFoundError:
+    print('Eddy Terms Function not available, STJKangPolvani not available')
 
 try:
     GIT_ID = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
