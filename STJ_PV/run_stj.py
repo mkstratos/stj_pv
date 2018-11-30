@@ -13,8 +13,8 @@ import datetime as dt
 import warnings
 import numpy as np
 import yaml
-import stj_metric
-import input_data as inp
+import STJ_PV.stj_metric as stj_metric
+import STJ_PV.input_data as inp
 
 np.seterr(all='ignore')
 warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)

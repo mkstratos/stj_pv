@@ -9,7 +9,8 @@ import numpy as np
 import seaborn as sns
 import compare_two_runs as c2r
 from mpl_toolkits import basemap as bmp
-import run_stj
+import STJ_PV.run_stj as run_stj
+
 __author__ = 'Michael Kelleher'
 
 HEM_LIMS = {'nh': [23, 54], 'sh': [-54, -23]}
@@ -90,7 +91,7 @@ def plot_annotations(fig, axes, cfill):
     """
     grid_style = {'b': True, 'ls': '-', 'color': 'lightgrey', 'lw': 0.2}
     axes[0, 0].legend(ncol=2, fontsize=plt.rcParams['font.size'])
-    axes[0, 0].tick_params(bottom='off', labelbottom='off')
+    axes[0, 0].tick_params(bottom=False, labelbottom=False)
     for idx in range(axes.shape[0]):
 
         # Remove borders from timeseries plot
