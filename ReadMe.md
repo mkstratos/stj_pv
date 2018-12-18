@@ -3,7 +3,7 @@ Information on how to run the code and how it works.
 We reccomend:
 
 * [Anaconda Python](https://www.anaconda.com/download/) distribution
-* Python 3.6
+* Python >= 3.6
 * Creating a new Anaconda environment (so package versions do not conflict between this and other projects)
 
 Create a new Anaconda environment using:
@@ -12,23 +12,34 @@ Create a new Anaconda environment using:
 
 Then install the required packages as below.
 
-### Installing for Python 3+
+### Setup for Python 3+
 
 `conda install --file requirements_36.txt -c conda-forge`
 
 **Note**: `basemap==1.0.7` available from Anaconda is not compatible with Python >= 3. Thus the `conda-forge` channel with `v1.1.0` must be used.
 
-**Note 2**: Currently netCDF is not available from conda for Python 3.7, when installing, Python may be downgraded from 3.7 to 3.6
 
-### Installing for Python 2.7
+### Setup for Python 2.7
 `conda install --file requirements_27.txt`
 
-## Sample data
-Once the Python environment is set up, clone this repository with:
-`git clone https://mkelleher@bitbucket.org/penmaher/stj_pv.git`
+### Installing STJ_PV
 
-Or create your own fork [here](https://bitbucket.org/penmaher/stj_pv/fork)
+1. Once the Python environment is set up, clone this repository with:
+`git clone git@bitbucket.org:penmaher/stj_pv.git`
 
+2. Or create your own fork [here](https://bitbucket.org/penmaher/stj_pv/fork)
+
+3. Change into this directory, and install in development mode (using the `-e` flag for `pip`)
+
+---
+    cd stj_pv
+    pip install -e .
+
+**Note the trailing "."** this will use the `setup.py` file to install this module, and allow it
+to be imported using `import STJ_PV` or `from STJ_PV import run_stj` for example
+
+
+## Testing with sample data
 Enter the top-level code directory, and try the sample case:
 
 ---
@@ -157,7 +168,7 @@ then the selected metric computes the jet position in each hemisphere at each ti
 
     2. Numerically compute meridional gradient of this surface using a polynomial fit (Chebyshev polynomials of degree 8 used by default)
 
-    3. The jet location is determined to be at a relative maximum�in the northern hemisphere, or minimum
+    3. The jet location is determined to be at a relative maximum in the northern hemisphere, or minimum
         in the southern hemisphere of the meridional gradient of potential temperature on the PV surface at each time and longitude
 
     4. If multiple extrema exist, the jet latitude has the largest zonal wind shear between the
