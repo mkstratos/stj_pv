@@ -1,7 +1,7 @@
 ---
 # This is the (relative to the run_sty.py script, or absolute)
 # path to the data config file to be used
-data_cfg: './conf/data_config_default.yml'
+data_cfg: '{}/data_config_default.yml'
 
 # Desired data frequency
 freq: 'mon'

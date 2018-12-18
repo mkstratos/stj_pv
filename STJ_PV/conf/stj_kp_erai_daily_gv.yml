@@ -1,12 +1,13 @@
-data_cfg:   './conf/data_config_erai_daily_gv.yml'
-freq:       'day'
-zonal_opt:  'mean'
-method:     'KangPolvani'
-log_file:   'stj_find_erai_pres_day_KangPolvani_{}.log'
-min_lat:    0.0
+---
+data_cfg: '{}/data_config_erai_daily_gv.yml'
+freq: 'day'
+zonal_opt: 'mean'
+method: 'KangPolvani'
+log_file: 'stj_find_erai_pres_day_KangPolvani_{}.log'
+min_lat: 0.0
 pres_level: 20000.0     # Flux divergence level in Pa
 surface_level: 100000.0
-year_s:     1979
-year_e:     2015
+year_s: 1979
+year_e: 2015
 
 

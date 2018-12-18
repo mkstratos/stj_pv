@@ -6,19 +6,24 @@ To run, set stj configuration file, start and end dates in `main()` and run with
 `$ python run_stj.py`
 
 Authors: Penelope Maher, Michael Kelleher
+
 """
+import os
 import sys
 import logging
+import argparse as arg
 import datetime as dt
 import warnings
 import numpy as np
 import yaml
 import STJ_PV.stj_metric as stj_metric
 import STJ_PV.input_data as inp
+import pkg_resources
+
 
 np.seterr(all='ignore')
 warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
-
+CFG_DIR = pkg_resources.resource_filename('STJ_PV', 'conf')
 
 class JetFindRun(object):
     """
@@ -49,7 +54,8 @@ class JetFindRun(object):
         now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         if config_file is None:
             # Use default parameters if none are specified
-            self.config = {'data_cfg': './conf/data_config_default.yml', 'freq': 'mon',
+            self.config = {'data_cfg': '{}/data_config_default.yml',
+                           'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
                            'zonal_opt': 'mean', 'poly': 'cheby',
                            'pv_value': 2.0, 'fit_deg': 6, 'min_lat': 10.0,
@@ -68,7 +74,10 @@ class JetFindRun(object):
                 # Log file name contains a format placeholder, use current time
                 self.config['log_file'] = self.config['log_file'].format(now)
 
-        self.data_cfg, data_cfg_failed = check_data_config(self.config['data_cfg'])
+        # Format the data configuration file location with CFG_DIR
+        _data_file = self.config['data_cfg'].format(CFG_DIR)
+        self.data_cfg, data_cfg_failed = check_data_config(_data_file)
+
         if data_cfg_failed:
             print('DATA CONFIG CHECKS FAILED...EXITING')
             sys.exit(1)
@@ -390,27 +399,27 @@ def main(sample_run=True, sens_run=False):
 
     if sample_run:
         # ----------Sample test case-------------
-        jf_run = JetFindRun('./conf/stj_config_sample.yml')
+        jf_run = JetFindRun('{}/stj_config_sample.yml'.format(CFG_DIR))
         date_s = dt.datetime(2016, 1, 1)
         date_e = dt.datetime(2016, 1, 3)
     else:
         # ----------Other cases-------------
-        # jf_run = JetFindRun('./conf/stj_kp_erai_daily.yml')
-        # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
-        # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-        # jf_run = JetFindRun('./conf/stj_config_jra55_theta_mon.yml')
+        # jf_run = JetFindRun('{}/stj_kp_erai_daily.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_theta_mon.yml'.format(CFG_DIR))
 
         # Four main choices
-        jf_run = JetFindRun('./conf/stj_config_erai_theta.yml')
-        # jf_run = JetFindRun('./conf/stj_config_erai_theta_daily.yml')
+        jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
 
-        # jf_run = JetFindRun('./conf/stj_config_ncep_monthly.yml')
-        # jf_run = JetFindRun('./conf/stj_config_ncep.yml')
-        # jf_run = JetFindRun('./conf/stj_config_merra_monthly.yml')
-        # jf_run = JetFindRun('./conf/stj_config_merra_daily.yml')
+        # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
 
         # U-Max
-        # jf_run = JetFindRun('./conf/stj_umax_erai_pres.yml')
+        # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
 
         date_s = dt.datetime(1979, 1, 1)
         date_e = dt.datetime(2017, 12, 31)
