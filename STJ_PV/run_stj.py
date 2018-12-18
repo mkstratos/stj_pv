@@ -393,6 +393,21 @@ def check_data_config(cfg_file):
     return config, any([missing_req, all(missing_optionals)])
 
 
+def make_parse():
+    """Make command line argument parser with argparse."""
+    parser = arg.ArgumentParser(description='Find the sub-tropical jet')
+
+    parser.add_argument('--sample', action='store_true',
+                        help='Perform a sample run', default=False)
+
+    parser.add_argument('--sens', action='store_true',
+                        help='Perform a parameter sensitivity run',
+                        default=False)
+
+    args = parser.parse_args()
+    return args
+
+
 def main(sample_run=True, sens_run=False):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
@@ -441,4 +456,5 @@ def main(sample_run=True, sens_run=False):
 
 
 if __name__ == "__main__":
-    main(sample_run=True, sens_run=False)
+    ARGS = make_parse()
+    main(sample_run=ARGS.sample, sens_run=ARGS.sens)
