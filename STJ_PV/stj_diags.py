@@ -32,7 +32,7 @@ class DiagPlots(object):
         self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
 
         # Figure size set to 129 mm wide, 152 mm tall
-        self.fig_mult = 1.
+        self.fig_mult = 2.
 
         plt.rc('text', usetex=True)
         plt.rc('text.latex', unicode=True)
@@ -58,7 +58,7 @@ class DiagPlots(object):
         tix = 0
         zix = 6
 
-        fig = plt.figure(figsize=self._get_figsize())
+        fig = plt.figure(figsize=self._get_figsize(width=129))
         axes = [plt.subplot2grid((3, 4), (0, 0), rowspan=2, colspan=2),
                 plt.subplot2grid((3, 4), (0, 2), rowspan=2, colspan=2),
                 plt.subplot2grid((3, 4), (2, 0), rowspan=1, colspan=3),
@@ -119,8 +119,10 @@ class DiagPlots(object):
         axes[3].set_yticklabels(ytick_lats)
         axes[3].set_ylim([map_y[:, 0].min(), map_y[:, 0].max()])
 
-        axes[0].text(-88, 399, '(a)', verticalalignment='top', horizontalalignment='left')
-        axes[1].text(2, 399, '(b)', verticalalignment='top', horizontalalignment='left')
+        axes[0].text(-88, 399, '(a)', verticalalignment='top',
+                     horizontalalignment='left', fontsize=12 * self.fig_mult)
+        axes[1].text(2, 399, '(b)', verticalalignment='top',
+                     horizontalalignment='left', fontsize=12 * self.fig_mult)
         axes[2].set_title('(c)')
         axes[3].set_title('(d)')
         axes[3].set_xlabel(r'u wind [$m\,s^{-1}$]')
@@ -241,7 +243,7 @@ class DiagPlots(object):
 
         axes[hidx].set_xticks(lat_labels)
         axes[hidx].set_xticklabels([u'{}\u00B0'.format(lati) for lati in lat_labels],
-                                   fontdict={'usetex': False})
+                                   fontdict={'usetex': True})
 
         axes[hidx].grid(b=False)
         ax2.grid(b=False)

@@ -7,7 +7,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-plt.style.use('fivethirtynine')
+plt.style.use('fivethirtyeight')
+plt.rc('savefig', edgecolor='#ffffff', facecolor='#ffffff')
+plt.rc('axes', facecolor='#ffffff', edgecolor='#ffffff')
+plt.rc('figure', facecolor='#ffffff', edgecolor='#ffffff')
 
 __author__ = 'Michael Kelleher'
 
@@ -59,6 +62,9 @@ def main(run_name=None, props=None):
     axes = [plt.subplot2grid((2, 2), (0, 0)), plt.subplot2grid((2, 2), (0, 1)),
             plt.subplot2grid((2, 2), (1, 0), colspan=2)]
     cline_w = 3.0
+    color_nh = '#1E5AAF'
+    color_sh = '#B711A3'
+
     for hidx, hem in enumerate(['sh', 'nh']):
         sct = axes[hidx].scatter(data['lat_{}'.format(hem)],
                                  data['theta_{}'.format(hem)],
@@ -79,8 +85,8 @@ def main(run_name=None, props=None):
             cbar = plt.colorbar(sct, cax=cax, orientation='vertical')
             cbar.set_label('Jet intensity [m/s]')
             cax.yaxis.set_label_position('left')
-            axes[hidx].tick_params(left='off', labelleft='off', labeltop='off',
-                                   right='on', labelright='on')
+            axes[hidx].tick_params(left=False, labelleft=False, labeltop=False,
+                                   right=True, labelright=True)
             axes[hidx].ticklabel_format(axis='y', style='plain')
             axes[hidx].yaxis.set_label_position('right')
 
@@ -91,42 +97,43 @@ def main(run_name=None, props=None):
         axes[hidx].set_xlim(HEM_INFO[hem]['lat_r'])
 
     ln_nh = axes[2].plot(month_mean.month, month_mean['lat_nh'].values,
-                         'C0o-', lw=cline_w, ms=cline_w * 1.5, label='NH', zorder=5)
+                         'o-', color=color_nh, lw=cline_w,
+                         ms=cline_w * 1.5, label='NH', zorder=5)
+
     axes[2].fill_between(month_mean.month,
                          month_mean['lat_nh'] + month_std['lat_nh'],
                          month_mean['lat_nh'] - month_std['lat_nh'],
-                         color='C0', alpha=0.4, zorder=4)
+                         color=color_nh, alpha=0.4, zorder=4)
     axes[2].fill_between(month_mean.month,
                          month_mean['lat_nh'] + 2 * month_std['lat_nh'],
                          month_mean['lat_nh'] - 2 * month_std['lat_nh'],
-                         color='C0', alpha=0.1, zorder=3)
+                         color=color_nh, alpha=0.1, zorder=3)
 
     axes[2].set_ylim(HEM_INFO['nh']['lat_r'])
-    axes[2].set_ylabel('NH Jet Latitude')
+    axes[2].set_ylabel('Jet Latitude')
+    # axes[2].set_yticklabels(axes[2].get_yticks(),
 
     axis_sh = axes[2].twinx()
 
-    ln_sh = axis_sh.plot(month_mean.month, month_mean['lat_sh'], 'C1o-',
-                         lw=cline_w, label='SH')
+    ln_sh = axis_sh.plot(month_mean.month, month_mean['lat_sh'], 'o-',
+                         lw=cline_w, label='SH', color=color_sh)
 
     axis_sh.fill_between(month_mean.month,
                          month_mean['lat_sh'] + month_std['lat_sh'],
                          month_mean['lat_sh'] - month_std['lat_sh'],
-                         color='C1', alpha=0.4)
+                         color=color_sh, alpha=0.4)
 
     axis_sh.fill_between(month_mean.month,
                          month_mean['lat_sh'] + 2 * month_std['lat_sh'],
                          month_mean['lat_sh'] - 2 * month_std['lat_sh'],
-                         color='C1', alpha=0.1)
+                         color=color_sh, alpha=0.1)
     axis_sh.set_ylim(HEM_INFO['sh']['lat_r'])
 
-    axes[2].tick_params('y', colors='C0')
-    axis_sh.tick_params('y', colors='C1')
-
+    axis_sh.tick_params(left=False, labelleft=False, labeltop=False,
+                        right=False, labelright=False)
     axis_sh.set_xticks(np.arange(1, 13))
     axis_sh.set_xticklabels(['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
                              'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'])
-    axis_sh.set_ylabel('SH Jet Latitude')
 
     lns = ln_nh + ln_sh
     labs = [l.get_label() for l in lns]
@@ -225,4 +232,4 @@ if __name__ == '__main__':
 
     #for RNAME in DATASETS[1:]:
     #    main(run_name=RNAME)
-    main(run_name=DATASETS[5])
+    main(run_name=DATASETS[3])

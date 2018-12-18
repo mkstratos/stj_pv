@@ -83,7 +83,7 @@ def plot_data(info):
 
     axes[coords['axis']['Southern Hemisphere']].invert_yaxis()
     axes[0].set_ylabel(info['ylabel'])
-    axes[1].legend(bbox_to_anchor=info['legend'], frameon=True, framealpha=1.)
+    axes[1].legend(bbox_to_anchor=info['legend'], frameon=False, framealpha=1.)
 
     plt.tight_layout()
     plt.savefig('plt_{data_name}_all.pdf'.format(**info))
