@@ -1,5 +1,5 @@
 ---
-data_cfg: '{}/data_config_erai_daily_gv.yml'
+data_cfg: 'data_config_erai_daily_gv.yml'
 freq: 'day'
 zonal_opt: 'mean'
 method: 'KangPolvani'

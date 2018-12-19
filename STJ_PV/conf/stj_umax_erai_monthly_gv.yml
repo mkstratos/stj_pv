@@ -1,4 +1,4 @@
-data_cfg: '{}/data_config_erai_monthly_gv.yml'
+data_cfg: 'data_config_erai_monthly_gv.yml'
 freq: 'mon'
 zonal_opt: 'mean'
 method: 'STJUMax'

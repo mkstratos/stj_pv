@@ -1,5 +1,5 @@
 ---
-data_cfg: '{}/data_config_ncep.yml'
+data_cfg: 'data_config_ncep.yml'
 freq: 'daily'
 zonal_opt: 'mean'
 method: 'STJPV'

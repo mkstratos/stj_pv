@@ -54,7 +54,7 @@ class JetFindRun(object):
         now = dt.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         if config_file is None:
             # Use default parameters if none are specified
-            self.config = {'data_cfg': '{}/data_config_default.yml',
+            self.config = {'data_cfg': 'data_config_default.yml',
                            'freq': 'mon',
                            'method': 'STJPV', 'log_file': "stj_find_{}.log".format(now),
                            'zonal_opt': 'mean', 'poly': 'cheby',
@@ -75,7 +75,7 @@ class JetFindRun(object):
                 self.config['log_file'] = self.config['log_file'].format(now)
 
         # Format the data configuration file location with CFG_DIR
-        _data_file = self.config['data_cfg'].format(CFG_DIR)
+        _data_file = os.path.join(CFG_DIR, self.config['data_cfg'])
         self.data_cfg, data_cfg_failed = check_data_config(_data_file)
 
         if data_cfg_failed:

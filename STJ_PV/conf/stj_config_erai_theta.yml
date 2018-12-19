@@ -1,5 +1,5 @@
 ---
-data_cfg: '{}/data_config_erai_theta_mon.yml'
+data_cfg: 'data_config_erai_theta_mon.yml'
 freq: 'mon'
 zonal_opt: 'mean'
 method: 'STJPV'

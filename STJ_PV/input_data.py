@@ -7,9 +7,16 @@ import netCDF4 as nc
 import utils
 import STJ_PV.data_out as dout
 import psutil
-
+import pkg_resources
 
 __author__ = "Penelope Maher, Michael Kelleher"
+
+
+def package_data(relpath, file_name):
+    """Get data relative to this installed package.
+    Generally used for the sample data."""
+    _data_dir = pkg_resources.resource_filename('STJ_PV', relpath)
+    return nc.Dataset(os.path.join(_data_dir, file_name), 'r')
 
 
 class InputData(object):
@@ -159,7 +166,10 @@ class InputData(object):
             # Fall back to 'all' if the input file is not found
             file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
 
-        nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
+        try:
+            nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
+        except FileNotFoundError:
+            nc_file = package_data(self.data_cfg['path'], file_name)
 
         self.time = nc_file.variables[self.data_cfg['time']][:]
         if isinstance(self.time, np.ma.MaskedArray):
@@ -209,7 +219,10 @@ class InputData(object):
                     file_name = cfg['file_paths']['all'].format(year=self.year)
                 self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
                                                                    file_name)))
-                nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
+                try:
+                    nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
+                except FileNotFoundError:
+                    nc_file = package_data(cfg['path'], file_name)
 
             # Load coordinate variables
             if first_file:
@@ -353,6 +366,10 @@ class InputData(object):
             file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
             out_file = os.path.join(self.data_cfg['wpath'], file_name)
 
+        if not os.access(out_file, os.W_OK):
+            write_dir = pkg_resources.resource_filename('STJ_PV', self.data_cfg['wpath'])
+            out_file = os.path.join(write_dir, file_name)
+
         self.props.log.info('WRITE IPV: {}'.format(out_file))
 
         coord_names = ['time', 'lev', 'lat', 'lon']
@@ -414,7 +431,10 @@ class InputData(object):
         file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         self.props.log.info("LOAD IPV FROM FILE: {}".format(in_file))
-        ipv_in = nc.Dataset(in_file, 'r')
+        try:
+            ipv_in = nc.Dataset(in_file, 'r')
+        except FileNotFoundError:
+            ipv_in = package_data(self.data_cfg['wpath'], file_name)
 
         coord_names = ['lat', 'lon']
         for cname in coord_names:
@@ -550,7 +570,11 @@ class InputDataWind(object):
         except KeyError:
             file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
 
-        nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
+        try:
+            nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
+        except FileNotFoundError:
+            nc_file = package_data(self.data_cfg['path'], file_name)
+
 
         self.time = nc_file.variables[self.data_cfg['time']][:]
 
@@ -590,7 +614,11 @@ class InputDataWind(object):
 
                 self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
                                                                    file_name)))
-                nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
+                try:
+                    nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
+                except FileNotFoundError:
+                    nc_file = package_data(self.data_cfg['path'], file_name)
+
             self.props.log.info("\tLOAD: {}".format(var))
             if first_file:
                 for dvar in dim_vars:

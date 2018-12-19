@@ -1,5 +1,5 @@
 ---
-data_cfg: '{}/data_config_erai_monthly.yml'
+data_cfg: 'data_config_erai_monthly.yml'
 freq: 'mon'
 zonal_opt: 'mean'
 method: 'STJPV'

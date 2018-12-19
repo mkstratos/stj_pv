@@ -1,5 +1,5 @@
-# File path and dataset name
-path: 'sample_data/'
+---
+path: 'sample_data/'            # File path and dataset name
 short_name: 'NCEP_NCAR_DAILY'
 
 # Input file possibilities:
