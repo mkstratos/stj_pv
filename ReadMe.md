@@ -24,12 +24,13 @@ Then install the required packages as below.
 
 ### Installing STJ_PV
 
-1. Once the Python environment is set up, clone this repository with:
-`git clone git@bitbucket.org:penmaher/stj_pv.git`
+1. Once the Python environment is set up download the source code:
 
-2. Or create your own fork [here](https://bitbucket.org/penmaher/stj_pv/fork)
+    A. clone this repository with: `git clone git@bitbucket.org:penmaher/stj_pv.git`
 
-3. Change into this directory, and install in development mode (using the `-e` flag for `pip`)
+    B. Or create your own fork [here](https://bitbucket.org/penmaher/stj_pv/fork)
+
+2. Change into this directory, and install in development mode (using the `-e` flag for `pip`)
 
 ---
     cd stj_pv
@@ -45,7 +46,7 @@ Enter the top-level code directory, and try the sample case:
 ---
 
     cd stj_pv/STJ_PV
-    python run_stj.py
+    python run_stj.py --sample
 
 This will output a file called: `NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_2009-01-23_2009-01-25.nc`
 which has the latitude and theta position, and intensity in northern and southern hemispheres, each their own variable.
@@ -66,8 +67,10 @@ which has the latitude and theta position, and intensity in northern and souther
 #### Required for diagnostic plots:
 ----
 
-	basemap
-	matplotlib
+    basemap
+    matplotlib
+    seaborn
+    pandas
 
 ## Data dependencies
 ---
