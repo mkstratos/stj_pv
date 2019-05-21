@@ -115,6 +115,9 @@ class JetFindRun(object):
             self.metric = stj_metric.STJMaxWind
         elif self.config['method'] == 'KangPolvani':
             self.metric = stj_metric.STJKangPolvani
+        elif self.config['method'] == 'Manney':
+            self.metric = stj_metric.STJManney
+
         else:
             self.metric = None
 
@@ -140,7 +143,14 @@ class JetFindRun(object):
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = stj_metric.STJKangPolvani
 
+        elif self.config['method'] == 'Manney':
+
+            self.config['output_file'] = ('{short_name}_{method}'
+                                          .format(**dict(self.data_cfg, **self.config)))
+            self.metric = stj_metric.STJManney
+
         else:
+
             self.config['output_file'] = ('{short_name}_{method}'
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
@@ -176,6 +186,8 @@ class JetFindRun(object):
         if self.config['method'] == 'STJPV':
             data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
+            data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
+        elif self.config['method'] == 'Manney':
             data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
         else:
             data = inp.InputDataWind(self, ['uwnd', 'vwnd'], date_s, date_e)
@@ -425,8 +437,9 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_jra55_theta_mon.yml'.format(CFG_DIR))
 
         # Four main choices
-        jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_erai_monthly_manney_gv.yml'.format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
@@ -437,7 +450,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
 
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(2017, 12, 31)
+        date_e = dt.datetime(1979, 12, 31)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),

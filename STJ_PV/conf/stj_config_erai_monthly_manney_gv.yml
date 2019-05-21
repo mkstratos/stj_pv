@@ -1,0 +1,15 @@
+---
+data_cfg: 'data_config_erai_monthly_gv.yml'
+freq: 'mon'
+zonal_opt: 'mean'
+method: 'Manney'
+log_file: 'stj_find_erai_pres_mon_manney_{}.log'
+upper_p_level: 10000.0
+lower_p_level: 40000.0
+max_wind: 40
+min_wind: 40
+seperation: 15
+diff_wind: 25
+year_s: 1979
+year_e: 2016
+

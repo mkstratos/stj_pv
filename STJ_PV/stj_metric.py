@@ -12,6 +12,8 @@ from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
 
+import pdb
+
 try:
     from eddy_terms import Kinetic_Eddy_Energies
 except ModuleNotFoundError:
@@ -505,6 +507,45 @@ class STJPV(STJMetric):
 
         return jet_loc
 
+class STJManney(STJMetric):
+    """
+    Subtropical jet position metric using the method of Manney et al 2011.
+        Jet characterization in the upper troposphere/lower stratosphere
+        (UTLS): applications to climatology and transport studies
+
+    Parameters
+    ----------
+    props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
+        Class containing properties about the current search for the STJ
+    data : :py:meth:`~STJ_PV.input_data.InputData`
+        Input data class containing a year (or more) of required data
+
+    """
+
+    def __init__(self, props, data):
+        """Initialise Metric using Manney Method."""
+        name = 'Manney'
+        super(STJManney, self).__init__(name=name, props=props, data=data)
+
+        # Some config options should be properties for ease of access
+        self.upper_p_level = self.props['upper_p_level']
+        self.lower_p_level = self.props['lower_p_level']
+        self.max_wind      = self.props['max_wind'] 
+        self.min_wind      = self.props['min_wind']
+        self.seperation    = self.props['seperation']
+        self.diff_wind     = self.props['diff_wind']
+
+        # Initialise latitude & theta output arrays with correct shape
+        dims = self.data.uwnd.shape
+
+        self.jet_lat = np.zeros([2, dims[0]])
+        self.jet_intens = np.zeros([2, dims[0]])
+
+        self.time = self.data.time[:]
+        self.tix = None
+        self.xix = None
+
+        pdb.set_trace()
 
 class STJMaxWind(STJMetric):
     """
