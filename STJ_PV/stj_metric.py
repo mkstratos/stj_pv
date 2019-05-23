@@ -13,9 +13,6 @@ from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
 
-
-
-
 import pdb
 
 try:
@@ -599,42 +596,47 @@ class STJDavisBirner(STJMetric):
             self.tix = tix
 
             uzonal = uwnd_p[tix, :, :].mean(axis=-1)
-            self.jet_lat[hidx, tix] = self.find_max_wind_surface(uzonal, pres, lat, shemis)
+            stjp, stji = self.find_max_wind_surface(uzonal, pres, lat, shemis)
             
-            pdb.set_trace()
-            #interpolate or not and to do intensity.
-            #jet_intens = np.nanmean(uwnd_p[tix, :, :], axis=-1)
-            #jet_intens = np.ma.masked_where(jet_loc == 0,
-            #                                jet_intens[jet_loc.astype(int)])
-            #self.jet_intens[hidx, tix] = np.ma.mean(jet_intens)
+            self.jet_lat[hidx, tix]    = stjp
+            self.jet_intens[hidx, tix] = stji
+
+            #interpolate or not?
+
         
     def find_max_wind_surface(self,  uzonal, pres, lat, shemis):
         # find the max wind surface and then keep the most equatorward latitude
        if shemis:   
-           lat_valid_idx = np.where(lat < -10)[0]
+           lat_valid_idx = np.where(lat < -15)[0] # I had to increase this to remove false hits
        else:
-           lat_valid_idx = np.where(lat > 10)[0]
+           lat_valid_idx = np.where(lat > 15)[0]
 
        max_wind_surface_idx =  np.argmax(uzonal[:,lat_valid_idx], axis=0)
        max_wind_surface     =  np.max(uzonal[:,lat_valid_idx], axis=0)
 
-       #for x_idx in range(len(lat_valid_idx)):
-       #     print ("lat: ", lat[lat_valid_idx][x_idx] , " p_lev: ", pres[max_wind_surface_idx[x_idx]])
-
        #for the given maximum wind surface, find local maxima and then keep most equatorward.
+       turning_points = argrelextrema(max_wind_surface, np.greater_equal)[0]
+
        if shemis:   
-           lat_idx = np.min(argrelextrema(max_wind_surface, np.greater))
+           lat_idx = np.min(turning_points)
+           if lat[lat_valid_idx][lat_idx] >= -15:
+              pdb.set_trace()
+
        else:
-           lat_idx = np.max(argrelextrema(max_wind_surface, np.greater))
+           lat_idx = np.max(turning_points)
 
-       stj_lat = lat[lat_valid_idx][lat_idx]
-   
-       #import matplotlib.pyplot as plt
-       #plt.plot(lat[lat_valid_idx], max_wind_surface)
-       #plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
-       #plt.show()
+       stj_lat    = lat[lat_valid_idx][lat_idx]
+       stj_intens = max_wind_surface[lat_idx]
 
-       return stj_lat
+       test_plot = False
+       if test_plot:
+           print("jet intensity is: ", stj_intens)
+           import matplotlib.pyplot as plt
+           plt.plot(lat[lat_valid_idx], max_wind_surface)
+           plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
+           plt.show()
+
+       return stj_lat, stj_intens
 
 class STJMaxWind(STJMetric):
     """
