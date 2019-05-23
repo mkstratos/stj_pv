@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
+from scipy.signal import argrelextrema
 
 import utils
 import STJ_PV.data_out as dio
@@ -11,6 +12,9 @@ import STJ_PV.data_out as dio
 from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
+
+
+
 
 import pdb
 
@@ -507,13 +511,11 @@ class STJPV(STJMetric):
 
         return jet_loc
 
-class STJManney(STJMetric):
+class STJDavisBirner(STJMetric):
     """
-    Subtropical jet position metric using the method of Manney et al 2011.
-        Jet characterization in the upper troposphere/lower stratosphere
-        (UTLS): applications to climatology and transport studies
-
-    Parameters
+    Subtropical jet position metric using the method of Davis and Birner 2016.
+       "Climate Model Biases in the Width of the Tropical Belt
+        Parameters"
     ----------
     props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
         Class containing properties about the current search for the STJ
@@ -522,18 +524,18 @@ class STJManney(STJMetric):
 
     """
 
+
+    #https://github.com/TropD/pytropd/blob/master/pytropd/metrics.py
+
     def __init__(self, props, data):
-        """Initialise Metric using Manney Method."""
-        name = 'Manney'
-        super(STJManney, self).__init__(name=name, props=props, data=data)
+        """Initialise Metric using Davis and Birner 2016 method."""
+        name = 'DavisBirner'
+        super(STJDavisBirner, self).__init__(name=name, props=props, data=data)
 
         # Some config options should be properties for ease of access
         self.upper_p_level = self.props['upper_p_level']
         self.lower_p_level = self.props['lower_p_level']
-        self.max_wind      = self.props['max_wind'] 
-        self.min_wind      = self.props['min_wind']
-        self.seperation    = self.props['seperation']
-        self.diff_wind     = self.props['diff_wind']
+        self.surf_p_level = self.props['surface_p_level']
 
         # Initialise latitude & theta output arrays with correct shape
         dims = self.data.uwnd.shape
@@ -545,7 +547,94 @@ class STJManney(STJMetric):
         self.tix = None
         self.xix = None
 
-        pdb.set_trace()
+    def prep_data(self):
+        wh_surf  = np.where(self.data.lev == self.surf_p_level)[0]
+       
+        self.surface_wind = self.data.uwnd[:, wh_surf,...].squeeze()
+
+    def find_jet(self, shemis=True):
+
+        # Find axis
+        lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
+
+        if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
+            # Log a message about which matching dimension used since this
+            # could be time or lev or lon if ntimes, nlevs or nlons == nlats
+            self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
+                                                                self.data.uwnd.shape))
+
+        self.hemis = [slice(None)] * self.data.uwnd.ndim
+
+        if shemis:
+            self.hemis[lat_axis] = self.data.lat < 0
+            lat = self.data.lat[self.data.lat < 0]
+            hidx = 0
+        else:
+            self.hemis[lat_axis] = self.data.lat > 0
+            lat = self.data.lat[self.data.lat > 0]
+            hidx = 1
+
+        # Isolate wind between 400-100 hpa
+        wh_upper = np.where(self.data.lev == self.upper_p_level)[0]
+        wh_lower = np.where(self.data.lev == self.lower_p_level)[0]
+
+        if wh_upper > wh_lower:
+            uwnd_p = self.data.uwnd[self.hemis][:, wh_lower[0]:wh_upper[0]+1,...]
+            pres = self.data.lev[wh_lower[0]:wh_upper[0]+1]
+        else:
+            uwnd_p = self.data.uwnd[self.hemis][:, wh_upper[0]:wh_lower[0]+1,...]
+            pres = self.data.lev[wh_upper[0]:wh_lower[0]+1]
+
+        # Remove the surface wind
+        wh_surf  = np.where(self.data.lev == self.surf_p_level)[0]
+        for pidx in range(uwnd_p.shape[1]):
+            uwnd_p[:,pidx,...] = np.squeeze(uwnd_p[:,pidx,...] - self.data.uwnd[self.hemis][:,wh_surf[0],...])
+
+        dims = uwnd_p.shape
+
+        self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
+        for tix in range(dims[0]):
+            if tix % 50 == 0 and dims[0] > 50:
+                self.log.info('COMPUTING JET POSITION FOR %d', tix)
+            self.tix = tix
+
+            uzonal = uwnd_p[tix, :, :].mean(axis=-1)
+            self.jet_lat[hidx, tix] = self.find_max_wind_surface(uzonal, pres, lat, shemis)
+            
+            pdb.set_trace()
+            #interpolate or not and to do intensity.
+            #jet_intens = np.nanmean(uwnd_p[tix, :, :], axis=-1)
+            #jet_intens = np.ma.masked_where(jet_loc == 0,
+            #                                jet_intens[jet_loc.astype(int)])
+            #self.jet_intens[hidx, tix] = np.ma.mean(jet_intens)
+        
+    def find_max_wind_surface(self,  uzonal, pres, lat, shemis):
+        # find the max wind surface and then keep the most equatorward latitude
+       if shemis:   
+           lat_valid_idx = np.where(lat < -10)[0]
+       else:
+           lat_valid_idx = np.where(lat > 10)[0]
+
+       max_wind_surface_idx =  np.argmax(uzonal[:,lat_valid_idx], axis=0)
+       max_wind_surface     =  np.max(uzonal[:,lat_valid_idx], axis=0)
+
+       #for x_idx in range(len(lat_valid_idx)):
+       #     print ("lat: ", lat[lat_valid_idx][x_idx] , " p_lev: ", pres[max_wind_surface_idx[x_idx]])
+
+       #for the given maximum wind surface, find local maxima and then keep most equatorward.
+       if shemis:   
+           lat_idx = np.min(argrelextrema(max_wind_surface, np.greater))
+       else:
+           lat_idx = np.max(argrelextrema(max_wind_surface, np.greater))
+
+       stj_lat = lat[lat_valid_idx][lat_idx]
+   
+       #import matplotlib.pyplot as plt
+       #plt.plot(lat[lat_valid_idx], max_wind_surface)
+       #plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
+       #plt.show()
+
+       return stj_lat
 
 class STJMaxWind(STJMetric):
     """

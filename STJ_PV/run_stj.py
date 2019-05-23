@@ -115,8 +115,8 @@ class JetFindRun(object):
             self.metric = stj_metric.STJMaxWind
         elif self.config['method'] == 'KangPolvani':
             self.metric = stj_metric.STJKangPolvani
-        elif self.config['method'] == 'Manney':
-            self.metric = stj_metric.STJManney
+        elif self.config['method'] == 'DavisBirner':
+            self.metric = stj_metric.STJDavisBirner
 
         else:
             self.metric = None
@@ -143,11 +143,11 @@ class JetFindRun(object):
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = stj_metric.STJKangPolvani
 
-        elif self.config['method'] == 'Manney':
+        elif self.config['method'] == 'DavisBirner':
 
             self.config['output_file'] = ('{short_name}_{method}'
                                           .format(**dict(self.data_cfg, **self.config)))
-            self.metric = stj_metric.STJManney
+            self.metric = stj_metric.STJDavisBirner
 
         else:
 
@@ -187,7 +187,7 @@ class JetFindRun(object):
             data = inp.InputData(self, date_s, date_e)
         elif self.config['method'] == 'STJUMax':
             data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
-        elif self.config['method'] == 'Manney':
+        elif self.config['method'] == 'DavisBirner':
             data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
         else:
             data = inp.InputDataWind(self, ['uwnd', 'vwnd'], date_s, date_e)
@@ -439,7 +439,7 @@ def main(sample_run=True, sens_run=False):
         # Four main choices
         # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_erai_monthly_manney_gv.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'.format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
