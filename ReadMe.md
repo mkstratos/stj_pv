@@ -10,6 +10,10 @@ Create a new Anaconda environment using:
 
 `conda create -n stjpv python`
 
+Activate your new environment with
+
+`conda activate stjpv`
+
 Then install the required packages as below.
 
 ### Setup for Python 3+
