@@ -210,58 +210,67 @@ class InputData(object):
         first_file = True
         nc_file = None
         for var in data_vars:
-            vname = cfg[var]
-            if nc_file is None:
-                # Format the name of the file, join it with the path, open it
-                try:
-                    file_name = cfg['file_paths'][var].format(year=self.year)
-                except KeyError:
-                    file_name = cfg['file_paths']['all'].format(year=self.year)
-                self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
-                                                                   file_name)))
-                try:
-                    nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
-                except FileNotFoundError:
-                    nc_file = package_data(cfg['path'], file_name)
-
-            # Load coordinate variables
-            if first_file:
-                if self.time is None:
-                    self._load_time(pv_update)
-                for dvar in dim_vars:
-                    v_in_name = cfg[dvar]
-                    if dvar == 'lev' and cfg['ztype'] == 'pres':
-                        setattr(self, dvar, nc_file.variables[v_in_name][:] * cfg['pfac'])
-                    else:
-                        setattr(self, dvar, nc_file.variables[v_in_name][:])
-
-                if 'lon_s' in cfg and 'lon_e' in cfg:
-                    # TODO: take account of longitudes being -180 - 180 or 0 - 360
-                    lon_sel = np.logical_and(self.lon >= cfg['lon_s'],
-                                             self.lon <= cfg['lon_e'])
-                    self.lon = self.lon[lon_sel]
-                else:
-                    lon_sel = slice(None)
-
-                if 'lev_s' in cfg and 'lev_e' in cfg:
-                    lev_sel = np.logical_and(self.lev >= cfg['lev_s'],
-                                             self.lev <= cfg['lev_e'])
-                    self.lev = self.lev[lev_sel]
-                else:
-                    lev_sel = slice(None)
-
-                first_file = False
-
-            select = (self.d_select, lev_sel, slice(None), lon_sel)
-            self.props.log.info("\tLOAD: {}".format(var))
-            self.in_data[var] = nc_file.variables[vname][select].astype(np.float16)
-
+            nc_file, first_file = self._load_one_file(var, dim_vars,
+                                                      nc_file, first_file)
             if cfg['single_var_file']:
                 nc_file.close()
                 nc_file = None
 
         if not cfg['single_var_file']:
             nc_file.close()
+
+    def _load_one_file(self, var, dim_vars, nc_file=None, first_file=True):
+        cfg = self.data_cfg
+        vname = cfg[var]
+
+        if nc_file is None:
+            # Format the name of the file, join it with the path, open it
+            try:
+                file_name = cfg['file_paths'][var].format(year=self.year)
+            except KeyError:
+                file_name = cfg['file_paths']['all'].format(year=self.year)
+            self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
+                                                               file_name)))
+            try:
+                nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
+            except FileNotFoundError:
+                nc_file = package_data(cfg['path'], file_name)
+
+        # Load coordinate variables
+        if first_file:
+            if self.time is None:
+                self._load_time()
+            for dvar in dim_vars:
+                v_in_name = cfg[dvar]
+                if dvar == 'lev' and cfg['ztype'] == 'pres':
+                    setattr(self, dvar,
+                            nc_file.variables[v_in_name][:] * cfg['pfac'])
+                else:
+                    setattr(self, dvar, nc_file.variables[v_in_name][:])
+
+            if 'lon_s' in cfg and 'lon_e' in cfg:
+                # TODO: take account of longitudes being -180 - 180 or 0 - 360
+                lon_sel = np.logical_and(self.lon >= cfg['lon_s'],
+                                         self.lon <= cfg['lon_e'])
+                self.lon = self.lon[lon_sel]
+            else:
+                lon_sel = slice(None)
+
+            if 'lev_s' in cfg and 'lev_e' in cfg:
+                lev_sel = np.logical_and(self.lev >= cfg['lev_s'],
+                                         self.lev <= cfg['lev_e'])
+                self.lev = self.lev[lev_sel]
+            else:
+                lev_sel = slice(None)
+
+            first_file = False
+
+        select = (self.d_select, lev_sel, slice(None), lon_sel)
+        self.props.log.info("\tLOAD: {}".format(var))
+        self.in_data[var] = nc_file.variables[vname][select].astype(np.float16)
+
+        return nc_file, first_file
+
 
     def _gen_chunks(self, n_chunks=3):
         """Split data into time-period chunks if needed."""
@@ -450,7 +459,9 @@ class InputData(object):
 
         self.ipv = ipv_in.variables[self.data_cfg['ipv']][self.d_select, ..., lon_sel]
         self.ipv *= 1e6
-        self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][self.d_select, ..., lon_sel]
+        self._load_one_file('uwnd', ['lev', 'lat', 'lon'], first_file=False)
+        self.uwnd = self.in_data['uwnd']
+        # self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][self.d_select, ..., lon_sel]
 
         self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
         ipv_in.close()
