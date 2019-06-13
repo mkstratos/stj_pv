@@ -222,6 +222,8 @@ class InputData(object):
     def _load_one_file(self, var, dim_vars, nc_file=None, first_file=True):
         cfg = self.data_cfg
         vname = cfg[var]
+        if self.in_data is None:
+            self.in_data = {}
 
         if nc_file is None:
             # Format the name of the file, join it with the path, open it
@@ -248,22 +250,25 @@ class InputData(object):
                 else:
                     setattr(self, dvar, nc_file.variables[v_in_name][:])
 
-            if 'lon_s' in cfg and 'lon_e' in cfg:
-                # TODO: take account of longitudes being -180 - 180 or 0 - 360
-                lon_sel = np.logical_and(self.lon >= cfg['lon_s'],
-                                         self.lon <= cfg['lon_e'])
+        if 'lon_s' in cfg and 'lon_e' in cfg:
+
+            # TODO: take account of longitudes being -180 - 180 or 0 - 360
+            lon_sel = np.logical_and(self.lon >= cfg['lon_s'],
+                                     self.lon <= cfg['lon_e'])
+            if first_file:
                 self.lon = self.lon[lon_sel]
-            else:
-                lon_sel = slice(None)
+        else:
+            lon_sel = slice(None)
 
-            if 'lev_s' in cfg and 'lev_e' in cfg:
-                lev_sel = np.logical_and(self.lev >= cfg['lev_s'],
-                                         self.lev <= cfg['lev_e'])
+        if 'lev_s' in cfg and 'lev_e' in cfg:
+            lev_sel = np.logical_and(self.lev >= cfg['lev_s'],
+                                     self.lev <= cfg['lev_e'])
+            if first_file:
                 self.lev = self.lev[lev_sel]
-            else:
-                lev_sel = slice(None)
+        else:
+            lev_sel = slice(None)
 
-            first_file = False
+        first_file = False
 
         select = (self.d_select, lev_sel, slice(None), lon_sel)
         self.props.log.info("\tLOAD: {}".format(var))
