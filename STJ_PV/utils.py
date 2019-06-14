@@ -2,6 +2,8 @@
 """Utility functions not specific to subtropical jet finding."""
 from __future__ import division
 import numpy as np
+import xarray as xr
+import xarray.ufuncs as xu
 from scipy import interpolate as interp
 
 __author__ = "Penelope Maher, Michael Kelleher"
@@ -260,6 +262,131 @@ def vinterp(data, vcoord, vlevels):
             out_data[out_idx] = (wgt0 * data[idx_belw[1]] + wgt1 * data[idx_abve[1]])
 
     return np.squeeze(out_data)
+
+def _xrvinterp_single(data, vcoord, lev, levname='lev'):
+    """
+    Method to perform linear vertical interpolation on an xarray.DataArray.
+
+    Parameters
+    ----------
+    data : array_like (>= 2D)
+        xarray.DataArray of data to be interpolated
+    vcoord : array_like
+        xarray.DataArray representing the vertical structure
+        (height/pressure/PV/theta/etc.) of `data`. This should be >= 2D, and
+        data[levname].shape == vcoord[levname].shape
+    lev : float
+        Level, in same units as vcoord, to interpolate to
+    levname : string
+        Name of the vertical level coordinate variable upon
+        which to interpolate
+
+    Returns
+    -------
+    out_data : array_like, (data.shape[0], 1, \*data.shape[2:])
+        Data on lev
+
+    """
+    # Slice shortcut dicts, above looks like [1:], below looks like [:-1]
+    # TODO: switch above/below when vertical coordinate data is decreasing with
+    # increasing index (e.g. interp to pressure)
+    _sabove = {levname: slice(1, None)}
+    _sbelow = {levname: slice(None, -1)}
+
+    # Original levels from vcoord, should match original levels from data
+    _olevs = vcoord[levname]
+
+    # Selection dictionary to map levelname to coordinates above / below
+    _coord_above = {levname: _olevs.isel(**_sabove)}
+    _coord_below = {levname: _olevs.isel(**_sbelow)}
+
+    # xarray.DataArray of booleans, true where the level "below" is less than
+    # or equal to the desired level, false everywhere else
+    below = (vcoord.isel(**_sbelow) <= lev).drop(levname)
+
+    # xarray.DataArray of booleans, true where the level "above" is
+    # greater than the desired level, false everywhere else
+    above = (vcoord.isel(**_sabove) > lev).drop(levname)
+
+    # Combine, this means select all points where
+    # vcoord[LEVEL - 1] <= lev && vcoord[LEVEL + 1] > lev
+    idx = xu.logical_and(above, below)
+
+    # This is vcoord[:, 1:, ...], wherever idx is true and NaN everywhere else
+    ix_ab = xr.where(idx.assign_coords(**_coord_above),
+                     vcoord.isel(**_sabove), np.nan)
+
+    # This is vcoord[:, :-1, ...], wherever idx is true and NaN everywhere else
+    ix_bl = xr.where(idx.assign_coords(**_coord_below),
+                     vcoord.isel(**_sbelow), np.nan)
+
+    # Drop the coordinate information for the index xarrays, otherwise the
+    # maths won't work (+, -, /, *)
+    ix_ab = ix_ab.drop(levname)
+    ix_bl = ix_bl.drop(levname)
+
+    # Compute linear interpolation weights
+    wgt1 = ((lev - ix_bl) / (ix_ab - ix_bl))
+    wgt0 = 1.0 - wgt1
+
+    # Perform the linear interpolation, sum over all original levels, to
+    # eliminate the vertical dimension and remove all the NaNs
+    out = (wgt0 * data.isel(**_sbelow).drop(levname) +
+           wgt1 * data.isel(**_sabove).drop(levname)).sum(dim=levname)
+
+    return out
+
+def xrvinterp(data, vcoord, vlevs, levname, newlevname):
+    """
+    Perform vertical interpolation for several levels for an xarray.DataArray
+
+
+    Parameters
+    ----------
+    data : array_like (>= 2D)
+        xarray.DataArray of data to be interpolated
+    vcoord : array_like
+        xarray.DataArray representing the vertical structure
+        (height/pressure/PV/theta/etc.) of `data`. This should be >= 2D, and
+        data[levname].shape == vcoord[levname].shape
+    vlevs : array_like (1D)
+        Levels, in same units as vcoord, to interpolate to
+    levname : string
+        Name of the vertical level coordinate variable upon
+        which to interpolate
+    newlevname : string
+        Name of new vertical level coordinate variable
+
+    Returns
+    -------
+    out_data : array_like, (data.shape[0], vlevs.shape[0], \*data.shape[2:])
+        Data on vlevels
+
+    """
+    # Use a list-comprehension to assemble all the vertical coordinates
+    intp = [_xrvinterp_single(data, vcoord, lev, levname) for lev in vlevs]
+    # Concatenate the length (vlevs.shape[0]) list of xarray.DataArrays
+    # The concat_dims is default, and avoids weirdness when data rank is small
+    # (e.g. data.ndim < vcoord.ndim). Assing vlevs to be the values
+    # for the new coordinate
+    intp = xr.concat(intp).assign_coords(concat_dims=vlevs)
+
+    # Rename concat_dims to our desired new-lev-name
+    intp = intp.rename(concat_dims=newlevname)
+
+    # Transpose the data, so the new level dimension is where the old level
+    # dimension used to be in the original data or vcoord xarray.DataArray
+    # depending on which has higher rank
+    if data.ndim > vcoord.ndim:
+        _dims = list(data.dims)
+    else:
+        _dims = list(vcoord.dims)
+
+    lix = _dims.index(levname)
+    _dims[lix] = newlevname
+    intp = intp.transpose(*_dims)
+
+    return intp
 
 
 def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
