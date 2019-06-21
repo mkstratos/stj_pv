@@ -298,7 +298,7 @@ def inc_with_z(vcoord, levname):
 
 def _xrvinterp_single(data, vcoord, lev, levname='lev'):
     """
-    Method to perform linear interpolation along vertical axis on an xarray.DataArray.
+    Perform linear interpolation along vertical axis on an xarray.DataArray.
 
     Parameters
     ----------
@@ -325,7 +325,7 @@ def _xrvinterp_single(data, vcoord, lev, levname='lev'):
     _sbelow = {levname: slice(None, -1)}
 
     if inc_with_z(vcoord, levname) <= 0.8:
-        # If fewer than 80% of points are increasing with index, swap directions
+        # Fewer than 80% of points are increasing with index, swap directions
         _sbelow, _sabove = _sabove, _sbelow
 
     # Original levels from vcoord, should match original levels from data
@@ -399,10 +399,11 @@ def xrvinterp(data, vcoord, vlevs, levname, newlevname):
 
     Notes
     -----
-    If the input vertical coordinate data is increasing / decreasing with height in
-    different places (e.g. potential vorticity across hemispheres), mask data and compute
-    each part separately then add them together (if appropriate) or combine them, or
-    whatever you'd like to do with them. We're not the boss of you :)
+    If the input vertical coordinate data is increasing / decreasing with
+    height in different places (e.g. potential vorticity across hemispheres),
+    mask data and compute each part separately then add them together
+    (if appropriate) or combine them, or whatever you'd like
+    to do with them. We're not the boss of you :)
 
     """
     # Use a list-comprehension to assemble all the vertical coordinates
