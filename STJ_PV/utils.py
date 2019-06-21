@@ -263,9 +263,42 @@ def vinterp(data, vcoord, vlevels):
 
     return np.squeeze(out_data)
 
+
+def inc_with_z(vcoord, levname):
+    """
+    Find what proportion of `vcoord` is increasing along the `levname` axis.
+
+    Parameters
+    ----------
+    vcoord : array_like
+        xarray.DataArray of vertical coordinate to test
+    levname : str
+        String name of vertical coordinate variable along which to test
+
+    Returns
+    -------
+    pctinc : float
+        Percentage of valid points in vcoord which are increasing with increasing index
+
+    """
+    _sabove = {levname: slice(1, None)}
+    _sbelow = {levname: slice(None, -1)}
+
+    # number of valid points on the 0th surface
+    nvalid = vcoord.isel(**{levname: 0}).notnull().sum().drop(levname)
+
+    # Places where the vcoord value on the 0th surface is less than the -1th (top)
+    n_incr = (vcoord.isel(**{levname: 0}) < vcoord.isel(**{levname: -1}))
+
+    # Sum the number where v[0] < v[-1], divide by number of valid points
+    pctinc = n_incr.sum(skipna=True) / nvalid
+
+    return pctinc
+
+
 def _xrvinterp_single(data, vcoord, lev, levname='lev'):
     """
-    Method to perform linear vertical interpolation on an xarray.DataArray.
+    Method to perform linear interpolation along vertical axis on an xarray.DataArray.
 
     Parameters
     ----------
@@ -288,10 +321,12 @@ def _xrvinterp_single(data, vcoord, lev, levname='lev'):
 
     """
     # Slice shortcut dicts, above looks like [1:], below looks like [:-1]
-    # TODO: switch above/below when vertical coordinate data is decreasing with
-    # increasing index (e.g. interp to pressure)
     _sabove = {levname: slice(1, None)}
     _sbelow = {levname: slice(None, -1)}
+
+    if inc_with_z(vcoord, levname) <= 0.8:
+        # If fewer than 80% of points are increasing with index, swap directions
+        _sbelow, _sabove = _sabove, _sbelow
 
     # Original levels from vcoord, should match original levels from data
     _olevs = vcoord[levname]
@@ -336,10 +371,10 @@ def _xrvinterp_single(data, vcoord, lev, levname='lev'):
 
     return out
 
+
 def xrvinterp(data, vcoord, vlevs, levname, newlevname):
     """
     Perform vertical interpolation for several levels for an xarray.DataArray
-
 
     Parameters
     ----------
@@ -361,6 +396,13 @@ def xrvinterp(data, vcoord, vlevs, levname, newlevname):
     -------
     out_data : array_like, (data.shape[0], vlevs.shape[0], \*data.shape[2:])
         Data on vlevels
+
+    Notes
+    -----
+    If the input vertical coordinate data is increasing / decreasing with height in
+    different places (e.g. potential vorticity across hemispheres), mask data and compute
+    each part separately then add them together (if appropriate) or combine them, or
+    whatever you'd like to do with them. We're not the boss of you :)
 
     """
     # Use a list-comprehension to assemble all the vertical coordinates
