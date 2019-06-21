@@ -508,6 +508,39 @@ def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
     return data_interp
 
 
+def xrtheta(tair, pvar='level'):
+    """
+    Calculate potential temperature from temperature and pressure coordinate.
+
+    Parameters
+    ----------
+    tair : array_like
+        ND xarray.DataArray of air temperature [in K]
+    pvar : string
+        Pressure level coordinate name for tair
+
+    Returns
+    -------
+    theta : array_like
+        ND xarray.DataArray of potential temperature in K, same shape as `tair` input
+
+    """
+    # Attempt to figure pressure units
+    try:
+        p_units = tair[pvar].attrs['units']
+    except KeyError:
+        p_units = None
+
+    # Default assumption is that pressure is in Pascals
+    p_0 = 100000.0
+    if p_units in ['hPa', 'mb', 'millibar']:
+        # if pressure is in hPa (or similar), fix p_0
+        p_0 /= 100.
+
+    # Compute and return theta
+    return tair * (p_0 / tair[pvar]) ** KPPA
+
+
 def theta(tair, pres):
     """
     Calculate potential temperature from temperature and pressure coordinate.
@@ -545,6 +578,39 @@ def theta(tair, pres):
         p_axis = pres[slice_idx]
 
     return tair * (p_0 / p_axis) ** KPPA
+
+
+def xr_inv_theta(thta, pvar='level'):
+    """
+    Calculate potential temperature from temperature and pressure coordinate.
+
+    Parameters
+    ----------
+    thta : array_like
+        ND xarray.DataArray of potential temperature [in K]
+    pvar : string
+        Pressure level coordinate name for tair
+
+    Returns
+    -------
+    tair : array_like
+        ND xarray.DataArray of air temperature in K, same shape as `thta` input
+
+    """
+    # Attempt to figure pressure units
+    try:
+        p_units = thta[pvar].attrs['units']
+    except KeyError:
+        p_units = None
+
+    # Default assumption is that pressure is in Pascals
+    p_0 = 100000.0
+    if p_units in ['hPa', 'mb', 'millibar']:
+        # if pressure is in hPa (or similar), fix p_0
+        p_0 /= 100.
+
+    # Compute and return theta
+    return thta * (p_0 / thta[pvar]) ** -KPPA
 
 
 def inv_theta(thta, pres):
