@@ -522,7 +522,8 @@ def xrtheta(tair, pvar='level'):
     Returns
     -------
     theta : array_like
-        ND xarray.DataArray of potential temperature in K, same shape as `tair` input
+        ND xarray.DataArray of potential temperature in K, same shape
+        as `tair` input
 
     """
     # Attempt to figure pressure units
@@ -946,6 +947,61 @@ def diff_cfd(data, axis=-1, cyclic=False):
     return diff
 
 
+def diff_cfd_xr(data, dim='lon', cyclic=False):
+    """
+    Calculate centered finite difference along an axis with even spacing.
+
+    Parameters
+    ----------
+    data : array_like
+        N-D xarray.DataArray of data of which to calculate the differences
+    dim : string
+        Dimension name of `data` along which differences are calculated
+    cyclic : bool
+        Flag to indicate whether `data` is cyclic on `axis`
+
+    Returns
+    -------
+    diff : array_like
+        N-D xarray.DataArray of central finite differences
+        of `data` along `axis`
+
+    """
+    # For centred differences along longitude direction (e.g.) this is
+    # eqivalent to: diff = data[..., 2:] - data[..., :-2] for axis == -1
+    diff = (data.isel(**{dim: slice(2, None)}).drop(dim)
+            - data.isel(**{dim: slice(None, -2)}).drop(dim))
+    diff = diff.assign_coords(**{dim: data[dim].isel(**{dim: slice(1, -1)})})
+
+    if cyclic:
+        # Cyclic boundary in "East"
+        # Equiv to diff[..., 0] = data[..., 1:2] - data[..., -1:]
+        d_1 = (data.isel(**{dim: 1}).drop(dim) -
+               data.isel(**{dim: -1})).drop(dim)
+
+
+        # Cyclic boundary in "West"
+        # Equiv to diff[..., -1] = data[..., 0:1] - data[..., -2:-1]
+        d_2 = (data.isel(**{dim: 0}).drop(dim) -
+               data.isel(**{dim: -2})).drop(dim)
+
+    else:
+        # Otherwise edges are forward/backward differences
+        # Boundary in "South", (data[..., 1:2] - data[..., 0:1])
+        d_1 = data.isel(**{dim: 1}) - data.isel(**{dim: 0})
+        d_2 = data.isel(**{dim: -1}) - data.isel(**{dim: -2})
+
+    # Assign the coordiate to each "point"
+    d_1 = d_1.assign_coords(**{dim: data[dim].isel(**{dim: 0})})
+    d_2 = d_2.assign_coords(**{dim: data[dim].isel(**{dim: -1})})
+
+    # Concatinate along the difference dimension
+    diff = xr.concat((d_1, diff, d_2), dim=dim)
+
+    # Use .transpose to make sure diff dims are same as data dims
+    return diff.transpose(*data.dims)
+
+
 def diffz(data, vcoord, axis=None):
     """
     Calculate vertical derivative for data on uneven vertical levels.
@@ -1005,6 +1061,59 @@ def diffz(data, vcoord, axis=None):
     dxdz[slc[-1:None]] = (data[slc[-1:None]] - data[slc[-2:-1]]) / dz1
 
     return dxdz
+
+
+def xrdiffz(data, vcoord, dim='lev'):
+    """
+    Calculate vertical derivative for data on uneven vertical levels.
+
+    Parameters
+    ----------
+    data : array_like
+        N-D array of input data to be differentiated, where
+        data.shape[axis] == vcoord.shape[0]
+    vcoord : array_like
+        Vertical coordinate, 1D
+    dim : string
+        Vertical dimension name, must match between `data` and `vcoord`
+
+    Returns
+    -------
+    dxdz : array_like
+        N-D array of d(data)/d(vcoord), same shape as input `data`
+
+    """
+    d_z = (vcoord.isel(**{dim: slice(1, None)}).drop(dim) -
+           vcoord.isel(**{dim: slice(None, -1)}).drop(dim))
+    d_z1 = d_z.isel(**{dim: slice(1, None)})
+    d_z2 = d_z.isel(**{dim: slice(None, -1)})
+
+    # Central difference for uneven levels
+
+    diff = ((d_z2 * data.isel(**{dim: slice(2, None)}).drop(dim) +
+             (d_z1 - d_z2) * data.isel(**{dim: slice(1, -1)}).drop(dim) -
+             d_z1 * data.isel(**{dim: slice(None, -2)}).drop(dim)) /
+            (2.0 * d_z1 * d_z2))
+    diff = diff.assign_coords(**{dim: data[dim].isel(**{dim: slice(1, -1)})})
+
+    # Do forward difference at 0th level [:, 1, :, :] - [:, 0, :, :]
+    dz1 = (vcoord.isel(**{dim: 1}).drop(dim) -
+           vcoord.isel(**{dim: 0}).drop(dim))
+    diff_0 = (data.isel(**{dim: 1}).drop(dim) -
+              data.isel(**{dim: 0}).drop(dim)) / dz1
+    diff_0 = diff_0.assign_coords(**{dim: data[dim].isel(**{dim: 0})})
+
+    # Do backward difference at Nth level
+    dz2 = (vcoord.isel(**{dim: -1}).drop(dim) -
+           vcoord.isel(**{dim: -2}).drop(dim))
+    diff_1 = (data.isel(**{dim: -1}).drop(dim) -
+              data.isel(**{dim: -2}).drop(dim)) / dz2
+    diff_1 = diff_1.assign_coords(**{dim: data[dim].isel(**{dim: -1})})
+
+    # Combine all the differences
+    diff = xr.concat((diff_0, diff, diff_1), dim=dim)
+
+    return diff.transpose(*data.dims)
 
 
 def convert_radians_latlon(lat, lon):
