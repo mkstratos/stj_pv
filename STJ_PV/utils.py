@@ -412,10 +412,7 @@ def xrvinterp(data, vcoord, vlevs, levname, newlevname):
     # The concat_dims is default, and avoids weirdness when data rank is small
     # (e.g. data.ndim < vcoord.ndim). Assing vlevs to be the values
     # for the new coordinate
-    intp = xr.concat(intp).assign_coords(concat_dims=vlevs)
-
-    # Rename concat_dims to our desired new-lev-name
-    intp = intp.rename(concat_dims=newlevname)
+    intp = xr.concat(intp, dim=newlevname).assign_coords(**{newlevname: vlevs})
 
     # Transpose the data, so the new level dimension is where the old level
     # dimension used to be in the original data or vcoord xarray.DataArray
@@ -1197,6 +1194,46 @@ def dlon_dlat(lon, lat, cyclic=True):
     return dlong, dlatg
 
 
+def xr_dlon_dlat(data, vlon='lon', vlat='lat', cyclic=True):
+    """
+    Calculate distance on lat/lon axes on spherical grid for xarray.DataArray.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        DataArray with latitude and longitude coordinates
+    vlon, vlat : string
+        Variable names of latitude and longitude
+
+    Returns
+    ----------
+    dlong : array_like
+        NLat x Nlon xarray.DataArray of horizontal distnaces
+        along longitude axis in m
+    dlatg : array_like
+        NLat x Nlon xarray.DataArray of horizontal distances
+        along latitude axis in m
+
+    """
+    lon = data[vlon]
+    lat = data[vlat]
+
+    lon, lat = convert_radians_latlon(lon, lat)
+    dlon = diff_cfd_xr(lon, dim=vlon, cyclic=False).compute()
+    if cyclic:
+        # If cyclic, the endpoints are central not fwd/bkw diffs, so assume
+        # that the grid is regular, and double the edges
+        dlon[0] *= 2
+        dlon[-1] *= 2
+
+    dlat = diff_cfd_xr(lat, dim=vlat, cyclic=False)
+
+    dlon = dlon * EARTH_R * lat.pipe(np.cos)
+    dlat = dlat * EARTH_R
+
+    return dlon, dlat
+
+
 def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
     r"""
     Calculate the relative vorticity given zonal (uwnd) and meridional (vwnd) winds.
@@ -1254,6 +1291,45 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
         # If data isn't cyclic, then d(vwnd) and d(lon) will be one dim shorter on last
         # dimension, so we need to make up for that in the d(uwnd)/d(lat) field to match
         dudlat = duwnd[..., 1:-1] / dlatg
+
+    return dvdlon - dudlat
+
+
+def xr_rel_vort(uwnd, vwnd, dimvars, cyclic=True):
+    r"""
+    Calculate the relative vorticity given zonal (u) and meridional (v) winds.
+
+    Parameters
+    ----------
+    uwnd : array_like
+        xarray.DataArray of Zonal wind (with at least lat / lon dimensions)
+    vwnd : array_like
+        xarray.DataArray of Meridional wind with same dimensions as uwnd
+    cyclic : boolean
+        Flag to indicate if data is cyclic in longitude direction
+
+    Returns
+    -------
+    rel_vort : array_like
+        Relative vorticity V = U x V (cross product of U and V wind)
+        with same dimensions as uwnd & vwnd
+
+    """
+    # Use .get to avoid key errors if dimvars is wrong, just defualt to
+    # lat / lon, and if those are wrong, it'll fail later
+    vlon = dimvars.get('lon', 'lon')
+    vlat = dimvars.get('lat', 'lat')
+
+    # Get dlon and dlat in spherical coords
+    dlong, dlatg = xr_dlon_dlat(uwnd, vlon=vlon, vlat=vlat, cyclic=cyclic)
+
+    dvwnd = diff_cfd_xr(vwnd, dim=vlon, cyclic=cyclic)
+    duwnd = diff_cfd_xr(uwnd, dim=vlat, cyclic=False)
+
+    # Divide vwnd differences by longitude differences
+    dvdlon = dvwnd / dlong
+    # Divide uwnd differences by latitude differences
+    dudlat = duwnd / dlatg
 
     return dvdlon - dudlat
 
@@ -1395,3 +1471,116 @@ def ipv_theta(uwnd, vwnd, pres, lat, lon, th_levels):
 
     # Return isentropic potential vorticity
     return ipv_out
+
+
+def xripv_theta(uwnd, vwnd, pres, dimvars):
+    """
+    Calculate isentropic PV on theta surfaces from data on theta levels.
+
+    Parameters
+    ----------
+    uwnd : array_like
+        3 or 4-D zonal wind component (t, p, y, x) or (p, y, x)
+    vwnd : array_like
+        3 or 4-D meridional wind component (t, p, y, x) or (p, y, x)
+    pres : array_like
+        3 or 4-D pressure in Pa (t, p, y, x) or (p, y, x)
+    th_levels : array_like
+        1D Theta levels on which to calculate PV
+
+
+    Returns
+    -------
+    ipv : array_like
+        3 or 4-D isentropic potential vorticity in units
+        of m-2 s-1 K kg-1 (e.g. 10^6 PVU)
+
+    """
+    th_var = dimvars.get('theta', 'theta')
+    # Calculate relative vorticity on isentropic levels
+    rel_v = xr_rel_vort(uwnd, vwnd, dimvars, cyclic=True)
+
+    # Calculate d{Theta} / d{pressure} on isentropic levels
+    dthdp = 1.0 / xrdiffz(pres, pres[th_var], dim=th_var)
+
+    # Calculate Coriolis force
+    # First, get axis matching latitude to input data
+    f_cor = 2.0 * OM * (RAD * uwnd[dimvars['lat']]).pipe(np.sin)
+
+    # Calculate IPV, then correct for y-derivative problems at poles
+    ipv_out = -GRV * (rel_v + f_cor) * dthdp
+
+    # Return isentropic potential vorticity
+    return ipv_out
+
+
+def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
+    """
+    Calculate isentropic PV on theta surfaces.
+
+    Notes
+    -----
+    Interpolation assumes pressure is monotonically increasing.
+
+    Parameters
+    ----------
+    uwnd : array_like
+        3 or 4-D zonal wind component (t, p, y, x) or (p, y, x)
+    vwnd : array_like
+        3 or 4-D meridional wind component (t, p, y, x) or (p, y, x)
+    tair : array_like
+        3 or 4-D air temperature (t, p, y, x) or (p, y, x)
+    pres : array_like
+        1D pressure in Pa
+    lat : array_like
+        1D latitude in degrees
+    lon : array_like
+        1D longitude in degrees
+    th_levels : array_like
+        1D Theta levels on which to calculate PV
+
+
+    Returns
+    -------
+    ipv : array_like
+        3 or 4-D isentropic potential vorticity in units
+        of m-2 s-1 K kg-1 (e.g. 10^6 PVU)
+    p_th : array_like
+        Pressure on isentropic levels [Pa]
+    u_th : array_like
+        Zonal wind on isentropic levels [m/s]
+
+    """
+    if dimvars is None:
+        dimvars = {'lev': 'level', 'lat': 'lat', 'lon': 'lon'}
+
+    vlev = dimvars['lev']
+
+    # Calculate potential temperature on isobaric (pressure) levels
+    thta = xrtheta(tair, pvar=vlev)
+
+    # Interpolate zonal, meridional wind, pressure to isentropic from
+    # isobaric levels
+
+    u_th = xrvinterp(uwnd, thta, th_levels, levname=vlev,
+                     newlevname='theta')
+    v_th = xrvinterp(vwnd, thta, th_levels, levname=vlev,
+                     newlevname='theta')
+
+    # Check the units of uwnd.level to be sure to use Pa
+    try:
+        _punits = uwnd.level['units']
+    except (KeyError, AttributeError):
+        _punits = None
+    if _punits in ['hPa', 'mb', 'millibar']:
+        scale = 100.
+    else:
+        scale = 1.
+
+    p_th = xrvinterp(scale * uwnd[vlev], thta, th_levels, levname=vlev,
+                     newlevname='theta')
+
+    # Calculate IPV on theta levels
+    ipv_out = xripv_theta(u_th, v_th, p_th, dimvars)
+
+    return ipv_out, p_th, u_th
