@@ -104,16 +104,21 @@ class InputData:
             lon_chunk = 1 + (1e6 // (np.prod(shape[1:-1] * time_chunk)))
             self.chunk[self.data_cfg['lon']] = lon_chunk
 
-    def _load_one_file(self, var):
+    def _load_one_file(self, var, file_var=None):
         """Load a single netCDF file as an xarray.Dataset."""
         cfg = self.data_cfg
         vname = cfg[var]
 
+        # Use this to set the file variable name (look for uwnd in ipv file)
+        if file_var is None:
+            file_var = var
+
         # Format the name of the file, join it with the path, open it
         try:
-            file_name = cfg['file_paths'][var].format(year=self.year)
+            file_name = cfg['file_paths'][file_var].format(year=self.year)
         except KeyError:
             file_name = cfg['file_paths']['all'].format(year=self.year)
+
         self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
                                                            file_name)))
         try:
@@ -240,7 +245,7 @@ class InputDataSTJPV(InputData):
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         self.props.log.info("LOAD IPV FROM FILE: {}".format(in_file))
         self._load_one_file('ipv')
-        self._load_one_file('uwnd')
+        self._load_one_file('uwnd', file_var='ipv')
         self.out_data = self.in_data
         self.th_lev = self.in_data['ipv'][self.data_cfg['lev']]
 
