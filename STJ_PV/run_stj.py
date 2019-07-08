@@ -102,6 +102,16 @@ class JetFindRun(object):
         self._set_metric()
         self.log_setup()
 
+    def __str__(self):
+        out_str = '{0} {1} {0}\n'.format('#' * 10, 'Run Config ')
+        for param in self.config:
+            out_str += '{:15s}: {}\n'.format(param, self.config[param])
+        out_str += '{0} {1} {0}\n'.format('#' * 10, 'Data Config')
+
+        for param in self.data_cfg:
+            out_str += '{:15s}: {}\n'.format(param, self.data_cfg[param])
+        return out_str
+
     def _set_metric(self):
         """Set metric and associated levels."""
         if self.config['method'] == 'STJPV':
