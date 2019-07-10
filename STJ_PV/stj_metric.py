@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-"""STJ Metric: Calculate the position of the subtropical jet in both hemispheres."""
+"""Calculate the position of the subtropical jet in both hemispheres."""
 import subprocess
+import yaml
+import xarray as xr
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
 
-import utils
 import STJ_PV.data_out as dio
 
 from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
+from STJ_PV import utils
 
 try:
     from eddy_terms import Kinetic_Eddy_Energies
@@ -19,7 +21,7 @@ except ModuleNotFoundError:
 
 try:
     GIT_ID = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
-except subprocess.CalledProcessError as err:
+except subprocess.CalledProcessError:
     GIT_ID = 'NONE'
 
 
@@ -44,9 +46,7 @@ class STJMetric(object):
         self.data = data
         self.props = props.config
         self.log = props.log
-        self.jet_lat = None
-        self.jet_theta = None
-        self.jet_intens = None
+        self.out_data = {}
         self.time = None
         self.hemis = None
         self.debug_data = {}
@@ -54,81 +54,37 @@ class STJMetric(object):
 
     def save_jet(self):
         """Save jet position to file."""
-        # Create output variables
-        props_lat = {'name': 'jet_latitude', 'descr': 'Latitude of subtropical jet',
-                     'units': 'degrees_north', 'short_name': 'lat_sh', 'timevar': 'time',
-                     'calendar': self.data.calendar, 'time_units': self.data.time_units}
-        coords = {'time': self.time}
+        # Setup metadata for output variables
+        props = {'lat': {'standard_name': 'jet_latitude',
+                         'descr': 'Latitude of subtropical jet',
+                         'units': 'degrees_north'},
+                 'intens': {'standard_name': 'jet_intensity',
+                            'descr': 'Intensity of subtropical jet',
+                            'units': 'm s-1'},
+                 'theta': {'standard_name': 'jet_theta',
+                           'descr': 'Theta level of subtropical jet',
+                           'units': 'K'}}
 
-        self.log.info("CREATE OUTPUT VARIABLES")
+        for out_var in self.out_data:
+            # Clean up dimension labels
+            for drop_var in ['pv', self.data.cfg['lat']]:
+                if drop_var in self.out_data[out_var].coords:
+                    self.out_data[out_var] = self.out_data[out_var].drop(drop_var)
+            prop_name = out_var.split('_')[0]
+            self.out_data[out_var] = self.out_data[out_var].assign_attrs(props[prop_name])
 
-        # Latitude
-        if self.props['zonal_opt'].lower() != 'mean':
-            props_lat['lonvar'] = 'lon'
-            props_lat['lon_units'] = 'degrees_east'
-            coords['lon'] = self.data.lon
-
-        props_lat_nh = dict(props_lat)
-        props_lat_nh['short_name'] = 'lat_nh'
-
-        lat_sh_out = dio.NCOutVar(self.jet_lat[0, ...], coords=coords, props=props_lat)
-        lat_nh_out = dio.NCOutVar(self.jet_lat[1, ...], coords=coords, props=props_lat_nh)
-
-        # Intensity
-        props_int = dict(props_lat)
-        props_int['name'] = 'jet_intensity'
-        props_int['descr'] = 'Intensity of subtropical jet'
-        props_int['units'] = 'm s-1'
-        props_int['short_name'] = 'intens_sh'
-
-        props_int_nh = dict(props_int)
-        props_int_nh['short_name'] = 'intens_nh'
-
-        intens_sh_out = dio.NCOutVar(self.jet_intens[0, ...], coords=coords,
-                                     props=props_int)
-        intens_nh_out = dio.NCOutVar(self.jet_intens[1, ...], coords=coords,
-                                     props=props_int_nh)
-
-        # Theta (only if Theta is valid)
-        if self.jet_theta is not None:
-            props_th = dict(props_lat)
-            props_th['name'] = 'jet_theta'
-            props_th['descr'] = 'Theta level of subtropical jet'
-            props_th['units'] = 'K'
-            props_th['short_name'] = 'theta_sh'
-            theta_sh_out = dio.NCOutVar(self.jet_theta[0, ...], coords=coords,
-                                        props=props_th)
-            props_th_nh = dict(props_th)
-            props_th_nh['short_name'] = 'theta_nh'
-            theta_nh_out = dio.NCOutVar(self.jet_theta[1, ...], coords=coords,
-                                        props=props_th_nh)
-
+        out_dset = xr.Dataset(self.out_data)
         self.log.info("WRITE TO {output_file}".format(**self.props))
-
-        # Write jet & theta positions to file
-        out_vars = [lat_sh_out, lat_nh_out, intens_sh_out, intens_nh_out]
-        if self.jet_theta is not None:
-            out_vars.extend([theta_sh_out, theta_nh_out])
-
-        file_attrs = [('commit-id', GIT_ID), ('run_props', self.props)]
-
-        dio.write_to_netcdf(out_vars, self.props['output_file'] + '.nc', file_attrs)
+        file_attrs = {'commit-id': GIT_ID, 'run_props': yaml.safe_dump(self.props)}
+        out_dset = out_dset.assign_attrs(file_attrs)
+        out_dset.to_netcdf(self.props['output_file'] + '.nc')
 
     def append(self, other):
-        """Append another metric's latitude and theta positon to this one."""
-        self.jet_lat = np.append(self.jet_lat, other.jet_lat, axis=1)
-        self.jet_intens = np.append(self.jet_intens, other.jet_intens, axis=1)
-        if self.jet_theta is not None:
-            self.jet_theta = np.append(self.jet_theta, other.jet_theta, axis=1)
-
-        # Double check the units!
-        if self.data.time_units == other.data.time_units:
-            self.time = np.append(self.time, other.time, axis=0)
-        else:
-            # Convert other's time to our time
-            _other_dates = num2date(other.time, other.data.time_units)
-            _other_time = date2num(_other_dates, self.data.time_units)
-            self.time = np.append(self.time, _other_time, axis=0)
+        """Append another metric's intensity, latitude, and theta positon to this one."""
+        for var_name in self.out_data:
+            self.out_data[var_name] = xr.concat((self.out_data[var_name],
+                                                 other.out_data[var_name]),
+                                                dim=self.data.cfg['time'])
 
 
 class STJPV(STJMetric):
@@ -143,15 +99,10 @@ class STJPV(STJMetric):
         Input data class containing a year (or more) of required data
 
     """
-
     def __init__(self, props, data):
         """Initialise Metric using PV Gradient Method."""
         name = 'PVGrad'
         super(STJPV, self).__init__(name=name, props=props, data=data)
-
-        if np.max(np.abs(self.data.ipv)) < 1.0:
-            self.data.ipv *= 1e6    # Put PV into units of PVU from 1e-6 PVU
-
         # Some config options should be properties for ease of access
         self.pv_lev = self.props['pv_value']
         self.fit_deg = self.props['fit_deg']
@@ -172,22 +123,10 @@ class STJPV(STJMetric):
             self.pder = poly.polynomial.polyder
             self.peval = poly.polynomial.polyval
 
-        # Initialise latitude & theta output arrays with correct shape
-        dims = self.data.ipv.shape
-        if self.props['zonal_opt'].lower() == 'mean':
-            self.jet_lat = np.zeros([2, dims[0]])
-            self.jet_theta = np.zeros([2, dims[0]])
-            self.jet_intens = np.zeros([2, dims[0]])
-        else:
-            self.jet_lat = np.zeros([2, dims[0], dims[-1]])
-            self.jet_theta = np.zeros([2, dims[0], dims[-1]])
-            self.jet_intens = np.zeros([2, dims[0], dims[-1]])
+        # Initialise latitude & theta output dicts
+        self.out_data = {}
 
-        self.time = self.data.time[:]
-        self.tix = None
-        self.xix = None
-
-    def _poly_deriv(self, lat, data, y_s=None, y_e=None, deriv=1):
+    def _poly_deriv(self, lat, data, deriv=1):
         """
         Calculate the `deriv`^th derivative of a one-dimensional array w.r.t. latitude.
 
@@ -208,11 +147,22 @@ class STJPV(STJMetric):
         """
         # Determine where data is valid...Intel's Lin Alg routines fail when trying to do
         # a least squares fit on array with np.nan, use where it's valid to do the fit
-        valid = np.isfinite(data[y_s:y_e])
-        poly_fit = self.pfit(lat[y_s:y_e][valid], data[y_s:y_e][valid], self.fit_deg)
-        poly_der = self.peval(lat[y_s:y_e], self.pder(poly_fit, deriv))
+        valid = np.isfinite(data)
+        try:
+            poly_fit = self.pfit(lat[valid], data[valid], self.fit_deg)
+        except TypeError as err:
+            # This can happen on fitting the polynomial:
+            # `raise TypeError("expected non-empty vector for x")`
+            # If that's the error we get, just set the position to 0,
+            # which is later masked, otherwise raise the error
+            if 'non-empty' in err.args[0]:
+                poly_fit = np.zeros(self.fit_deg)
+            else:
+                raise
 
-        return poly_der, (poly_fit, lat[y_s:y_e][valid])
+        poly_der = self.peval(lat, self.pder(poly_fit, deriv))
+
+        return poly_der, (poly_fit, lat[valid])
 
     def set_hemis(self, shemis):
         """
@@ -241,34 +191,25 @@ class STJPV(STJMetric):
             for NH
 
         """
-
-        # Find axis
-        lat_axis = self.data.ipv.shape.index(self.data.lat.shape[0])
-
-        if self.data.ipv.shape.count(self.data.lat.shape[0]) > 1:
-            # Log a message about which matching dimension used since this
-            # could be time or lev or lon if ntimes, nlevs or nlons == nlats
-            self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
-                                                                self.data.ipv.shape))
-
-        self.hemis = [slice(None)] * self.data.ipv.ndim
+        lats = (self.props['min_lat'], self.props['max_lat'])
 
         if shemis:
-            self.hemis[lat_axis] = self.data.lat < 0
-            lat = self.data.lat[self.data.lat < 0]
-            hidx = 0
-            # Link `extrema` function to argrelmax for SH
+            self.hemis = self.data[self.data.cfg['lat']] < 0
             extrema = sig.argrelmax
+            hem_s = 'sh'
+            if lats[0] > 0 and lats[1] > 0:
+                # Lats are positive, multiply by -1 to get positive for SH
+                lats = (-lats[0], -lats[1])
         else:
-            self.hemis[lat_axis] = self.data.lat > 0
-            lat = self.data.lat[self.data.lat > 0]
-            hidx = 1
-            # Link `extrema` function to argrelmin for NH
+            self.hemis = self.data[self.data.cfg['lat']] > 0
             extrema = sig.argrelmin
+            hem_s = 'nh'
+            if lats[0] < 0 and lats[1] < 0:
+                # Lats are negative, multiply by -1 to get positive for NH
+                lats = (-lats[0], -lats[1])
+        return extrema, lats, hem_s
 
-        return lat, hidx, extrema
-
-    def isolate_pv(self, pv_lev, theta_bnds=None):
+    def isolate_pv(self, pv_lev):
         """
         Get the potential temperature, zonal wind and zonal wind shear for a PV level.
 
@@ -294,22 +235,26 @@ class STJPV(STJMetric):
             Wind shear between uwnd_xpv and "surface", meaning the lowest valid level
 
         """
-        # Temporary? Need to use for JRA data, it doesn't interpolate correctly with
-        # all the data...?
-        if theta_bnds is None:
-            th_slice = slice(None)
-        else:
+        if 'theta_s' in self.data.cfg and 'theta_e' in self.data.cfg:
+            theta_bnds = (self.data.cfg['theta_s'], self.data.cfg['theta_e'])
             assert theta_bnds[0] < theta_bnds[1], 'Start level not strictly less than end'
-            th_slice = np.logical_and(self.data.th_lev >= theta_bnds[0],
-                                      self.data.th_lev <= theta_bnds[1])
-        theta_xpv = utils.vinterp(self.data.th_lev[th_slice],
-                                  self.data.ipv[self.hemis][:, th_slice, ...], pv_lev)
+            theta_bnds = slice(*theta_bnds)
+        else:
+            theta_bnds = slice(None)
 
-        uwnd_xpv = utils.vinterp(self.data.uwnd[self.hemis][:, th_slice, ...],
-                                 self.data.ipv[self.hemis][:, th_slice, ...], pv_lev)
+        lev_name = self.data.cfg['lev']
+        subset = {lev_name: theta_bnds}
 
-        ushear = self._get_max_shear(uwnd_xpv)
-        return theta_xpv, uwnd_xpv, ushear
+        theta_xpv = utils.xrvinterp(self.data[lev_name].sel(**subset),
+                                    self.data.ipv.where(self.hemis).sel(**subset),
+                                    pv_lev, levname=lev_name, newlevname='pv')
+
+        uwnd_xpv = utils.xrvinterp(self.data.uwnd.where(self.hemis).sel(**subset),
+                                   self.data.ipv.where(self.hemis).sel(**subset),
+                                   pv_lev, levname=lev_name, newlevname='pv')
+
+        ushear = self._get_max_shear(uwnd_xpv.squeeze())
+        return theta_xpv.squeeze(), uwnd_xpv.squeeze(), ushear
 
     def find_jet(self, shemis=True):
         """
@@ -322,90 +267,91 @@ class STJPV(STJMetric):
 
         """
         if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
-            pv_lev = np.array([self.pv_lev])
+            pv_lev = np.array([self.pv_lev]) * 1e-6
         else:
-            pv_lev = -1 * np.array([self.pv_lev])
+            pv_lev = -1 * np.array([self.pv_lev]) * 1e-6
 
-        lat, hidx, extrema = self.set_hemis(shemis)
-
+        extrema, lats, hem_s = self.set_hemis(shemis)
+        self.log.info('COMPUTING THETA/UWND ON %.1f PVU', pv_lev * 1e6)
         # Get theta on PV==pv_level
-        if 'theta_s' in self.data.data_cfg and 'theta_e' in self.data.data_cfg:
-            theta_bnds = (self.data.data_cfg['theta_s'], self.data.data_cfg['theta_e'])
-        else:
-            theta_bnds = None
+        theta_xpv, uwnd_xpv, ushear = self.isolate_pv(pv_lev)
 
-        theta_xpv, uwnd_xpv, ushear = self.isolate_pv(pv_lev, theta_bnds=theta_bnds)
-        dims = theta_xpv.shape
+        # Shortcut for latitude variable name, since it's used a lot
+        vlat = self.data.cfg['lat']
 
-        self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
-        for tix in range(dims[0]):
-            if tix % 50 == 0 and dims[0] > 50:
-                self.log.info('COMPUTING JET POSITION FOR %d', tix)
-            self.tix = tix
-            jet_loc = np.zeros(dims[-1], dtype=int)
-            for xix in range(dims[-1]):
-                self.xix = xix
-                try:
-                    jet_loc[xix] = self.find_single_jet(theta_xpv[tix, :, xix],
-                                                        lat, ushear[tix, :, xix],
-                                                        extrema)
-                except TypeError as err:
-                    # This can happen on fitting the polynomial:
-                    # `raise TypeError("expected non-empty vector for x")`
-                    # If that's the error we get, just set the position to 0,
-                    # which is later masked, otherwise raise the error
-                    if 'non-empty' in err.args[0]:
-                        jet_loc[xix] = 0
-                    else:
-                        raise
+        # Restrict theta and shear between our min / max latitude from config file
+        # that was processed by self.set_hemis
+        _theta = theta_xpv.sel(**{vlat: slice(*lats)})
+        if _theta[vlat].shape[0] == 0:
+            # If the selection is empty along the latitude axis, that means
+            # the selection is the wrong way around, so flip it before moving on
+            lats = lats[::-1]
+            _theta = theta_xpv.sel(**{vlat: slice(*lats)})
 
-                if not self.props['zonal_opt'].lower() == 'mean':
-                    self.jet_lat[hidx, tix, xix] = lat[jet_loc[xix]]
-                    self.jet_theta[hidx, tix, xix] = theta_xpv[tix, jet_loc[xix], xix]
-                    self.jet_intens[hidx, tix, xix] = uwnd_xpv[tix, jet_loc[xix], xix]
+        # Coordinates to ravel along, we're interested in doing computations along
+        # the latitude axis, so this is all the dimensions except that
+        cell_coords = (self.data.cfg['time'], self.data.cfg['lon'])
 
-            if self.props['zonal_opt'].lower() in ['mean', 'median']:
-                if self.props['zonal_opt'].lower() == 'mean':
-                    reduce_fcn = np.ma.mean
-                else:
-                    reduce_fcn = np.ma.median
+        # Stack the shear and theta_xpv so their dims are [lat, cell], so that
+        # the compuation can be parallelised, since each lon and time are treated
+        # as independent
+        _shear = ushear.stack(cell=cell_coords).squeeze().sel(**{vlat: slice(*lats)})
+        _theta = _theta.stack(cell=cell_coords).squeeze()
 
-                jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
-                self.jet_lat[hidx, tix] = reduce_fcn(np.ma.masked_invalid(jet_lat))
+        self.log.info('COMPUTING JET POSITION FOR %d', self.data.year)
+        # Set up computation of all the jet latitudes at once using self.find_single_jet
+        # The input_core_dims is a list of lists, that tells xarray/dask that the
+        # arguments _theta, _theta.lat, and _shear are passed to self.find_single_jet
+        # with that dimension intact. The kwargs argument passes keyword args to the
+        # self.find_single_jet
+        jet_lat = xr.apply_ufunc(self.find_single_jet, _theta, _theta[vlat], _shear,
+                                 input_core_dims=[[vlat], [vlat], [vlat]],
+                                 vectorize=True, dask='parallelized',
+                                 kwargs={'extrema': extrema},
+                                 output_dtypes=[float])
 
-                # First take the zonal median of Theta on dyn. tropopause
-                jet_theta = reduce_fcn(theta_xpv[tix, :, :], axis=-1)
-                # Mask wherever jet_loc is undefined, jet_loc is a func. of longitude here
-                jet_theta = np.ma.masked_where(jet_loc == 0,
-                                               jet_theta[jet_loc.astype(int)])
-                # Then save the zonal median of this to the correct position in output
-                self.jet_theta[hidx, tix] = reduce_fcn(np.ma.masked_invalid(jet_theta))
+        # Perform the computation, and unstack so now jet_lat's dims are [time, lon]
+        jet_lat = jet_lat.compute().unstack('cell')
+        # Select the data for level and intensity by the latitudes generated
+        jet_theta = theta_xpv.sel(**{vlat: jet_lat})
+        jet_intens = uwnd_xpv.sel(**{vlat: jet_lat})
 
-                # Now do the same for jet intensity
-                jet_intens = reduce_fcn(uwnd_xpv[tix, :, :], axis=-1)
-                jet_intens = np.ma.masked_where(jet_loc == 0,
-                                                jet_intens[jet_loc.astype(int)])
-                self.jet_intens[hidx, tix] = reduce_fcn(np.ma.masked_invalid(jet_intens))
+        # This masks our xarrays of intrest where the jet_lat == 0.0, which is set
+        # whenever there is invalid data for a particular cell
+        jet_intens = jet_intens.where(jet_lat != 0.0)
+        jet_theta = jet_theta.where(jet_lat != 0.0)
+        jet_lat = jet_lat.where(jet_lat != 0.0)
+
+        # If we're interested in mean / median, take those
+        if self.props['zonal_opt'].lower() == 'mean':
+            jet_intens = jet_intens.mean(dim=self.data.cfg['lon'])
+            jet_theta = jet_theta.mean(dim=self.data.cfg['lon'])
+            jet_lat = jet_lat.mean(dim=self.data.cfg['lon'])
+
+        elif self.props['zonal_opt'].lower() == 'median':
+            jet_intens = jet_intens.median(dim=self.data.cfg['lon'])
+            jet_theta = jet_theta.median(dim=self.data.cfg['lon'])
+            jet_lat = jet_lat.median(dim=self.data.cfg['lon'])
+
+        # Put the parameters into place for this hemisphere
+        self.out_data['intens_{}'.format(hem_s)] = jet_intens
+        self.out_data['theta_{}'.format(hem_s)] = jet_theta
+        self.out_data['lat_{}'.format(hem_s)] = jet_lat
 
     def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""
         # Our zonal wind data is on isentropic levels. Lower levels are bound to be below
         # the surface in some places, so we need to use the lowest valid wind level as
         # the surface, so do some magic to make that happen.
+        cell_dims = (self.data.cfg['time'], self.data.cfg['lat'], self.data.cfg['lon'])
+        u_stack = self.data.uwnd.stack(cell=cell_dims).squeeze()
+        uwnd_sfc = xr.apply_ufunc(lowest_valid, u_stack,
+                                  input_core_dims=[[self.data.cfg['lev']]],
+                                  vectorize=True, dask='parallelized',
+                                  output_dtypes=[float])
+        uwnd_sfc = uwnd_sfc.unstack('cell').compute()
 
-        # Put our vertical dimension as the last dim
-        u_hem = np.swapaxes(self.data.uwnd[self.hemis], 1, -1)
-        # Get the first valid index on the vertical dim
-        valid_idx = np.isfinite(u_hem).argmax(axis=-1)
-        # Get the shape of our swapped data
-        shape = list(u_hem.shape)
-        n_z = shape.pop(-1)
-        uwnd_sfc = u_hem.reshape(-1, n_z)[np.arange(np.prod(shape)),
-                                          valid_idx.ravel()].reshape(shape)
-
-        uwnd_sfc = np.swapaxes(uwnd_sfc, 1, -1)
-
-        return uwnd_xpv - uwnd_sfc
+        return uwnd_xpv.squeeze() - uwnd_sfc.where(self.hemis)
 
     def find_single_jet(self, theta_xpv, lat, ushear, extrema, debug=False):
         """
@@ -432,32 +378,23 @@ class STJPV(STJMetric):
             TODO: document this better!!
 
         """
-        # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
-        y_s = np.abs(np.abs(lat) - self.props['min_lat']).argmin()
-        y_e = np.abs(np.abs(lat) - self.props['max_lat']).argmin()
-
-        # If latitude is in decreasing order, switch start & end
-        # This makes sure we're selecting the latitude nearest the equator
-        if abs(lat[0]) > abs(lat[-1]):
-            y_s, y_e = y_e, y_s
         # Find derivative of dynamical tropopause
-        dtheta, theta_fit = self._poly_deriv(lat, theta_xpv, y_s=y_s, y_e=y_e)
+        dtheta, theta_fit = self._poly_deriv(lat, theta_xpv)
 
         jet_loc_all = extrema(dtheta)[0].astype(int)
-        if y_s is not None:
-            # If beginning of array is cut off rather than end, add cut-off to adjust
-            jet_loc_all += y_s
         select = self.select_jet(jet_loc_all, ushear)
-
-        # Eventually this moves somewhere else to do diagnostic plots
-        # if self.plot_idx <= 30:
-        #     if np.min(lat) < 0 and self.xix < 2:
-        #         self._debug_plot(lat, theta_xpv, theta_fit, dtheta, jet_loc_all,
-        #                          y_s, y_e, select)
-        if debug:
-            output = select, jet_loc_all, dtheta, theta_fit, lat, y_s, y_e
+        if np.max(np.abs(theta_fit[0])) == 0.0:
+            # This means there was a TypeError in _poly_deriv so probably
+            # none of the theta_xpv data is valid for this time/lon, so
+            # set the output latitude to be 0, so it can be masked out
+            out_lat = 0.0
         else:
-            output = select
+            out_lat = lat[select]
+
+        if debug:
+            output = out_lat, jet_loc_all, dtheta, theta_fit, lat
+        else:
+            output = out_lat
 
         return output
 
@@ -804,6 +741,11 @@ class STJKangPolvani(STJMetric):
         """Get jet location at multiple times."""
         return np.array([self.get_jet_loc(data[tidx, :], expected_lat[tidx], lat)
                          for tidx in range(data.shape[0])])
+
+
+def lowest_valid(col):
+    """Given 1-D array find lowest (along axis) valid data."""
+    return col[np.isfinite(col).argmax()]
 
 
 def get_season(month):
