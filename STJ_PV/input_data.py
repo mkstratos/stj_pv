@@ -2,8 +2,8 @@
 """Generate or load input data for STJ Metric."""
 import os
 import numpy as np
-import xarray as xr
 import pkg_resources
+import xarray as xr
 # Dependent code
 import STJ_PV.utils as utils
 
@@ -134,7 +134,8 @@ class InputData:
 
     def get_data(self):
         """Get a single xarray.Dataset of required components for metric."""
-        data = xr.Dataset(self.out_data)
+        data = xr.Dataset(self.out_data,
+                          attrs={'cfg': self.data_cfg, 'year': self.year})
         return data
 
     def write_data(self, out_file=None):
@@ -245,7 +246,13 @@ class InputDataSTJPV(InputData):
         in_file = os.path.join(self.data_cfg['wpath'], file_name)
         self.props.log.info("LOAD IPV FROM FILE: {}".format(in_file))
         self._load_one_file('ipv')
-        self._load_one_file('uwnd', file_var='ipv')
+        try:
+            # Check for uwind in the IPV file first
+            self._load_one_file('uwnd', file_var='ipv')
+        except KeyError:
+            # But fall back on the uwind file
+            self._load_one_file('uwnd')
+
         self.out_data = self.in_data
         self.th_lev = self.in_data['ipv'][self.data_cfg['lev']]
 
@@ -268,7 +275,8 @@ class InputDataSTJPV(InputData):
                 self.out_data[data_var] = self.out_data[data_var][:, ::-1]
             self.th_lev = self.th_lev[::-1]
 
-        return xr.Dataset(self.out_data)
+        return xr.Dataset(self.out_data,
+                          attrs={'cfg': self.data_cfg, 'year': self.year})
 
 
 class InputDataUWind(InputData):
@@ -314,4 +322,5 @@ class InputDataUWind(InputData):
             self._load_data()
             self.out_data = self.in_data
 
-        return xr.Dataset(self.out_data)
+        return xr.Dataset(self.out_data,
+                          attrs={'cfg': self.data_cfg, 'year': self.year})
