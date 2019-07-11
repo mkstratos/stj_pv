@@ -2,12 +2,9 @@
 """Calculate the position of the subtropical jet in both hemispheres."""
 import subprocess
 import yaml
-import xarray as xr
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
-
-import STJ_PV.data_out as dio
 
 from netCDF4 import num2date, date2num
 import pandas as pd
@@ -287,16 +284,7 @@ class STJPV(STJMetric):
             # the selection is the wrong way around, so flip it before moving on
             lats = lats[::-1]
             _theta = theta_xpv.sel(**{vlat: slice(*lats)})
-
-        # Coordinates to ravel along, we're interested in doing computations along
-        # the latitude axis, so this is all the dimensions except that
-        cell_coords = (self.data.cfg['time'], self.data.cfg['lon'])
-
-        # Stack the shear and theta_xpv so their dims are [lat, cell], so that
-        # the compuation can be parallelised, since each lon and time are treated
-        # as independent
-        _shear = ushear.stack(cell=cell_coords).squeeze().sel(**{vlat: slice(*lats)})
-        _theta = _theta.stack(cell=cell_coords).squeeze()
+        _shear = ushear.sel(**{vlat: slice(*lats)})
 
         self.log.info('COMPUTING JET POSITION FOR %d', self.data.year)
         # Set up computation of all the jet latitudes at once using self.find_single_jet
@@ -306,12 +294,10 @@ class STJPV(STJMetric):
         # self.find_single_jet
         jet_lat = xr.apply_ufunc(self.find_single_jet, _theta, _theta[vlat], _shear,
                                  input_core_dims=[[vlat], [vlat], [vlat]],
-                                 vectorize=True, dask='parallelized',
+                                 vectorize=True, dask='allowed',
                                  kwargs={'extrema': extrema},
                                  output_dtypes=[float])
 
-        # Perform the computation, and unstack so now jet_lat's dims are [time, lon]
-        jet_lat = jet_lat.compute().unstack('cell')
         # Select the data for level and intensity by the latitudes generated
         jet_theta = theta_xpv.sel(**{vlat: jet_lat})
         jet_intens = uwnd_xpv.sel(**{vlat: jet_lat})
@@ -343,13 +329,10 @@ class STJPV(STJMetric):
         # Our zonal wind data is on isentropic levels. Lower levels are bound to be below
         # the surface in some places, so we need to use the lowest valid wind level as
         # the surface, so do some magic to make that happen.
-        cell_dims = (self.data.cfg['time'], self.data.cfg['lat'], self.data.cfg['lon'])
-        u_stack = self.data.uwnd.stack(cell=cell_dims).squeeze()
-        uwnd_sfc = xr.apply_ufunc(lowest_valid, u_stack,
+        uwnd_sfc = xr.apply_ufunc(lowest_valid, self.data.uwnd,
                                   input_core_dims=[[self.data.cfg['lev']]],
-                                  vectorize=True, dask='parallelized',
+                                  vectorize=True, dask='allowed',
                                   output_dtypes=[float])
-        uwnd_sfc = uwnd_sfc.unstack('cell').compute()
 
         return uwnd_xpv.squeeze() - uwnd_sfc.where(self.hemis)
 
