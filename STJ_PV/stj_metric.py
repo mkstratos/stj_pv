@@ -250,17 +250,21 @@ class STJPV(STJMetric):
                                    self.data.ipv.where(self.hemis).sel(**subset),
                                    pv_lev, levname=lev_name, newlevname='pv')
 
-        ushear = self._get_max_shear(uwnd_xpv.squeeze())
-        return theta_xpv.squeeze(), uwnd_xpv.squeeze(), ushear
+        ushear = self._get_max_shear(uwnd_xpv.squeeze(dim='pv'))
+        return theta_xpv.squeeze(dim='pv'), uwnd_xpv.squeeze(dim='pv'), ushear
 
-    def find_jet(self, shemis=True):
+    def find_jet(self, shemis=True, debug=False):
         """
         Find the subtropical jet using input parameters.
 
         Parameters
         ----------
         shemis : logical, optional
-            If True, find jet position in Southern Hemisphere, if False, find N.H. jet
+            If True, find jet position in Southern Hemisphere,
+            If False, find N.H. jet
+        debug : logical, optional
+            Enter debug mode if true, returns d(theta) / d(lat) values,
+            polynomial fit, and jet latitude
 
         """
         if shemis and self.pv_lev < 0 or not shemis and self.pv_lev > 0:
@@ -292,11 +296,15 @@ class STJPV(STJMetric):
         # arguments _theta, _theta.lat, and _shear are passed to self.find_single_jet
         # with that dimension intact. The kwargs argument passes keyword args to the
         # self.find_single_jet
-        jet_lat = xr.apply_ufunc(self.find_single_jet, _theta, _theta[vlat], _shear,
-                                 input_core_dims=[[vlat], [vlat], [vlat]],
-                                 vectorize=True, dask='allowed',
-                                 kwargs={'extrema': extrema},
-                                 output_dtypes=[float])
+        if not debug:
+            jet_lat = xr.apply_ufunc(self.find_single_jet, _theta,
+                                     _theta[vlat], _shear,
+                                     input_core_dims=[[vlat], [vlat], [vlat]],
+                                     vectorize=True, dask='allowed',
+                                     kwargs={'extrema': extrema})
+        else:
+            dtheta, theta_fit, jet_lat = self._debug_jet_loop(_theta, _shear,
+                                                              extrema)
 
         # Select the data for level and intensity by the latitudes generated
         jet_theta = theta_xpv.sel(**{vlat: jet_lat})
@@ -324,6 +332,53 @@ class STJPV(STJMetric):
         self.out_data['theta_{}'.format(hem_s)] = jet_theta
         self.out_data['lat_{}'.format(hem_s)] = jet_lat
 
+        if debug:
+            output = dtheta, theta_fit, _theta, jet_lat
+        else:
+            output = None
+
+        return output
+
+    def _debug_jet_loop(self, _theta, _shear, extrema):
+        """Loop over each time/lon in _theta rather than xarray.apply_ufunc."""
+        dims = _theta.shape
+        tht_fit_shape = (self.props['fit_deg'] + 1, dims[0], dims[-1])
+        dtheta = np.zeros(dims)
+        theta_fit = np.zeros(tht_fit_shape)
+        jet_lat = np.zeros((dims[0], dims[-1]))
+
+        lat = _theta[self.data.cfg['lat']].values
+
+        dims_names = (self.data.cfg['time'], self.data.cfg['lon'])
+        coords = {dim_name: _theta[dim_name] for dim_name in dims_names}
+
+        _theta = _theta.compute()
+        _shear = _shear.compute()
+
+        for tix in range(dims[0]):
+            for xix in range(dims[-1]):
+                # Find derivative of dynamical tropopause
+                _info = self.find_single_jet(_theta[tix, :, xix].values, lat,
+                                             _shear[tix, :, xix].values,
+                                             extrema, debug=True)
+                jet_lat[tix, xix] = _info[0]
+                dtheta[tix, :, xix] = _info[2]
+                theta_fit[:, tix, xix] = _info[3][0]
+
+        jet_lat = xr.DataArray(jet_lat, coords=coords, dims=dims_names)
+
+        _dims = (self.data.cfg['time'], self.data.cfg['lat'], self.data.cfg['lon'])
+        _coords = {dim_name: _theta[dim_name] for dim_name in _dims}
+        dtheta = xr.DataArray(dtheta, coords=_coords, dims=_dims)
+
+        _dims = (_dims[0], _dims[-1])
+        _coords = {dim_name: _theta[dim_name] for dim_name in _dims}
+        _coords['deg'] = np.arange(theta_fit.shape[0])
+        _dims = ('deg', *_dims)
+        theta_fit = xr.DataArray(theta_fit, coords=_coords, dims=_dims)
+
+        return dtheta, theta_fit, jet_lat
+
     def _get_max_shear(self, uwnd_xpv):
         """Get maximum wind-shear between surface and PV surface."""
         # Our zonal wind data is on isentropic levels. Lower levels are bound to be below
@@ -334,7 +389,7 @@ class STJPV(STJMetric):
                                   vectorize=True, dask='allowed',
                                   output_dtypes=[float])
 
-        return uwnd_xpv.squeeze() - uwnd_sfc.where(self.hemis)
+        return uwnd_xpv - uwnd_sfc.where(self.hemis)
 
     def find_single_jet(self, theta_xpv, lat, ushear, extrema, debug=False):
         """

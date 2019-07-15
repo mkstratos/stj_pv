@@ -5,6 +5,7 @@ Module containing classes for diagnoistic variable calculation and diagnoistic p
 import os
 import datetime as dt
 import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 from mpl_toolkits import basemap
 
@@ -52,11 +53,16 @@ class DiagPlots(object):
         date : A :class:`datetime.datetime` instance to select and plot
 
         """
-        data = input_data.InputData(self.props, date_s=date, date_e=date)
-        data.get_data_input()
+        data = input_data.InputDataSTJPV(self.props, date_s=date, date_e=date)
+        data = data.get_data()
         self.stj = self.metric(self.props, data)
+        vlat = self.props.data_cfg['lat']
+        vlon = self.props.data_cfg['lon']
+
         tix = 0
         zix = 6
+        lat_idx = xr.DataArray(np.arange(data[vlat].shape[0]),
+                               dims=[vlat], coords={vlat: data[vlat]})
 
         fig = plt.figure(figsize=self._get_figsize(width=129))
         axes = [plt.subplot2grid((3, 4), (0, 0), rowspan=2, colspan=2),
@@ -87,12 +93,13 @@ class DiagPlots(object):
         # Add plot of zmzw as function of latitude
         axes[3].spines['right'].set_color('none')
         axes[3].spines['top'].set_color('none')
-        _, map_y = pmap(*np.meshgrid(data.lon, data.lat))
+        _, map_y = pmap(*np.meshgrid(data[vlon], data[vlat]))
 
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0],
                      '#fc4f30', lw=1.5 * self.fig_mult)
 
-        for hidx, lati in enumerate(self.jet_info['jet_idx']):
+        for hidx, jet_pos in enumerate(self.jet_info['jet_lat']):
+            lati = lat_idx.sel(**{vlat: jet_pos}, method='nearest').values
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.8 * self.fig_mult)
             # Mean vs. median
             # lat_median = np.ma.mean(self.jet_info['lat_all'][hidx][tix])
@@ -107,11 +114,11 @@ class DiagPlots(object):
 
             x_loc = axes[3].get_xlim()[-1]
             y_loc = map_y[lati, 0] * 1.03
-            axes[3].text(x_loc, y_loc, '{:.1f}'.format(data.lat[lati]),
+            axes[3].text(x_loc, y_loc, '{:.1f}'.format(data[vlat][lati].values),
                          verticalalignment='bottom', horizontalalignment='left')
 
-        axes[3].tick_params(left='on', labelleft='on', labeltop='off', right='off',
-                            labelright='off')
+        axes[3].tick_params(left=True, labelleft=True, labeltop=False, right=False,
+                            labelright=False)
         axes[3].ticklabel_format(axis='y', style='plain')
         ytick_lats = np.arange(-60, 60 + 30, 30)
         _, yticks = pmap(np.zeros(ytick_lats.shape), ytick_lats)
@@ -149,7 +156,7 @@ class DiagPlots(object):
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
         out_file = ('plt_stj_diag_{}_{:.0f}K_{}'
                     .format(self.props.data_cfg['short_name'],
-                            data.th_lev[zix], date.strftime('%Y-%m-%d')))
+                            data['level'][zix].values, date.strftime('%Y-%m-%d')))
         out_file = out_file.replace('.', 'p')
         plt.savefig('{}.{}'.format(out_file, EXTN))
         plt.clf()
@@ -160,58 +167,50 @@ class DiagPlots(object):
         Plots zonal mean jet diagnostic picture.
         """
         lwid = 2.0 * self.fig_mult
-
+        vlat = self.props.data_cfg['lat']
+        vlev = self.props.data_cfg['lev']
+        vlon = self.props.data_cfg['lon']
         dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
-        jet_pos = np.ma.mean(select[tix, :]).astype(int)
+        jet_pos = select[tix, :].mean(dim=self.props.data_cfg['lon'])
 
         # Append the list of jet latitude at each longitude in this hemisphere
-        self.jet_info['lat_all'].append(lat[select.astype(int)])
+        self.jet_info['lat_all'].append(select[tix])
         # Append the median jet latitude in this hemisphere to the list
-        self.jet_info['jet_lat'].append(lat[jet_pos])
+        self.jet_info['jet_lat'].append(jet_pos)
         # Append the index of this hemisphere's jet on the full set of latitudes
-        self.jet_info['jet_idx'].append(list(data.lat).index(lat[jet_pos]))
+        # self.jet_info['jet_idx'].append(list(data.lat).index(lat[jet_pos]))
 
         # Evaluate the polynomial fit of the pv surface for plotting
-        theta_fit_eval = self.stj.peval(lat[y_s:y_e], theta_fit)
+        theta_fit_eval = self.stj.peval(lat.values, theta_fit.values)
+        theta_fit_eval = xr.DataArray(theta_fit_eval, dims=('time', vlon, vlat),
+                                      coords={dimn: theta_xpv[dimn]
+                                              for dimn in ['time', vlon, vlat]})
 
         # Find the zonal mean zonal wind for this hemisphere
-        uwnd_hemis = np.mean(data.uwnd[self.stj.hemis], axis=-1)[tix, ...]
+        uwnd_hemis = np.mean(data.uwnd.where(self.stj.hemis), axis=-1)[tix, ...]
 
         # Make contour plot (theta vs. lat) of zmzw
-        axes[hidx].contourf(lat, data.th_lev, uwnd_hemis, self.contours,
-                            cmap='RdBu_r', extend='both')
+        axes[hidx].contourf(uwnd_hemis[vlat], uwnd_hemis[vlev],
+                            uwnd_hemis, self.contours, cmap='RdBu_r', extend='both')
+
+        # Plot Mean theta fit
+        theta_fit_zm = theta_fit_eval.mean(dim=vlon)
+        axes[hidx].plot(theta_fit_zm[vlat], theta_fit_zm.squeeze(), 'C0-',
+                        label=r'$\theta_{%i}$ Fit' % self.props.config['pv_value'],
+                        lw=lwid)
 
         # Plot mean theta profile
-        axes[hidx].plot(lat, np.mean(theta_xpv[tix, ...], axis=-1), 'k.',
+        axes[hidx].plot(theta_xpv[vlat], theta_xpv[tix].mean(dim=vlon), 'k.',
                         ms=2.0 * self.fig_mult,
                         label=r'$\theta_{%i}$' % self.props.config['pv_value'])
 
-        # Plot Mean theta fit
-        axes[hidx].plot(lat[y_s:y_e], np.mean(theta_fit_eval[tix, ...], axis=0), 'C0-',
-                        label=r'$\theta_{%i}$ Fit' % self.props.config['pv_value'],
-                        lw=lwid)
-        if y_s is not None:
-            axes[hidx].plot(lat[jet_pos],
-                            np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos - y_s],
-                            'C0o', ms=5 * self.fig_mult, label='Jet')
-        else:
-            axes[hidx].plot(lat[jet_pos],
-                            np.mean(theta_fit_eval[tix, ...], axis=0)[jet_pos],
-                            'C0o', ms=5 * self.fig_mult, label='Jet')
+        axes[hidx].plot(jet_pos, theta_fit_zm.sel(**{vlat: jet_pos.drop('time')},
+                                                  method='nearest'),
+                        'C0o', ms=5 * self.fig_mult, label='Jet')
 
         # Duplicate the axis
         ax2 = axes[hidx].twinx()
-
-        # Plot meridional derivative of theta on X PVU, have to use a correction for
-        # y_e since the y-derivitive is shifted
-        if y_e is not None:
-            y_s_dth = 1
-            y_e_dth = y_e - 1
-        else:
-            y_s_dth = None
-            y_e_dth = y_e
-
-        ax2.plot(lat[y_s:y_e_dth], np.ma.mean(dtheta[tix, y_s_dth:, ...], axis=-1),
+        ax2.plot(dtheta[vlat], dtheta[tix].mean(dim=vlon),
                  'C2--', label=r'$\partial\theta_{%i}/\partial\phi$' %
                  self.props.config['pv_value'], lw=lwid)
 
@@ -226,28 +225,35 @@ class DiagPlots(object):
 
         # Set hemisphere specific plotting parameters
         if hidx == 0:
-            axes[hidx].set_xlim([lat.min(), 0])
             axes[hidx].spines['right'].set_color('none')
             ax2.spines['right'].set_color('none')
-            ax2.tick_params(right='off', labelright='off')
+            ax2.tick_params(right=False, labelright=False)
             lat_labels = np.arange(-90, 30, 30)
         else:
-            axes[hidx].set_xlim([0, lat.max()])
             axes[hidx].spines['left'].set_color('none')
             ax2.spines['left'].set_color('none')
-            axes[hidx].tick_params(left='off', labelleft='off')
+            axes[hidx].tick_params(left=False, labelleft=False)
             lat_labels = np.arange(30, 90 + 30, 30)
 
-        axes[hidx].tick_params(bottom='off', labelbottom='off',
-                               top='on', labeltop='on')
+        axes[hidx].tick_params(bottom=False, labelbottom=False,
+                               top=True, labeltop=True)
 
         axes[hidx].set_xticks(lat_labels)
         axes[hidx].set_xticklabels([u'{}\u00B0'.format(lati) for lati in lat_labels],
                                    fontdict={'usetex': True})
 
         axes[hidx].grid(b=False)
+        # Set the axis limits for hemisphere correctly
+        for axis in [axes[hidx], ax2]:
+            if hidx == 0:
+                lims = [-90, 0]
+            else:
+                lims = [0, 90]
+            axis.set_xlim(lims)
+
         ax2.grid(b=False)
-        print('Jet at: {}'.format(lat[jet_pos]))
+        print('Jet at: {:.1f}'.format(jet_pos.values))
+        # import pdb;pdb.set_trace()
         return ax2
 
     def plot_uwnd(self, data, axis, index, map_zm=True):
@@ -269,7 +275,10 @@ class DiagPlots(object):
             Contour fill object from map
 
         """
-        if data.lon[0] == 0 or data.lon[0] == 360.0:
+        vlon = self.props.data_cfg['lon']
+        vlat = self.props.data_cfg['lat']
+
+        if data[vlon][0] == 0 or data[vlon][0] == 360.0:
             # If longitude is 0 - 360 then centre longitude is 180
             lon_0 = 180.0
         else:
@@ -277,23 +286,25 @@ class DiagPlots(object):
             lon_0 = 0.0
 
         tix, zix = index
-        pmap = basemap.Basemap(projection='eck4', lon_0=lon_0, resolution='c', ax=axis)
+        pmap = basemap.Basemap(projection='cyl', lon_0=lon_0, resolution='c', ax=axis)
         # pmap = basemap.Basemap(projection='kav7', lon_0=lon_0, resolution='c')
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
 
-        if data.lon.min() < 0:
-            uwnd = data.uwnd[tix, zix, ...]
-            lon = data.lon
-        else:
-            uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...], data.lon)
+        #if data[vlon].min() < 0:
+        uwnd = data.uwnd[tix, zix, ...].values
+        lon = data[vlon].values
+        #else:
+        #    uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...].values,
+        #                                  data[vlon].values)
+        lat = data[vlat]
 
-        map_x, map_y = pmap(*np.meshgrid(lon, data.lat))
+        map_x, map_y = pmap(*np.meshgrid(lon, lat))
 
         cfill = pmap.contourf(map_x, map_y, uwnd, self.contours,
                               cmap='RdBu_r', ax=axis, extend='both')
 
-        pmap.drawcoastlines(ax=axis, linewidth=0.5)
+        pmap.drawcoastlines(ax=axis, linewidth=0.5, color='grey')
         lat_spc = 30
         lon_spc = 60
         line_props = {'ax': axis, 'linewidth': 0.1, 'dashes': [3, 10]}
@@ -312,7 +323,12 @@ class DiagPlots(object):
                                linewidth=1.5, ax=axis)
         else:
             for hidx in [0, 1]:
-                xpt, ypt = pmap(data.lon, self.jet_info['lat_all'][hidx][tix])
+                if len(self.jet_info['lat_all'][hidx]) == data[vlon].shape[0]:
+                    xpt, ypt = pmap(data[vlon].values,
+                                    self.jet_info['lat_all'][hidx].values)
+                else:
+                    xpt, ypt = pmap(data[vlon].values,
+                                    self.jet_info['lat_all'][hidx][tix].values)
                 pmap.plot(xpt, ypt, 'ko', ms=1.8, ax=axis)
 
         return cfill, pmap
@@ -320,55 +336,12 @@ class DiagPlots(object):
     def _jet_details(self, shemis=True):
         """Get Jet details using :py:meth:`~STJ_PV.stj_metric.STJPV` API for a hemisphere.
         """
+        dtheta, theta_fit, theta_xpv, select = self.stj.find_jet(shemis, debug=True)
+        lat = theta_xpv[self.props.data_cfg['lat']]
+        y_s = None
+        y_e = None
+
         # --------------------- Code from STJMetric.find_jet() --------------------- #
-        if shemis and self.stj.pv_lev < 0 or not shemis and self.stj.pv_lev > 0:
-            pv_lev = np.array([self.stj.pv_lev])
-        else:
-            pv_lev = -1 * np.array([self.stj.pv_lev])
-
-        lat, _, extrema = self.stj.set_hemis(shemis)
-        if 'theta_s' in self.props.data_cfg and 'theta_e' in self.props.data_cfg:
-            theta_bnds = (self.props.data_cfg['theta_s'], self.props.data_cfg['theta_e'])
-        else:
-            theta_bnds = None
-
-        if theta_bnds is not None:
-            print('restrict theta: {} {}'.format(*theta_bnds))
-
-        theta_xpv, _, ushear = self.stj.isolate_pv(pv_lev, theta_bnds)
-        if theta_xpv.ndim == 2:
-            # Increase dimensionality of theta_xpv so it has a time dimension
-            # this makes the same method work if only a single time period is available
-            theta_xpv = theta_xpv[None, ...]
-        dims = theta_xpv.shape
-
-        # ----------------- Code from STJMetric.find_single_jet() ----------------- #
-        # Restrict interpolation domain to a "reasonable" subset using a minimum latitude
-        y_s = np.abs(np.abs(lat) - self.props.config['min_lat']).argmin()
-        y_e = np.abs(np.abs(lat) - self.props.config['max_lat']).argmin()
-
-        # If latitude is in decreasing order, switch start & end
-        # This makes sure we're selecting the latitude nearest the equator
-        if abs(lat[0]) > abs(lat[-1]):
-            y_s, y_e = y_e, y_s
-        dims_fit = theta_xpv[:, y_s:y_e, :].shape
-        tht_fit_shape = (self.props.config['fit_deg'] + 1, dims_fit[0], dims_fit[-1])
-        dtheta = np.zeros(dims_fit)
-        theta_fit = np.zeros(tht_fit_shape)
-        select = np.zeros((dims_fit[0], dims_fit[-1]))
-
-        for tix in range(dims[0]):
-            for xix in range(dims[-1]):
-                # Find derivative of dynamical tropopause
-                jet_info = self.stj.find_single_jet(theta_xpv[tix, :, xix], lat,
-                                                    ushear[tix, :, xix], extrema,
-                                                    debug=True)
-
-                select[tix, xix] = jet_info[0]
-                dtheta[tix, :, xix] = jet_info[2]
-                theta_fit[:, tix, xix] = jet_info[3][0]
-                y_s, y_e = jet_info[-2:]
-
         return dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e
 
 
