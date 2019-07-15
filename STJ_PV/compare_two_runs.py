@@ -47,20 +47,13 @@ class FileDiag(object):
                     for var in self.vars] for hem in hems]
         dframes_tmp = []
         for frames in dframes:
-            metric_hem = None
-            for frame in frames:
-                # Add a time column so that the merge works
-                frame['time'] = frame.index
-                if metric_hem is None:
-                    metric_hem = frame
-                else:
-                    metric_hem = metric_hem.merge(frame)
-
+            metric_hem = pd.concat(frames, sort=True)
             dframes_tmp.append(metric_hem)
         metric = dframes_tmp[0].append(dframes_tmp[1])
 
         if len(hems) == 3:  # If eq is also wanted
             metric = metric.append(dframes_tmp[2])
+        metric['time'] = metric.index
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
