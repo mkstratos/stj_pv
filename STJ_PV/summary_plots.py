@@ -234,7 +234,8 @@ if __name__ == '__main__':
     DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
                 'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV',
                 'MERRA_MONTHLY_STJPV', 'MERRA_DAILY_STJPV',
-                'JRA55_DAILY_STJPV']
+                'JRA55_DAILY_STJPV', 'CFSR_DAILY_THETA_STJPV',
+                'CFSR_MONTHLY_THETA_STJPV']
 
     #for RNAME in DATASETS[1:]:
     #    main(run_name=RNAME)

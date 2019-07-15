@@ -20,9 +20,8 @@ import yaml
 import STJ_PV.stj_metric as stj_metric
 import STJ_PV.input_data as inp
 
+from dask.distributed import Client
 
-np.seterr(all='ignore')
-warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 CFG_DIR = pkg_resources.resource_filename('STJ_PV', 'conf')
 
 
@@ -413,6 +412,8 @@ def make_parse():
                         help='Perform a parameter sensitivity run',
                         default=False)
 
+    parser.add_argument('--warn', action='store_true',
+                        help='Show all warning messages', default=False)
     args = parser.parse_args()
     return args
 
@@ -434,14 +435,16 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_jra55_theta_mon.yml'.format(CFG_DIR))
 
         # Four main choices
-        jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
+
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_cfsr_monthly.yml'.format(CFG_DIR))
 
         # U-Max
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
@@ -467,4 +470,19 @@ def main(sample_run=True, sens_run=False):
 
 if __name__ == "__main__":
     ARGS = make_parse()
+    if not ARGS.warn:
+        # Running with --warn will display all warnings, which includes the
+        # warnings explicitly silenced below, otherwise, only warnings
+        # that haven't been planned for show up
+        np.seterr(all='ignore')
+        # This will occur for some polynomial fits were only a few points are valid
+        # which is dealt with in other ways
+        warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
+
+        # Ignore Runtime Warnings like:
+        # ...dask/core.py:119: RuntimeWarning: invalid value encountered in greater
+        # This occurs because not all points are valid, so dask/xarray warn, but this
+        # is expected since isentropic and isobaric surfaces frequently go below ground
+        warnings.simplefilter('ignore', RuntimeWarning)
+
     main(sample_run=ARGS.sample, sens_run=ARGS.sens)
