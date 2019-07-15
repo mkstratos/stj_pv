@@ -92,17 +92,20 @@ class InputData:
         # dimension
         time_chunk = shape[0]
         lon_chunk = shape[-1]
-
         # If there are more than 1 million points, chunk the data
         # but prefer to chunk via time, since most of computations deal
         # with gradients in x / y / z coordinates
         if npoints_all > 1e6:
-            time_chunk = 1 + (1e6 // np.prod(shape[1:]))
-            self.chunk[self.data_cfg['time']] = time_chunk
-
-        if time_chunk * np.prod(shape[1:]) > 3e6:
-            lon_chunk = 1 + (1e6 // (np.prod(shape[1:-1] * time_chunk)))
+            # lon_chunk = int(1 + (1e7 / np.prod(shape[:-1])))
+            lon_chunk = shape[-1] // 6
             self.chunk[self.data_cfg['lon']] = lon_chunk
+            self.props.log.info('CHUNKING LON DATA %d', lon_chunk)
+
+        if lon_chunk * np.prod(shape[:-1]) > 3e6:
+            # time_chunk = 1 + (1e7 // np.prod(shape[1:]))
+            time_chunk = shape[0] // 1
+            self.chunk[self.data_cfg['time']] = time_chunk
+            self.props.log.info('CHUNKING TIME DATA %d', time_chunk)
 
     def _load_one_file(self, var, file_var=None):
         """Load a single netCDF file as an xarray.Dataset."""
@@ -127,7 +130,7 @@ class InputData:
             nc_file = package_data(cfg['path'], file_name)
 
         self.in_data[var] = nc_file[vname].sel(**self.sel)
-        if not all([self.chunk[var] is None for var in self.chunk]):
+        if all([self.chunk[var] is None for var in self.chunk]):
             self._set_chunks(self.in_data[var].shape)
 
         self._chunk_data(var)
