@@ -187,7 +187,7 @@ class DiagPlots(object):
                                               for dimn in ['time', vlon, vlat]})
 
         # Find the zonal mean zonal wind for this hemisphere
-        uwnd_hemis = np.mean(data.uwnd.where(self.stj.hemis), axis=-1)[tix, ...]
+        uwnd_hemis = data.uwnd.where(self.stj.hemis).mean(dim=vlon)[tix, ...]
 
         # Make contour plot (theta vs. lat) of zmzw
         axes[hidx].contourf(uwnd_hemis[vlat], uwnd_hemis[vlev],
@@ -291,12 +291,8 @@ class DiagPlots(object):
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
 
-        #if data[vlon].min() < 0:
         uwnd = data.uwnd[tix, zix, ...].values
         lon = data[vlon].values
-        #else:
-        #    uwnd, lon = basemap.addcyclic(data.uwnd[tix, zix, ...].values,
-        #                                  data[vlon].values)
         lat = data[vlat]
 
         map_x, map_y = pmap(*np.meshgrid(lon, lat))
