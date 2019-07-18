@@ -427,6 +427,9 @@ def xrvinterp(data, vcoord, vlevs, levname, newlevname):
     _dims[lix] = newlevname
     intp = intp.transpose(*_dims)
 
+    # Use where to mask out values that are extrapolated
+    intp = intp.where(intp <= data.max()).where(intp >= data.min())
+
     return intp
 
 
