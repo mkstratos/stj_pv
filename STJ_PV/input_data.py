@@ -3,6 +3,7 @@
 import os
 import numpy as np
 import pkg_resources
+import datetime as dt
 import xarray as xr
 # Dependent code
 import STJ_PV.utils as utils
@@ -130,6 +131,23 @@ class InputData:
             nc_file = package_data(cfg['path'], file_name)
 
         self.in_data[var] = nc_file[vname].sel(**self.sel)
+        _fails = 0
+        while self.in_data[var][cfg['time']].shape[0] == 0 and _fails < 15:
+            # Update the time slice so that it covers potential mis-match
+            # between how days are requested and how they're stored in the
+            # netCDF file (e.g. ask for 2013-07-14 00:00, but the netCDF
+            # file has 2013-07-14 09:00)
+            _day = dt.timedelta(hours=23)
+            self.sel[cfg['time']] = slice(self.sel[cfg['time']].start,
+                                          self.sel[cfg['time']].stop + _day)
+            self.in_data[var] = nc_file[vname].sel(**self.sel)
+            self.props.log.info('UPDATING TIME SLICE BY 1 DAY %s',
+                                (self.sel[cfg['time']].stop
+                                 .strftime('%Y-%m-%d %HZ')))
+
+            # Iterate, but don't get stuck here
+            _fails += 1
+
         if all([self.chunk[var] is None for var in self.chunk]):
             self._set_chunks(self.in_data[var].shape)
 
