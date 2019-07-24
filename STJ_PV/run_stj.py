@@ -221,11 +221,13 @@ class JetFindRun:
 
                 for shemis in [True, False]:
                     jet.find_jet(shemis)
+                jet.compute()
 
                 if year == date_s.year:
                     jet_all = jet
                 else:
                     jet_all.append(jet)
+                jet_all.save_jet()
         else:
             data = self._get_data(date_s, date_e)
             jet_all = self.metric(self, data)
@@ -233,9 +235,12 @@ class JetFindRun:
                 jet_all.find_jet(shemis)
 
         if save:
+            _out = None
             jet_all.save_jet()
         else:
-            return jet_all
+            _out = jet_all
+
+        return _out
 
     def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
         """
@@ -443,14 +448,14 @@ def main(sample_run=True, sens_run=False):
 
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
-        # jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_cfsr_monthly.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_cfsr_monthly.yml'.format(CFG_DIR))
 
         # U-Max
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
 
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(2017, 12, 31)
+        date_e = dt.datetime(2018, 12, 31)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
