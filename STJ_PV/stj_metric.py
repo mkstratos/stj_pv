@@ -49,6 +49,12 @@ class STJMetric(object):
         self.debug_data = {}
         self.plot_idx = 0
 
+    def _drop_vars(self, out_var):
+        """Drop coordinate variables that may not match."""
+        for drop_var in ['pv', self.data.cfg['lat']]:
+            if drop_var in self.out_data[out_var].coords:
+                self.out_data[out_var] = self.out_data[out_var].drop(drop_var)
+
     def save_jet(self):
         """Save jet position to file."""
         # Setup metadata for output variables
@@ -64,9 +70,8 @@ class STJMetric(object):
 
         for out_var in self.out_data:
             # Clean up dimension labels
-            for drop_var in ['pv', self.data.cfg['lat']]:
-                if drop_var in self.out_data[out_var].coords:
-                    self.out_data[out_var] = self.out_data[out_var].drop(drop_var)
+            self._drop_vars(out_var)
+
             prop_name = out_var.split('_')[0]
             self.out_data[out_var] = self.out_data[out_var].assign_attrs(props[prop_name])
 
@@ -75,6 +80,16 @@ class STJMetric(object):
         file_attrs = {'commit-id': GIT_ID, 'run_props': yaml.safe_dump(self.props)}
         out_dset = out_dset.assign_attrs(file_attrs)
         out_dset.to_netcdf(self.props['output_file'] + '.nc')
+
+    def compute(self):
+        """Compute all dask arrays in `self.out_data`."""
+        for vname in self.out_data:
+            self._drop_vars(vname)
+            try:
+                self.out_data[vname] = self.out_data[vname].compute()
+            except (AttributeError, TypeError):
+                self.props.log.info('Compute fail data at %s not dask array it is %s',
+                                    vname, type(self.out_data[vname]))
 
     def append(self, other):
         """Append another metric's intensity, latitude, and theta positon to this one."""
