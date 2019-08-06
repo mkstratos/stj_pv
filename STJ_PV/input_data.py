@@ -87,7 +87,7 @@ class InputData:
         """Re-chunk input data to ideal size."""
         self.in_data[var] = self.in_data[var].chunk(self.chunk)
 
-    def _set_chunks(self, shape):
+    def __set_chunks__(self, shape):
         npoints_all = np.prod(shape)
         # This assumes that time is first dimension, longitude is last
         # dimension
@@ -107,6 +107,34 @@ class InputData:
             time_chunk = shape[0] // 1
             self.chunk[self.data_cfg['time']] = time_chunk
             self.props.log.info('CHUNKING TIME DATA %d', time_chunk)
+
+    def _set_chunks(self, data, excldim='lat'):
+        """Get ideal-ish chunks in a different way."""
+        shape = data.shape
+        npoints = np.prod(shape)
+        excl_n = self.data_cfg[excldim]
+        dims = [coord for coord in data.coords
+                if coord in data.dims and coord != excl_n]
+        chunks = {dim: data[dim].shape[0] for dim in dims}
+        divis = {dim: 1 for dim in dims}
+        n_iter = 0
+
+        while npoints > 1.0e6 and n_iter < 10:
+            _pts = data[excl_n].shape[0]
+            for dim in dims:
+                divis[dim] *= 2
+                _pts *= chunks[dim] // divis[dim]
+            npoints = _pts
+            n_iter += 1
+        self.props.log.info(f'  Chunking took {n_iter} iterations')
+        chunks_out = {dim: chunks[dim] // divis[dim] for dim in dims}
+        chunks_out[excl_n] = data[excl_n].shape[0]
+
+        for dim in chunks_out:
+            self.props.log.info(f'    - {dim}: {chunks_out[dim]}')
+        self.props.log.info(f'  Chunk size: {npoints}')
+
+        self.chunk = chunks_out
 
     def _load_one_file(self, var, file_var=None):
         """Load a single netCDF file as an xarray.Dataset."""
@@ -149,7 +177,7 @@ class InputData:
             _fails += 1
 
         if all([self.chunk[var] is None for var in self.chunk]):
-            self._set_chunks(self.in_data[var].shape)
+            self._set_chunks(self.in_data[var])
 
         self._chunk_data(var)
 
