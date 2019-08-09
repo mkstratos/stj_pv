@@ -214,10 +214,9 @@ class InputDataSTJPV(InputData):
         # Shorthand for configuration dictionary
         cfg = self.data_cfg
         dimvars = {cvar: cfg[cvar] for cvar in ['time', 'lev', 'lat', 'lon']}
-        if self.in_data is None:
+        if not self.in_data:
             self._load_data()
         self.props.log.info('Starting IPV calculation')
-
         # calculate IPV
         if cfg['ztype'] == 'pres':
             if 'epv' not in self.in_data:
@@ -234,10 +233,13 @@ class InputDataSTJPV(InputData):
                 thta = utils.xrtheta(self.in_data['tair'], pvar=cfg['lev'])
                 ipv = utils.xrvinterp(self.in_data['epv'], thta,
                                       self.props.th_levels,
-                                      levname=cfg['lev'], newlevname='theta')
+                                      levname=cfg['lev'],
+                                      newlevname=cfg['lev'])
+
                 uwnd = utils.xrvinterp(self.in_data['uwnd'], thta,
                                        self.props.th_levels,
-                                       levname=cfg['lev'], newlevname='theta')
+                                       levname=cfg['lev'],
+                                       newlevname=cfg['lev'])
 
             self.out_data['ipv'] = ipv
             self.out_data['uwnd'] = uwnd
@@ -257,8 +259,8 @@ class InputDataSTJPV(InputData):
                       'standard_name': 'zonal_wind_component',
                       'descr': 'Zonal wind on isentropic levels'}
 
-        self.out_data['ipv'].assign_attrs(ipv_attrs)
-        self.out_data['uwnd'].assign_attrs(uwnd_attrs)
+        self.out_data['ipv'] = self.out_data['ipv'].assign_attrs(ipv_attrs)
+        self.out_data['uwnd'] = self.out_data['uwnd'].assign_attrs(uwnd_attrs)
         self.props.log.info('Finished calculating IPV')
 
     def _load_ipv(self):
@@ -277,6 +279,22 @@ class InputDataSTJPV(InputData):
         self.out_data = self.in_data
         self.th_lev = self.in_data['ipv'][self.data_cfg['lev']]
 
+    def _write_ipv(self):
+        """Write generated IPV data to file."""
+        pv_file_name = (self.data_cfg['file_paths']['ipv']
+                        .format(year=self.year))
+        pv_file = os.path.join(self.data_cfg['wpath'], pv_file_name)
+        self.props.log.info('WRITING PV FILE %s', pv_file)
+        encoding = {'zlib': True, 'complevel': 9}
+
+        dsout = xr.Dataset(self.out_data)
+        dsout[self.data_cfg['lev']] = dsout[self.data_cfg['lev']].assign_attrs(
+                {'units': 'K', 'standard_name': 'potential_temperature'}
+        )
+        dsout.encoding = dict((var, encoding) for var in dsout.data_vars)
+        dsout.to_netcdf(pv_file, encoding=dsout.encoding)
+        self.props.log.info('DONE WRITING PV FILE')
+
     def get_data(self):
         """Load and compute required data, return xarray.Dataset."""
         if 'force_write' in self.props.config:
@@ -287,7 +305,8 @@ class InputDataSTJPV(InputData):
         if self._find_pv_update():
             self._calc_ipv()
             if self.sel[self.data_cfg['time']] == slice(None) or force_write:
-                self.write_data()
+                self._write_ipv()
+
         else:
             self._load_ipv()
 
