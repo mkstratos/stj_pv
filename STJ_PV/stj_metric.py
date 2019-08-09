@@ -599,7 +599,7 @@ class STJDavisBirner(STJMetric):
 
             #find the maximum zonal wind in the layer
             uzonal = uwnd_p[tix, :, :].mean(axis=-1)
-            stjp, stji = self.find_max_wind_surface(uzonal, pres, lat, shemis)
+            stjp, stji = self.find_max_wind_surface(uzonal, pres, lat, shemis, tix)
             
             self.jet_lat[hidx, tix]    = stjp
             self.jet_intens[hidx, tix] = stji
@@ -607,7 +607,7 @@ class STJDavisBirner(STJMetric):
             #None of this has been interpolated. Should it be?
 
         
-    def find_max_wind_surface(self,  uzonal, pres, lat, shemis):
+    def find_max_wind_surface(self,  uzonal, pres, lat, shemis, tix):
         # find the max wind surface and then keep the most equatorward latitude
        if shemis:   
            lat_valid_idx = np.where(lat < -15)[0] # I had to increase this to remove false hits
@@ -631,15 +631,35 @@ class STJDavisBirner(STJMetric):
        stj_lat    = lat[lat_valid_idx][lat_idx]
        stj_intens = max_wind_surface[lat_idx]
 
-       test_plot = False
+       test_plot = True
        if test_plot:
            #run the code for a given year and see the location
            print("jet intensity is: ", stj_intens)
            import matplotlib.pyplot as plt
-           plt.plot(lat[lat_valid_idx], max_wind_surface)
-           plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
-           plt.show()
-       
+
+           plot_line = False
+
+           if shemis:
+              hem = 'SH'
+              if stj_lat < -30.:
+                plot_line = True
+           else:
+              hem = 'NH'
+              if tix == 0:
+                  plt.close()
+              if stj_lat > 30.:
+                  plot_line = True
+
+           if plot_line:
+               plt.plot(lat[lat_valid_idx], max_wind_surface)
+               plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
+
+           if tix == 11:
+               plt.title(hem)
+               filename = ('test_davis_{0}.png').format(hem)
+               plt.savefig(filename)
+
+           #plt.show()
 
        return stj_lat, stj_intens
 
