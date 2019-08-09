@@ -444,6 +444,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
 
         # U-Max
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
