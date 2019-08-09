@@ -512,7 +512,9 @@ class STJDavisBirner(STJMetric):
     """
     Subtropical jet position metric using the method of Davis and Birner 2016.
        "Climate Model Biases in the Width of the Tropical Belt
-        Parameters"
+        Parameters".
+    The logic for the method is to subtract the surface wind and then find the
+    max in the upper level wind.
     ----------
     props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
         Class containing properties about the current search for the STJ
@@ -582,7 +584,7 @@ class STJDavisBirner(STJMetric):
             uwnd_p = self.data.uwnd[self.hemis][:, wh_upper[0]:wh_lower[0]+1,...]
             pres = self.data.lev[wh_upper[0]:wh_lower[0]+1]
 
-        # Remove the surface wind
+        # Subtract the surface wind from the wind in 400-100 layer
         wh_surf  = np.where(self.data.lev == self.surf_p_level)[0]
         for pidx in range(uwnd_p.shape[1]):
             uwnd_p[:,pidx,...] = np.squeeze(uwnd_p[:,pidx,...] - self.data.uwnd[self.hemis][:,wh_surf[0],...])
@@ -595,13 +597,14 @@ class STJDavisBirner(STJMetric):
                 self.log.info('COMPUTING JET POSITION FOR %d', tix)
             self.tix = tix
 
+            #find the maximum zonal wind in the layer
             uzonal = uwnd_p[tix, :, :].mean(axis=-1)
             stjp, stji = self.find_max_wind_surface(uzonal, pres, lat, shemis)
             
             self.jet_lat[hidx, tix]    = stjp
             self.jet_intens[hidx, tix] = stji
 
-            #interpolate or not?
+            #None of this has been interpolated. Should it be?
 
         
     def find_max_wind_surface(self,  uzonal, pres, lat, shemis):
