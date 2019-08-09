@@ -628,8 +628,26 @@ class STJDavisBirner(STJMetric):
        else:
            lat_idx = np.max(turning_points)
 
-       stj_lat    = lat[lat_valid_idx][lat_idx]
-       stj_intens = max_wind_surface[lat_idx]
+       _lat = lat[lat_valid_idx]
+
+       if lat_idx != 0 and lat_idx != _lat.shape[0]:
+           # If the selected index is away from the boundaries, interpolate using
+           # a quadratic to find the "real" maximum location
+           nearby = slice(lat_idx - 1, lat_idx + 2)
+           # Cast lat and max_wind_surface as arrays of float32
+           # because linalg can't handle float16
+           pfit = np.polyfit(_lat[nearby].astype(np.float32),
+                             max_wind_surface[nearby].astype(np.float32),
+                             deg=2)
+           # Take first derivative of the quadratic, solve for maximum
+           # to get the jet latitude
+           stj_lat = -pfit[1] / (2 * pfit[0])
+
+           # Evaluate 2nd degree polynomial at the maximum to get intensity
+           stj_intens = np.polyval(pfit, stj_lat)
+       else:
+           stj_lat = lat[lat_valid_idx][lat_idx]
+           stj_intens = max_wind_surface[lat_idx]
 
        test_plot = True
        if test_plot:
