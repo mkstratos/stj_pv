@@ -630,11 +630,13 @@ class STJDavisBirner(STJMetric):
 
        test_plot = False
        if test_plot:
+           #run the code for a given year and see the location
            print("jet intensity is: ", stj_intens)
            import matplotlib.pyplot as plt
            plt.plot(lat[lat_valid_idx], max_wind_surface)
            plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
            plt.show()
+       
 
        return stj_lat, stj_intens
 
