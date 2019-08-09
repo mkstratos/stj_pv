@@ -425,19 +425,20 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_jra55_theta_mon.yml'.format(CFG_DIR))
 
         # Four main choices
-        jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
 
         # U-Max
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
 
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(2017, 12, 31)
+        date_e = dt.datetime(2018, 12, 31)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
