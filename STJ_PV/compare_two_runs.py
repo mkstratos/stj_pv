@@ -276,8 +276,8 @@ def main():
                   'label': 'Daily NCEP'},
                 }
 
-    #nc_dir = './jet_out'
-    nc_dir = '/home/pm366/Documents/Data/'
+    nc_dir = './jet_out'
+    #nc_dir = '/home/pm366/Documents/Data/'
     if not os.path.exists(nc_dir):
         nc_dir = '.'
 
