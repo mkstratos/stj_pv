@@ -1,4 +1,4 @@
-#STJ-PV
+# STJ-PV
 A subtropical jet finding framework, including the STJPV method introduced in
 
 Maher, et al. (2019): *Is the subtropical jet shifting poleward?* submitted to *Climate Dynamics*.
