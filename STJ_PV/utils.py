@@ -10,7 +10,7 @@ __author__ = "Penelope Maher, Michael Kelleher"
 
 # Constants to be used within this file
 # specify the range and increment over which to calculate IPV
-TH_LEV = np.arange(300, 501, 5)
+TH_LEV = np.arange(300.0, 501.0, 5)
 RAD = np.pi / 180.0     # radians per degree
 OM = 7.292e-5           # Angular rotation rate of earth    [rad]
 GRV = 9.81              # Acceleration due to GRVity        [m/s^2]
@@ -1499,7 +1499,7 @@ def xripv_theta(uwnd, vwnd, pres, dimvars):
         of m-2 s-1 K kg-1 (e.g. 10^6 PVU)
 
     """
-    th_var = dimvars.get('theta', 'theta')
+    th_var = dimvars.get('lev', 'level')
     # Calculate relative vorticity on isentropic levels
     rel_v = xr_rel_vort(uwnd, vwnd, dimvars, cyclic=True)
 
@@ -1551,6 +1551,8 @@ def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
         Zonal wind on isentropic levels [m/s]
 
     """
+    # import pdb;pdb.set_trace()
+    th_levels = np.float32(th_levels)
     if dimvars is None:
         dimvars = {'lev': 'level', 'lat': 'lat', 'lon': 'lon'}
 
@@ -1563,9 +1565,9 @@ def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
     # isobaric levels
 
     u_th = xrvinterp(uwnd, thta, th_levels, levname=vlev,
-                     newlevname='theta')
+                     newlevname=vlev)
     v_th = xrvinterp(vwnd, thta, th_levels, levname=vlev,
-                     newlevname='theta')
+                     newlevname=vlev)
 
     # Check the units of uwnd.level to be sure to use Pa
     try:
@@ -1578,7 +1580,7 @@ def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
         scale = 1.
 
     p_th = xrvinterp(scale * uwnd[vlev], thta, th_levels, levname=vlev,
-                     newlevname='theta')
+                     newlevname=vlev)
 
     # Calculate IPV on theta levels
     ipv_out = xripv_theta(u_th, v_th, p_th, dimvars)

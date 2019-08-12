@@ -1,6 +1,7 @@
-path: '/scratch/pm366/Data/ERA_INT_1979-2016/monthly/'
-wpath: '/scratch/pm366/Data/ERA_INT_1979-2016/monthly/'
+path: '/home/pm366/Documents/Data/'
+wpath: '/home/pm366/Documents/Data/'
 #wpath: '/scratch/mk450/Data/ERA_INT/monthly/'
+
 short_name: 'ERAI_PRES'
 
 # Input file possibilities:
