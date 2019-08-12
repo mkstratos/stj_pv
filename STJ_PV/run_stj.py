@@ -107,7 +107,7 @@ class JetFindRun(object):
         if self.config['method'] == 'STJPV':
             # self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
             #                            350.0, 370.0, 395.0, 430.0])
-            self.th_levels = np.arange(300, 430, 10)
+            self.th_levels = np.arange(300.0, 430.0, 10).astype(np.float32)
             self.metric = stj_metric.STJPV
         elif self.config['method'] == 'STJUMax':
             self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
@@ -444,7 +444,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
 
         # U-Max
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
