@@ -1,0 +1,12 @@
+---
+data_cfg: 'data_config_erai_monthly_gv.yml'
+freq: 'mon'
+zonal_opt: 'mean'
+method: 'DavisBirner'
+log_file: 'stj_find_erai_pres_mon_davis_birner_{}.log'
+upper_p_level: 10000.0
+lower_p_level: 40000.0
+surface_p_level: 85000.0
+year_s: 1979
+year_e: 2016
+
