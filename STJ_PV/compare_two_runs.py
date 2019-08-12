@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
+import pdb
 
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
@@ -47,7 +48,21 @@ class FileDiag(object):
                     for var in self.vars] for hem in hems]
         dframes_tmp = []
         for frames in dframes:
-            metric_hem = pd.concat(frames, sort=True)
+            metric_hem = None
+            for frame in frames:
+                # Add a time column so that the merge works
+                frame['time'] = frame.index
+
+                if metric_hem is None:
+                    metric_hem = frame
+                else:
+                    # to avoid the following error:
+                    #*** ValueError: 'time' is both an index level and a column label, which is ambiguous.
+                    metric_hem.index.name = None
+                    frame.index.name = None
+                    metric_hem = metric_hem.merge(frame)
+
+
             dframes_tmp.append(metric_hem)
         metric = dframes_tmp[0].append(dframes_tmp[1])
 
@@ -116,6 +131,8 @@ class FileDiag(object):
                 if diff_out is None:
                     diff_out = frame
                 else:
+                    diff_out.index.name = None
+                    frame.index.name = None
                     diff_out = diff_out.merge(frame)
 
         diff_out['season'] = SEASONS[pd.DatetimeIndex(diff_out.time).month].astype(str)
@@ -179,6 +196,11 @@ def main():
                  'ERAI-Uwind':
                  {'file': ('ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_'
                            '1979-01-01_2016-12-31.nc'), 'label': 'ERA-I U Max'},
+
+                 'ERAI-DavisBirner':
+                 {'file': ('ERAI_PRES_DavisBirner_zmean_'
+                           '1979-01-01_2016-12-31.nc'), 'label': 'ERA-I D-B'},
+
 
                  'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
                                  'label': 'ERAI Theta5'},
@@ -256,6 +278,7 @@ def main():
                 }
 
     nc_dir = './jet_out'
+    #nc_dir = '/home/pm366/Documents/Data/'
     if not os.path.exists(nc_dir):
         nc_dir = '.'
 
@@ -266,7 +289,7 @@ def main():
     fig_width = (8.4 / 2.54) * fig_mult
     fig_height = fig_width * 1.3
 
-    in_names = ['MERRA-Mon', 'ERAI-Monthly_new']
+    in_names = ['ERAI-Monthly_new', 'ERAI-DavisBirner']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
@@ -326,7 +349,6 @@ def main():
     sns.catplot(x='season', y='lat', col='hem', data=diff, kind='bar')
     plt.tight_layout()
     plt.savefig('plt_diff_bar_{}-{}.{ext}'.format(ext=extn, *in_names))
-
 
 if __name__ == "__main__":
     main()

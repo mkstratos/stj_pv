@@ -87,40 +87,19 @@ class InputData:
         """Re-chunk input data to ideal size."""
         self.in_data[var] = self.in_data[var].chunk(self.chunk)
 
-    def __set_chunks__(self, shape):
-        npoints_all = np.prod(shape)
-        # This assumes that time is first dimension, longitude is last
-        # dimension
-        time_chunk = shape[0]
-        lon_chunk = shape[-1]
-        # If there are more than 1 million points, chunk the data
-        # but prefer to chunk via time, since most of computations deal
-        # with gradients in x / y / z coordinates
-        if npoints_all > 1e6:
-            # lon_chunk = int(1 + (1e7 / np.prod(shape[:-1])))
-            lon_chunk = shape[-1] // 6
-            self.chunk[self.data_cfg['lon']] = lon_chunk
-            self.props.log.info('CHUNKING LON DATA %d', lon_chunk)
-
-        if lon_chunk * np.prod(shape[:-1]) > 3e6:
-            # time_chunk = 1 + (1e7 // np.prod(shape[1:]))
-            time_chunk = shape[0] // 1
-            self.chunk[self.data_cfg['time']] = time_chunk
-            self.props.log.info('CHUNKING TIME DATA %d', time_chunk)
-
-    def _set_chunks(self, data, excldim='lat'):
+    def _set_chunks(self, data, max_size=1e6, excldims=('lev', 'lat')):
         """Get ideal-ish chunks in a different way."""
         shape = data.shape
         npoints = np.prod(shape)
-        excl_n = self.data_cfg[excldim]
+        excl_n = [self.data_cfg[excldim] for excldim in excldims]
         dims = [coord for coord in data.coords
-                if coord in data.dims and coord != excl_n]
+                if coord in data.dims and coord not in excl_n]
         chunks = {dim: data[dim].shape[0] for dim in dims}
         divis = {dim: 1 for dim in dims}
         n_iter = 0
 
-        while npoints > 1.0e6 and n_iter < 10:
-            _pts = data[excl_n].shape[0]
+        while npoints > max_size and n_iter < 10:
+            _pts = np.prod([data[name].shape[0] for name in excl_n])
             for dim in dims:
                 divis[dim] *= 2
                 _pts *= chunks[dim] // divis[dim]
@@ -128,7 +107,8 @@ class InputData:
             n_iter += 1
         self.props.log.info(f'  Chunking took {n_iter} iterations')
         chunks_out = {dim: chunks[dim] // divis[dim] for dim in dims}
-        chunks_out[excl_n] = data[excl_n].shape[0]
+        for exname in excl_n:
+            chunks_out[exname] = data[exname].shape[0]
 
         for dim in chunks_out:
             self.props.log.info(f'    - {dim}: {chunks_out[dim]}')
@@ -242,10 +222,9 @@ class InputDataSTJPV(InputData):
         # Shorthand for configuration dictionary
         cfg = self.data_cfg
         dimvars = {cvar: cfg[cvar] for cvar in ['time', 'lev', 'lat', 'lon']}
-        if self.in_data is None:
+        if not self.in_data:
             self._load_data()
         self.props.log.info('Starting IPV calculation')
-
         # calculate IPV
         if cfg['ztype'] == 'pres':
             if 'epv' not in self.in_data:
@@ -262,10 +241,13 @@ class InputDataSTJPV(InputData):
                 thta = utils.xrtheta(self.in_data['tair'], pvar=cfg['lev'])
                 ipv = utils.xrvinterp(self.in_data['epv'], thta,
                                       self.props.th_levels,
-                                      levname=cfg['lev'], newlevname='theta')
+                                      levname=cfg['lev'],
+                                      newlevname=cfg['lev'])
+
                 uwnd = utils.xrvinterp(self.in_data['uwnd'], thta,
                                        self.props.th_levels,
-                                       levname=cfg['lev'], newlevname='theta')
+                                       levname=cfg['lev'],
+                                       newlevname=cfg['lev'])
 
             self.out_data['ipv'] = ipv
             self.out_data['uwnd'] = uwnd
@@ -285,8 +267,8 @@ class InputDataSTJPV(InputData):
                       'standard_name': 'zonal_wind_component',
                       'descr': 'Zonal wind on isentropic levels'}
 
-        self.out_data['ipv'].assign_attrs(ipv_attrs)
-        self.out_data['uwnd'].assign_attrs(uwnd_attrs)
+        self.out_data['ipv'] = self.out_data['ipv'].assign_attrs(ipv_attrs)
+        self.out_data['uwnd'] = self.out_data['uwnd'].assign_attrs(uwnd_attrs)
         self.props.log.info('Finished calculating IPV')
 
     def _load_ipv(self):
@@ -305,6 +287,22 @@ class InputDataSTJPV(InputData):
         self.out_data = self.in_data
         self.th_lev = self.in_data['ipv'][self.data_cfg['lev']]
 
+    def _write_ipv(self):
+        """Write generated IPV data to file."""
+        pv_file_name = (self.data_cfg['file_paths']['ipv']
+                        .format(year=self.year))
+        pv_file = os.path.join(self.data_cfg['wpath'], pv_file_name)
+        self.props.log.info('WRITING PV FILE %s', pv_file)
+        encoding = {'zlib': True, 'complevel': 9}
+
+        dsout = xr.Dataset(self.out_data)
+        dsout[self.data_cfg['lev']] = dsout[self.data_cfg['lev']].assign_attrs(
+                {'units': 'K', 'standard_name': 'potential_temperature'}
+        )
+        dsout.encoding = dict((var, encoding) for var in dsout.data_vars)
+        dsout.to_netcdf(pv_file, encoding=dsout.encoding)
+        self.props.log.info('DONE WRITING PV FILE')
+
     def get_data(self):
         """Load and compute required data, return xarray.Dataset."""
         if 'force_write' in self.props.config:
@@ -315,7 +313,8 @@ class InputDataSTJPV(InputData):
         if self._find_pv_update():
             self._calc_ipv()
             if self.sel[self.data_cfg['time']] == slice(None) or force_write:
-                self.write_data()
+                self._write_ipv()
+
         else:
             self._load_ipv()
 

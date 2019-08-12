@@ -5,10 +5,12 @@ import yaml
 import numpy as np
 import numpy.polynomial as poly
 from scipy import signal as sig
+from scipy.signal import argrelextrema
 
 from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
+from xarray import ufuncs as xu
 from STJ_PV import utils
 
 try:
@@ -22,7 +24,7 @@ except subprocess.CalledProcessError:
     GIT_ID = 'NONE'
 
 
-class STJMetric(object):
+class STJMetric:
     """Generic Class containing Sub Tropical Jet metric methods and attributes."""
 
     def __init__(self, name=None, data=None, props=None):
@@ -80,6 +82,53 @@ class STJMetric(object):
         file_attrs = {'commit-id': GIT_ID, 'run_props': yaml.safe_dump(self.props)}
         out_dset = out_dset.assign_attrs(file_attrs)
         out_dset.to_netcdf(self.props['output_file'] + '.nc')
+
+    def set_hemis(self, shemis):
+        """
+        Select hemisphere data.
+
+        This function sets `self.hemis` to be an length N list of slices such that only
+        the desired hemisphere is selected with N-D data (e.g. uwind and ipv) along all
+        other axes. It also returns the latitude for the selected hemisphere, an index
+        to select the hemisphere in output arrays, and the extrema function to find
+        min/max of PV derivative in a particular hemisphere.
+
+        Parameters
+        ----------
+        shemis : boolean
+            If true - use southern hemisphere data, if false, use NH data
+
+        Returns
+        -------
+        extrema : function
+            Function used to identify extrema in meridional PV gradient, either
+            :func:`scipy.signal.argrelmax` if SH, or :func:`scipy.signal.argrelmin`
+            for NH
+
+        lat : array_like
+            Latitude array from selected hemisphere
+        hidx : int
+            Hemisphere index 0 for SH, 1 for NH
+
+        """
+        lats = [self.props['min_lat'], self.props['max_lat']]
+
+        if shemis:
+            self.hemis = self.data[self.data.cfg['lat']] < 0
+            extrema = sig.argrelmax
+            hem_s = 'sh'
+            if lats[0] > 0 and lats[1] > 0:
+                # Lats are positive, multiply by -1 to get positive for SH
+                lats = [-lats[0], -lats[1]]
+        else:
+            self.hemis = self.data[self.data.cfg['lat']] > 0
+            extrema = sig.argrelmin
+            hem_s = 'nh'
+            if lats[0] < 0 and lats[1] < 0:
+                # Lats are negative, multiply by -1 to get positive for NH
+                lats = [-lats[0], -lats[1]]
+
+        return extrema, tuple(lats), hem_s
 
     def compute(self):
         """Compute all dask arrays in `self.out_data`."""
@@ -204,21 +253,29 @@ class STJPV(STJMetric):
 
         """
         lats = (self.props['min_lat'], self.props['max_lat'])
+        lat_dec = self.data[self.data.cfg['lat']][0] > self.data[self.data.cfg['lat']][-1]
 
         if shemis:
-            self.hemis = self.data[self.data.cfg['lat']] < 0
+            _lstart = -90
+            _lend = 0
             extrema = sig.argrelmax
             hem_s = 'sh'
             if lats[0] > 0 and lats[1] > 0:
                 # Lats are positive, multiply by -1 to get positive for SH
                 lats = (-lats[0], -lats[1])
         else:
-            self.hemis = self.data[self.data.cfg['lat']] > 0
+            _lstart = 0
+            _lend = 90
             extrema = sig.argrelmin
             hem_s = 'nh'
             if lats[0] < 0 and lats[1] < 0:
                 # Lats are negative, multiply by -1 to get positive for NH
                 lats = (-lats[0], -lats[1])
+
+        if lat_dec:
+            _lstart, _lend = _lend, _lstart
+
+        self.hemis = {self.data.cfg['lat']: slice(_lstart, _lend)}
         return extrema, lats, hem_s
 
     def isolate_pv(self, pv_lev):
@@ -257,15 +314,26 @@ class STJPV(STJMetric):
         lev_name = self.data.cfg['lev']
         subset = {lev_name: theta_bnds}
 
+        # Create a copy of the level subset so we can add the latitude hemisphere
+        # subset to do both at once on the 4D arrays, without interfering with the 1D sel
+        # because if the 'lat' dim isn't a dim on the self.data[lev_name] array, the
+        # selection will raise an error
+        _latlev = subset.copy()
+        _latlev.update(self.hemis)
+        _pv = self.data.ipv.sel(**_latlev).load()
+        _uwnd = self.data.uwnd.sel(**_latlev).load()
+        self.log.info('     COMPUTING THETA ON %.1e', pv_lev)
         theta_xpv = utils.xrvinterp(self.data[lev_name].sel(**subset),
-                                    self.data.ipv.where(self.hemis).sel(**subset),
-                                    pv_lev, levname=lev_name, newlevname='pv')
+                                    _pv,
+                                    pv_lev, levname=lev_name, newlevname='pv').load()
 
-        uwnd_xpv = utils.xrvinterp(self.data.uwnd.where(self.hemis).sel(**subset),
-                                   self.data.ipv.where(self.hemis).sel(**subset),
-                                   pv_lev, levname=lev_name, newlevname='pv')
+        self.log.info('     COMPUTING UWND ON %.1e', pv_lev)
+        uwnd_xpv = utils.xrvinterp(_uwnd, _pv,
+                                   pv_lev, levname=lev_name, newlevname='pv').load()
 
-        ushear = self._get_max_shear(uwnd_xpv.squeeze(dim='pv'))
+        self.log.info('     COMPUTING SHEAR FROM %.1e', pv_lev)
+        ushear = self._get_max_shear(uwnd_xpv.squeeze(dim='pv')).load()
+
         return theta_xpv.squeeze(dim='pv'), uwnd_xpv.squeeze(dim='pv'), ushear
 
     def find_jet(self, shemis=True, debug=False):
@@ -305,7 +373,9 @@ class STJPV(STJMetric):
             _theta = theta_xpv.sel(**{vlat: slice(*lats)})
         _shear = ushear.sel(**{vlat: slice(*lats)})
 
-        self.log.info('COMPUTING JET POSITION FOR %d', self.data.year)
+        self.log.info(
+            'COMPUTING JET POSITION FOR %s in %d', hem_s, self.data.year
+        )
         # Set up computation of all the jet latitudes at once using self.find_single_jet
         # The input_core_dims is a list of lists, that tells xarray/dask that the
         # arguments _theta, _theta.lat, and _shear are passed to self.find_single_jet
@@ -315,7 +385,7 @@ class STJPV(STJMetric):
             jet_lat = xr.apply_ufunc(self.find_single_jet, _theta,
                                      _theta[vlat], _shear,
                                      input_core_dims=[[vlat], [vlat], [vlat]],
-                                     vectorize=True, dask='allowed',
+                                     vectorize=True, dask='parallelized',
                                      kwargs={'extrema': extrema})
         else:
             dtheta, theta_fit, jet_lat = self._debug_jet_loop(_theta, _shear,
@@ -401,10 +471,10 @@ class STJPV(STJMetric):
         # the surface, so do some magic to make that happen.
         uwnd_sfc = xr.apply_ufunc(lowest_valid, self.data.uwnd,
                                   input_core_dims=[[self.data.cfg['lev']]],
-                                  vectorize=True, dask='allowed',
+                                  vectorize=True, dask='parallelized',
                                   output_dtypes=[float])
 
-        return uwnd_xpv - uwnd_sfc.where(self.hemis)
+        return uwnd_xpv - uwnd_sfc.sel(**self.hemis)
 
     def find_single_jet(self, theta_xpv, lat, ushear, extrema, debug=False):
         """
@@ -494,6 +564,159 @@ class STJPV(STJMetric):
             jet_loc = locs[ushear_max]
 
         return jet_loc
+
+
+class STJDavisBirner(STJMetric):
+    """
+    Subtropical jet position metric using the method of Davis and Birner 2016.
+       "Climate Model Biases in the Width of the Tropical Belt
+        Parameters".
+    The logic for the method is to subtract the surface wind and then find the
+    max in the upper level wind.
+    ----------
+    props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
+        Class containing properties about the current search for the STJ
+    data : :py:meth:`~STJ_PV.input_data.InputData`
+        Input data class containing a year (or more) of required data
+
+    """
+
+    # https://github.com/TropD/pytropd/blob/master/pytropd/metrics.py
+
+    def __init__(self, props, data):
+        """Initialise Metric using Davis and Birner 2016 method."""
+        name = 'DavisBirner'
+        super(STJDavisBirner, self).__init__(name=name, props=props, data=data)
+
+        # Some config options should be properties for ease of access
+        self.upper_p_level = self.props['upper_p_level']
+        self.lower_p_level = self.props['lower_p_level']
+        self.surf_p_level = self.props['surface_p_level']
+
+        if self.data[self.data.cfg['lev']].units in ['mb', 'millibars', 'hPa']:
+            self.lower_p_level /= 100.0
+            self.upper_p_level /= 100.0
+            self.surf_p_level /= 100.0
+
+    def find_jet(self, shemis=True):
+        """
+        Find the subtropical jet using method from Davis and Birner (2016).
+
+        doi:10.1175/JCLI-D-15-0336.1
+
+        Parameters
+        ----------
+        shemis : logical, optional
+            If True, find jet position in Southern Hemisphere, if False, find N.H. jet
+
+        """
+        _, hlats, hem_s = self.set_hemis(shemis)
+        cfg = self.data.cfg
+
+        if self.data[cfg['lev']][0] > self.data[cfg['lev']][-1]:
+            subset = {
+                cfg['lev']: slice(self.lower_p_level, self.upper_p_level)
+            }
+        else:
+            subset = {
+                cfg['lev']: slice(self.upper_p_level, self.lower_p_level)
+            }
+
+        subset.update({cfg['lat']: slice(*hlats)})
+        uwnd_p = self.data.uwnd.sel(**subset)
+        if uwnd_p[cfg['lat']].shape[0] == 0:
+            # Reverse order of lat selection if none are found
+            subset[cfg['lat']] = slice(*hlats[::-1])
+            uwnd_p = self.data.uwnd.sel(**subset)
+
+        # Subtract the surface wind from the wind in 400-100 layer
+        uwnd_p = (
+            uwnd_p - self.data.uwnd.sel(**{cfg['lev']: self.surf_p_level})
+        )
+        dims = uwnd_p.shape
+
+        self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %s', dims[0], hem_s)
+        uzonal = uwnd_p.mean(dim=cfg['lon'])
+        jet_info = xr.apply_ufunc(
+            self.find_max_wind_surface, uzonal, uzonal[cfg['lat']],
+            input_core_dims=[[cfg['lev'], cfg['lat']], [cfg['lat']]],
+            vectorize=True, dask='allowed', output_core_dims=[[], []],
+            output_dtypes=[float, float],
+        )
+
+        # Put the parameters into place for this hemisphere
+        self.out_data['lat_{}'.format(hem_s)] = jet_info[0]
+        self.out_data['intens_{}'.format(hem_s)] = jet_info[1]
+
+    def find_max_wind_surface(self, uzonal, lat, test_plot=False):
+        """
+        Find most equatorward maximum wind on column maximum wind surface.
+
+        Parameters
+        ----------
+        uzonal : array_like
+            Zonal mean zonal wind
+        shemis : bool
+            Flag to indicate hemisphere, true for SH
+
+        """
+        max_wind_surface = np.max(uzonal, axis=0)
+        # for the given maximum wind surface, find local
+        # maxima and then keep most equatorward.
+        turning_points = argrelextrema(max_wind_surface, np.greater_equal)[0]
+        turning_lats = lat[turning_points]
+
+        # Take the argmin of the absolute value of the latitudes, use that index
+        # This finds the most equatorward latitude, regardless of hemisphere
+        lat_idx = turning_points[np.abs(turning_lats).argmin()]
+
+        if lat_idx not in [0, lat.shape[0]]:
+            # If the selected index is away from the boundaries, interpolate using
+            # a quadratic to find the "real" maximum location
+            nearby = slice(lat_idx - 1, lat_idx + 2)
+            # Cast lat and max_wind_surface as arrays of float32
+            # because linalg can't handle float16
+            pfit = np.polyfit(lat[nearby], max_wind_surface[nearby], deg=2)
+            # Take first derivative of the quadratic, solve for maximum
+            # to get the jet latitude
+            stj_lat = -pfit[1] / (2 * pfit[0])
+
+            # Evaluate 2nd degree polynomial at the maximum to get intensity
+            stj_intens = np.polyval(pfit, stj_lat)
+        else:
+            stj_lat = lat[lat_idx]
+            stj_intens = max_wind_surface[lat_idx]
+
+        # test_plot = False
+        if test_plot:
+            self.test_plot(lat, max_wind_surface, lat_idx, stj_lat, stj_intens)
+
+        return stj_lat, stj_intens
+
+    def test_plot(self, lat, max_wind_surface, lat_idx, stj_lat, stj_intens):
+        print("jet intensity is: ", stj_intens)
+        import matplotlib.pyplot as plt
+
+        plot_line = False
+
+        if max(lat) < 0:
+            hem = 'SH'
+            plt.subplot(2, 1, 1)
+            if stj_lat < -30.0:
+                plot_line = True
+        else:
+            hem = 'NH'
+            plt.subplot(2, 1, 2)
+            if stj_lat > 30.0:
+                plot_line = True
+
+        if plot_line:
+            plt.plot(lat, max_wind_surface)
+            plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
+
+        plt.title(hem)
+        filename = ('test_davis.png')
+        plt.savefig(filename)
 
 
 class STJMaxWind(STJMetric):
@@ -604,6 +827,7 @@ class STJMaxWind(STJMetric):
         # up to do more than just the argmax, you don't know!
         return np.argmax(uwnd)
 
+
 class STJKangPolvani(STJMetric):
     """
     Subtropical jet position metric: Kang and Polvani 2010.
@@ -639,7 +863,6 @@ class STJKangPolvani(STJMetric):
         self.jet_intens = np.zeros([2, num_mon])
         self.wh_1000 = None
         self.wh_200 = None
-
 
     def find_jet(self, shemis=True):
         """

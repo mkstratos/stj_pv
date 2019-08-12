@@ -119,7 +119,7 @@ class JetFindRun:
         if self.config['method'] == 'STJPV':
             # self.th_levels = np.array([265.0, 275.0, 285.0, 300.0, 315.0, 320.0, 330.0,
             #                            350.0, 370.0, 395.0, 430.0])
-            self.th_levels = np.arange(300, 430, 10)
+            self.th_levels = np.arange(300.0, 430.0, 10).astype(np.float32)
             self.metric = stj_metric.STJPV
         elif self.config['method'] == 'STJUMax':
             self.p_levels = np.array([1000., 925., 850., 700., 600., 500., 400., 300.,
@@ -127,6 +127,8 @@ class JetFindRun:
             self.metric = stj_metric.STJMaxWind
         elif self.config['method'] == 'KangPolvani':
             self.metric = stj_metric.STJKangPolvani
+        elif self.config['method'] == 'DavisBirner':
+            self.metric = stj_metric.STJDavisBirner
         else:
             self.metric = None
 
@@ -152,7 +154,14 @@ class JetFindRun:
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = stj_metric.STJKangPolvani
 
+        elif self.config['method'] == 'DavisBirner':
+
+            self.config['output_file'] = ('{short_name}_{method}'
+                                          .format(**dict(self.data_cfg, **self.config)))
+            self.metric = stj_metric.STJDavisBirner
+
         else:
+
             self.config['output_file'] = ('{short_name}_{method}'
                                           .format(**dict(self.data_cfg, **self.config)))
             self.metric = None
@@ -187,7 +196,7 @@ class JetFindRun:
         """Retrieve data stored according to `self.data_cfg`."""
         if self.config['method'] == 'STJPV':
             data = inp.InputDataSTJPV(self, date_s, date_e)
-        elif self.config['method'] == 'STJUMax':
+        elif self.config['method'] in ['STJUMax', 'DavisBirner']:
             data = inp.InputDataUWind(self, date_s, date_e)
         else:
             data = inp.InputDataUWind(self, ['uwnd', 'vwnd'], date_s, date_e)
@@ -444,6 +453,8 @@ def main(sample_run=True, sens_run=False):
         # Four main choices
         # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'
+                            .format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
@@ -452,6 +463,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
         jf_run = JetFindRun('{}/stj_config_jra55_daily_cades.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_cfsr_monthly.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
 
         # U-Max
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
