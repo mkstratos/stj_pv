@@ -10,6 +10,7 @@ from scipy.signal import argrelextrema
 from netCDF4 import num2date, date2num
 import pandas as pd
 import xarray as xr
+from xarray import ufuncs as xu
 from STJ_PV import utils
 
 try:
@@ -224,6 +225,59 @@ class STJPV(STJMetric):
 
         return poly_der, (poly_fit, lat[valid])
 
+    def set_hemis(self, shemis):
+        """
+        Select hemisphere data.
+
+        This function sets `self.hemis` to be an length N list of slices such that only
+        the desired hemisphere is selected with N-D data (e.g. uwind and ipv) along all
+        other axes. It also returns the latitude for the selected hemisphere, an index
+        to select the hemisphere in output arrays, and the extrema function to find
+        min/max of PV derivative in a particular hemisphere.
+
+        Parameters
+        ----------
+        shemis : boolean
+            If true - use southern hemisphere data, if false, use NH data
+
+        Returns
+        -------
+        lat : array_like
+            Latitude array from selected hemisphere
+        hidx : int
+            Hemisphere index 0 for SH, 1 for NH
+        extrema : function
+            Function used to identify extrema in meridional PV gradient, either
+            :func:`scipy.signal.argrelmax` if SH, or :func:`scipy.signal.argrelmin`
+            for NH
+
+        """
+        lats = (self.props['min_lat'], self.props['max_lat'])
+        lat_dec = self.data[self.data.cfg['lat']][0] > self.data[self.data.cfg['lat']][-1]
+
+        if shemis:
+            _lstart = -90
+            _lend = 0
+            extrema = sig.argrelmax
+            hem_s = 'sh'
+            if lats[0] > 0 and lats[1] > 0:
+                # Lats are positive, multiply by -1 to get positive for SH
+                lats = (-lats[0], -lats[1])
+        else:
+            _lstart = 0
+            _lend = 90
+            extrema = sig.argrelmin
+            hem_s = 'nh'
+            if lats[0] < 0 and lats[1] < 0:
+                # Lats are negative, multiply by -1 to get positive for NH
+                lats = (-lats[0], -lats[1])
+
+        if lat_dec:
+            _lstart, _lend = _lend, _lstart
+
+        self.hemis = {self.data.cfg['lat']: slice(_lstart, _lend)}
+        return extrema, lats, hem_s
+
     def isolate_pv(self, pv_lev):
         """
         Get the potential temperature, zonal wind and zonal wind shear for a PV level.
@@ -260,15 +314,26 @@ class STJPV(STJMetric):
         lev_name = self.data.cfg['lev']
         subset = {lev_name: theta_bnds}
 
+        # Create a copy of the level subset so we can add the latitude hemisphere
+        # subset to do both at once on the 4D arrays, without interfering with the 1D sel
+        # because if the 'lat' dim isn't a dim on the self.data[lev_name] array, the
+        # selection will raise an error
+        _latlev = subset.copy()
+        _latlev.update(self.hemis)
+        _pv = self.data.ipv.sel(**_latlev).load()
+        _uwnd = self.data.uwnd.sel(**_latlev).load()
+        self.log.info('     COMPUTING THETA ON %.1e', pv_lev)
         theta_xpv = utils.xrvinterp(self.data[lev_name].sel(**subset),
-                                    self.data.ipv.where(self.hemis).sel(**subset),
-                                    pv_lev, levname=lev_name, newlevname='pv')
+                                    _pv,
+                                    pv_lev, levname=lev_name, newlevname='pv').load()
 
-        uwnd_xpv = utils.xrvinterp(self.data.uwnd.where(self.hemis).sel(**subset),
-                                   self.data.ipv.where(self.hemis).sel(**subset),
-                                   pv_lev, levname=lev_name, newlevname='pv')
+        self.log.info('     COMPUTING UWND ON %.1e', pv_lev)
+        uwnd_xpv = utils.xrvinterp(_uwnd, _pv,
+                                   pv_lev, levname=lev_name, newlevname='pv').load()
 
-        ushear = self._get_max_shear(uwnd_xpv.squeeze(dim='pv'))
+        self.log.info('     COMPUTING SHEAR FROM %.1e', pv_lev)
+        ushear = self._get_max_shear(uwnd_xpv.squeeze(dim='pv')).load()
+
         return theta_xpv.squeeze(dim='pv'), uwnd_xpv.squeeze(dim='pv'), ushear
 
     def find_jet(self, shemis=True, debug=False):
@@ -308,7 +373,9 @@ class STJPV(STJMetric):
             _theta = theta_xpv.sel(**{vlat: slice(*lats)})
         _shear = ushear.sel(**{vlat: slice(*lats)})
 
-        self.log.info('COMPUTING JET POSITION FOR %d', self.data.year)
+        self.log.info(
+            'COMPUTING JET POSITION FOR %s in %d', hem_s, self.data.year
+        )
         # Set up computation of all the jet latitudes at once using self.find_single_jet
         # The input_core_dims is a list of lists, that tells xarray/dask that the
         # arguments _theta, _theta.lat, and _shear are passed to self.find_single_jet
@@ -318,7 +385,7 @@ class STJPV(STJMetric):
             jet_lat = xr.apply_ufunc(self.find_single_jet, _theta,
                                      _theta[vlat], _shear,
                                      input_core_dims=[[vlat], [vlat], [vlat]],
-                                     vectorize=True, dask='allowed',
+                                     vectorize=True, dask='parallelized',
                                      kwargs={'extrema': extrema})
         else:
             dtheta, theta_fit, jet_lat = self._debug_jet_loop(_theta, _shear,
@@ -404,10 +471,10 @@ class STJPV(STJMetric):
         # the surface, so do some magic to make that happen.
         uwnd_sfc = xr.apply_ufunc(lowest_valid, self.data.uwnd,
                                   input_core_dims=[[self.data.cfg['lev']]],
-                                  vectorize=True, dask='allowed',
+                                  vectorize=True, dask='parallelized',
                                   output_dtypes=[float])
 
-        return uwnd_xpv - uwnd_sfc.where(self.hemis)
+        return uwnd_xpv - uwnd_sfc.sel(**self.hemis)
 
     def find_single_jet(self, theta_xpv, lat, ushear, extrema, debug=False):
         """

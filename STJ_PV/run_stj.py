@@ -451,7 +451,8 @@ def main(sample_run=True, sens_run=False):
         # Four main choices
         # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'
+                            .format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
@@ -466,7 +467,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
 
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(2016, 12, 31)
+        date_e = dt.datetime(1985, 12, 31)
 
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
