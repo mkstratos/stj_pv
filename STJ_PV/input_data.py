@@ -87,26 +87,34 @@ class InputData:
         """Re-chunk input data to ideal size."""
         self.in_data[var] = self.in_data[var].chunk(self.chunk)
 
-    def _set_chunks(self, shape):
-        npoints_all = np.prod(shape)
-        # This assumes that time is first dimension, longitude is last
-        # dimension
-        time_chunk = shape[0]
-        lon_chunk = shape[-1]
-        # If there are more than 1 million points, chunk the data
-        # but prefer to chunk via time, since most of computations deal
-        # with gradients in x / y / z coordinates
-        if npoints_all > 1e6:
-            # lon_chunk = int(1 + (1e7 / np.prod(shape[:-1])))
-            lon_chunk = shape[-1] // 6
-            self.chunk[self.data_cfg['lon']] = lon_chunk
-            self.props.log.info('CHUNKING LON DATA %d', lon_chunk)
+    def _set_chunks(self, data, max_size=1e6, excldims=('lev', 'lat')):
+        """Get ideal-ish chunks in a different way."""
+        shape = data.shape
+        npoints = np.prod(shape)
+        excl_n = [self.data_cfg[excldim] for excldim in excldims]
+        dims = [coord for coord in data.coords
+                if coord in data.dims and coord not in excl_n]
+        chunks = {dim: data[dim].shape[0] for dim in dims}
+        divis = {dim: 1 for dim in dims}
+        n_iter = 0
 
-        if lon_chunk * np.prod(shape[:-1]) > 3e6:
-            # time_chunk = 1 + (1e7 // np.prod(shape[1:]))
-            time_chunk = shape[0] // 1
-            self.chunk[self.data_cfg['time']] = time_chunk
-            self.props.log.info('CHUNKING TIME DATA %d', time_chunk)
+        while npoints > max_size and n_iter < 10:
+            _pts = np.prod([data[name].shape[0] for name in excl_n])
+            for dim in dims:
+                divis[dim] *= 2
+                _pts *= chunks[dim] // divis[dim]
+            npoints = _pts
+            n_iter += 1
+        self.props.log.info(f'  Chunking took {n_iter} iterations')
+        chunks_out = {dim: chunks[dim] // divis[dim] for dim in dims}
+        for exname in excl_n:
+            chunks_out[exname] = data[exname].shape[0]
+
+        for dim in chunks_out:
+            self.props.log.info(f'    - {dim}: {chunks_out[dim]}')
+        self.props.log.info(f'  Chunk size: {npoints}')
+
+        self.chunk = chunks_out
 
     def _load_one_file(self, var, file_var=None):
         """Load a single netCDF file as an xarray.Dataset."""
@@ -149,7 +157,7 @@ class InputData:
             _fails += 1
 
         if all([self.chunk[var] is None for var in self.chunk]):
-            self._set_chunks(self.in_data[var].shape)
+            self._set_chunks(self.in_data[var])
 
         self._chunk_data(var)
 
