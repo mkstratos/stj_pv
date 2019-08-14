@@ -18,6 +18,7 @@ setup(
     long_description=LONG_DESCRIPTION,
     install_requires=[
         "basemap>=1.1.0",
+        "dask>=2.0.0",
         "matplotlib>=2.1.0",
         "netCDF4>=1.2.4",
         "numpy>=1.11.3",
