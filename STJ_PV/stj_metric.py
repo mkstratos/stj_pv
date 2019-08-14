@@ -658,7 +658,11 @@ class STJDavisBirner(STJMetric):
         dims = uwnd_p.shape
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %s', dims[0], hem_s)
-        uzonal = uwnd_p.mean(dim=cfg['lon'])
+        if self.props['zonal_opt'].lower() == 'mean':
+            uzonal = uwnd_p.mean(dim=cfg['lon'])
+        else:
+            uzonal = uwnd_p
+
         jet_info = xr.apply_ufunc(
             self.find_max_wind_surface,
             uzonal,
@@ -669,7 +673,6 @@ class STJDavisBirner(STJMetric):
             output_core_dims=[[], []],
             output_dtypes=[float, float],
         )
-
         # Put the parameters into place for this hemisphere
         self.out_data['lat_{}'.format(hem_s)] = jet_info[0]
         self.out_data['intens_{}'.format(hem_s)] = jet_info[1]
@@ -696,13 +699,14 @@ class STJDavisBirner(STJMetric):
         # This finds the most equatorward latitude, regardless of hemisphere
         lat_idx = turning_points[np.abs(turning_lats).argmin()]
 
-        if lat_idx not in [0, lat.shape[0]]:
+        if lat_idx not in [0, 1, lat.shape[0] - 1, lat.shape[0]]:
             # If the selected index is away from the boundaries, interpolate using
             # a quadratic to find the "real" maximum location
             nearby = slice(lat_idx - 1, lat_idx + 2)
             # Cast lat and max_wind_surface as arrays of float32
             # because linalg can't handle float16
             pfit = np.polyfit(lat[nearby], max_wind_surface[nearby], deg=2)
+
             # Take first derivative of the quadratic, solve for maximum
             # to get the jet latitude
             stj_lat = -pfit[1] / (2 * pfit[0])
