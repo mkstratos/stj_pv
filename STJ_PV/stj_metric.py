@@ -60,15 +60,23 @@ class STJMetric:
     def save_jet(self):
         """Save jet position to file."""
         # Setup metadata for output variables
-        props = {'lat': {'standard_name': 'jet_latitude',
-                         'descr': 'Latitude of subtropical jet',
-                         'units': 'degrees_north'},
-                 'intens': {'standard_name': 'jet_intensity',
-                            'descr': 'Intensity of subtropical jet',
-                            'units': 'm s-1'},
-                 'theta': {'standard_name': 'jet_theta',
-                           'descr': 'Theta level of subtropical jet',
-                           'units': 'K'}}
+        props = {
+            'lat': {
+                'standard_name': 'jet_latitude',
+                'descr': 'Latitude of subtropical jet',
+                'units': 'degrees_north',
+            },
+            'intens': {
+                'standard_name': 'jet_intensity',
+                'descr': 'Intensity of subtropical jet',
+                'units': 'm s-1',
+            },
+            'theta': {
+                'standard_name': 'jet_theta',
+                'descr': 'Theta level of subtropical jet',
+                'units': 'K',
+            },
+        }
 
         for out_var in self.out_data:
             # Clean up dimension labels
@@ -137,15 +145,19 @@ class STJMetric:
             try:
                 self.out_data[vname] = self.out_data[vname].compute()
             except (AttributeError, TypeError):
-                self.props.log.info('Compute fail data at %s not dask array it is %s',
-                                    vname, type(self.out_data[vname]))
+                self.props.log.info(
+                    'Compute fail data at %s not dask array it is %s',
+                    vname,
+                    type(self.out_data[vname]),
+                )
 
     def append(self, other):
         """Append another metric's intensity, latitude, and theta positon to this one."""
         for var_name in self.out_data:
-            self.out_data[var_name] = xr.concat((self.out_data[var_name],
-                                                 other.out_data[var_name]),
-                                                dim=self.data.cfg['time'])
+            self.out_data[var_name] = xr.concat(
+                (self.out_data[var_name], other.out_data[var_name]),
+                dim=self.data.cfg['time'],
+            )
 
 
 class STJPV(STJMetric):
@@ -160,6 +172,7 @@ class STJPV(STJMetric):
         Input data class containing a year (or more) of required data
 
     """
+
     def __init__(self, props, data):
         """Initialise Metric using PV Gradient Method."""
         name = 'PVGrad'
@@ -323,13 +336,18 @@ class STJPV(STJMetric):
         _pv = self.data.ipv.sel(**_latlev).load()
         _uwnd = self.data.uwnd.sel(**_latlev).load()
         self.log.info('     COMPUTING THETA ON %.1e', pv_lev)
-        theta_xpv = utils.xrvinterp(self.data[lev_name].sel(**subset),
-                                    _pv,
-                                    pv_lev, levname=lev_name, newlevname='pv').load()
+        theta_xpv = utils.xrvinterp(
+            self.data[lev_name].sel(**subset),
+            _pv,
+            pv_lev,
+            levname=lev_name,
+            newlevname='pv',
+        ).load()
 
         self.log.info('     COMPUTING UWND ON %.1e', pv_lev)
-        uwnd_xpv = utils.xrvinterp(_uwnd, _pv,
-                                   pv_lev, levname=lev_name, newlevname='pv').load()
+        uwnd_xpv = utils.xrvinterp(
+            _uwnd, _pv, pv_lev, levname=lev_name, newlevname='pv'
+        ).load()
 
         self.log.info('     COMPUTING SHEAR FROM %.1e', pv_lev)
         ushear = self._get_max_shear(uwnd_xpv.squeeze(dim='pv')).load()
@@ -373,23 +391,25 @@ class STJPV(STJMetric):
             _theta = theta_xpv.sel(**{vlat: slice(*lats)})
         _shear = ushear.sel(**{vlat: slice(*lats)})
 
-        self.log.info(
-            'COMPUTING JET POSITION FOR %s in %d', hem_s, self.data.year
-        )
+        self.log.info('COMPUTING JET POSITION FOR %s in %d', hem_s, self.data.year)
         # Set up computation of all the jet latitudes at once using self.find_single_jet
         # The input_core_dims is a list of lists, that tells xarray/dask that the
         # arguments _theta, _theta.lat, and _shear are passed to self.find_single_jet
         # with that dimension intact. The kwargs argument passes keyword args to the
         # self.find_single_jet
         if not debug:
-            jet_lat = xr.apply_ufunc(self.find_single_jet, _theta,
-                                     _theta[vlat], _shear,
-                                     input_core_dims=[[vlat], [vlat], [vlat]],
-                                     vectorize=True, dask='parallelized',
-                                     kwargs={'extrema': extrema})
+            jet_lat = xr.apply_ufunc(
+                self.find_single_jet,
+                _theta,
+                _theta[vlat],
+                _shear,
+                input_core_dims=[[vlat], [vlat], [vlat]],
+                vectorize=True,
+                dask='parallelized',
+                kwargs={'extrema': extrema},
+            )
         else:
-            dtheta, theta_fit, jet_lat = self._debug_jet_loop(_theta, _shear,
-                                                              extrema)
+            dtheta, theta_fit, jet_lat = self._debug_jet_loop(_theta, _shear, extrema)
 
         # Select the data for level and intensity by the latitudes generated
         jet_theta = theta_xpv.sel(**{vlat: jet_lat})
@@ -443,9 +463,13 @@ class STJPV(STJMetric):
         for tix in range(dims[0]):
             for xix in range(dims[-1]):
                 # Find derivative of dynamical tropopause
-                _info = self.find_single_jet(_theta[tix, :, xix].values, lat,
-                                             _shear[tix, :, xix].values,
-                                             extrema, debug=True)
+                _info = self.find_single_jet(
+                    _theta[tix, :, xix].values,
+                    lat,
+                    _shear[tix, :, xix].values,
+                    extrema,
+                    debug=True,
+                )
                 jet_lat[tix, xix] = _info[0]
                 dtheta[tix, :, xix] = _info[2]
                 theta_fit[:, tix, xix] = _info[3][0]
@@ -469,10 +493,14 @@ class STJPV(STJMetric):
         # Our zonal wind data is on isentropic levels. Lower levels are bound to be below
         # the surface in some places, so we need to use the lowest valid wind level as
         # the surface, so do some magic to make that happen.
-        uwnd_sfc = xr.apply_ufunc(lowest_valid, self.data.uwnd,
-                                  input_core_dims=[[self.data.cfg['lev']]],
-                                  vectorize=True, dask='parallelized',
-                                  output_dtypes=[float])
+        uwnd_sfc = xr.apply_ufunc(
+            lowest_valid,
+            self.data.uwnd,
+            input_core_dims=[[self.data.cfg['lev']]],
+            vectorize=True,
+            dask='parallelized',
+            output_dtypes=[float],
+        )
 
         return uwnd_xpv - uwnd_sfc.sel(**self.hemis)
 
@@ -614,13 +642,9 @@ class STJDavisBirner(STJMetric):
         cfg = self.data.cfg
 
         if self.data[cfg['lev']][0] > self.data[cfg['lev']][-1]:
-            subset = {
-                cfg['lev']: slice(self.lower_p_level, self.upper_p_level)
-            }
+            subset = {cfg['lev']: slice(self.lower_p_level, self.upper_p_level)}
         else:
-            subset = {
-                cfg['lev']: slice(self.upper_p_level, self.lower_p_level)
-            }
+            subset = {cfg['lev']: slice(self.upper_p_level, self.lower_p_level)}
 
         subset.update({cfg['lat']: slice(*hlats)})
         uwnd_p = self.data.uwnd.sel(**subset)
@@ -630,17 +654,19 @@ class STJDavisBirner(STJMetric):
             uwnd_p = self.data.uwnd.sel(**subset)
 
         # Subtract the surface wind from the wind in 400-100 layer
-        uwnd_p = (
-            uwnd_p - self.data.uwnd.sel(**{cfg['lev']: self.surf_p_level})
-        )
+        uwnd_p = uwnd_p - self.data.uwnd.sel(**{cfg['lev']: self.surf_p_level})
         dims = uwnd_p.shape
 
         self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %s', dims[0], hem_s)
         uzonal = uwnd_p.mean(dim=cfg['lon'])
         jet_info = xr.apply_ufunc(
-            self.find_max_wind_surface, uzonal, uzonal[cfg['lat']],
+            self.find_max_wind_surface,
+            uzonal,
+            uzonal[cfg['lat']],
             input_core_dims=[[cfg['lev'], cfg['lat']], [cfg['lat']]],
-            vectorize=True, dask='allowed', output_core_dims=[[], []],
+            vectorize=True,
+            dask='allowed',
+            output_core_dims=[[], []],
             output_dtypes=[float, float],
         )
 
@@ -715,7 +741,7 @@ class STJDavisBirner(STJMetric):
             plt.plot(stj_lat, max_wind_surface[lat_idx], 'x')
 
         plt.title(hem)
-        filename = ('test_davis.png')
+        filename = 'test_davis.png'
         plt.savefig(filename)
 
 
@@ -739,17 +765,9 @@ class STJMaxWind(STJMetric):
 
         # Some config options should be properties for ease of access
         self.pres_lev = self.props['pres_level']
+        if self.data[self.data.cfg['lev']].units in ['mb', 'hPa', 'millibars']:
+            self.pres_lev /= 100.0
         self.min_lat = self.props['min_lat']
-
-        # Initialise latitude & theta output arrays with correct shape
-        dims = self.data.uwnd.shape
-
-        self.jet_lat = np.zeros([2, dims[0]])
-        self.jet_intens = np.zeros([2, dims[0]])
-
-        self.time = self.data.time[:]
-        self.tix = None
-        self.xix = None
 
     def find_jet(self, shemis=True):
         """
@@ -761,71 +779,39 @@ class STJMaxWind(STJMetric):
             If True, find jet position in Southern Hemisphere, if False, find N.H. jet
 
         """
-        # Find axis
-        lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
+        _, hlats, hem_s = self.set_hemis(shemis)
+        vlat = self.data.cfg['lat']
 
-        if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
-            # Log a message about which matching dimension used since this
-            # could be time or lev or lon if ntimes, nlevs or nlons == nlats
-            self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
-                                                                self.data.uwnd.shape))
+        self.log.info(
+            'COMPUTING JET POSITION FOR %d TIMES HEMIS: %s',
+            self.data.uwnd.shape[0],
+            hem_s,
+        )
+        # Setup a dict to get the desired pressure level and hemisphere
+        _latlev_select = {self.data.cfg['lev']: self.pres_lev, vlat: slice(*hlats)}
+        # Select the latitudes and level
+        uwnd_hem = self.data.uwnd.sel(**_latlev_select)
 
-        self.hemis = [slice(None)] * self.data.uwnd.ndim
+        if uwnd_hem[vlat].shape[0] == 0:
+            # This probably means that lat is decreasing with increasing index
+            # so swap the hemisphere latitudes around and re-try the selection
+            _latlev_select[vlat] = slice(*hlats[::-1])
+            uwnd_hem = self.data.uwnd.sel(**_latlev_select)
 
-        if shemis:
-            self.hemis[lat_axis] = self.data.lat < 0
-            lat = self.data.lat[self.data.lat < 0]
-            hidx = 0
-        else:
-            self.hemis[lat_axis] = self.data.lat > 0
-            lat = self.data.lat[self.data.lat > 0]
-            hidx = 1
+        # Find the maximum zonal mean zonal wind at the level set in config
+        uwnd_max = uwnd_hem.argmax(dim=vlat)
 
-        # Get uwnd on pressure level
-        if self.data.uwnd[self.hemis].shape[1] != 1:
-            uwnd_p = self.data.uwnd[self.hemis][:, self.data.lev == self.pres_lev, ...]
-        else:
-            uwnd_p = self.data.uwnd[self.hemis]
+        # Use those indicies to find the latitude and intensity of the max wind
+        # Use the latitude coordinate from the hemisphere restricted uwnd so that the
+        # isel works properly (otherwise it's off by the nuber of gridpoints excluded)
+        jet_lat = uwnd_hem[vlat].isel(**{vlat: uwnd_max.load()})
+        jet_intens = uwnd_hem.isel(**{vlat: uwnd_max.load()})
 
-        uwnd_p = np.squeeze(uwnd_p)
-        dims = uwnd_p.shape
-
-        self.log.info('COMPUTING JET POSITION FOR %d TIMES HEMIS: %d', dims[0], hidx)
-        for tix in range(dims[0]):
-            if tix % 50 == 0 and dims[0] > 50:
-                self.log.info('COMPUTING JET POSITION FOR %d', tix)
-            self.tix = tix
-            jet_loc = np.zeros(dims[-1])
-            for xix in range(dims[-1]):
-                self.xix = xix
-                jet_loc[xix] = self.find_single_jet(uwnd_p[tix, :, xix])
-
-            jet_lat = np.ma.masked_where(jet_loc == 0, lat[jet_loc.astype(int)])
-            self.jet_lat[hidx, tix] = np.ma.mean(jet_lat)
-
-            jet_intens = np.nanmean(uwnd_p[tix, :, :], axis=-1)
-            jet_intens = np.ma.masked_where(jet_loc == 0,
-                                            jet_intens[jet_loc.astype(int)])
-            self.jet_intens[hidx, tix] = np.ma.mean(jet_intens)
-
-    def find_single_jet(self, uwnd):
-        """
-        Find the position of the maximum zonal wind of a 1D array of zonal wind.
-
-        Parameters
-        ----------
-        uwnd : array_like
-            1D array of zonal wind of the same shape as input latitude.
-
-        Returns
-        -------
-        u_max_loc : integer
-            Integer position of maximum wind (argmax)
-
-        """
-        # Yeah, this is really simple, so what? Maybe someday this function grows
-        # up to do more than just the argmax, you don't know!
-        return np.argmax(uwnd)
+        # Put the parameters into place for this hemisphere, taking the zonal mean first
+        self.out_data['lat_{}'.format(hem_s)] = jet_lat.mean(dim=self.data.cfg['lon'])
+        self.out_data['intens_{}'.format(hem_s)] = jet_intens.mean(
+            dim=self.data.cfg['lon']
+        )
 
 
 class STJKangPolvani(STJMetric):
@@ -910,8 +896,9 @@ class STJKangPolvani(STJMetric):
         if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
             # Log a message about which matching dimension used since this
             # could be time or lev or lon if ntimes, nlevs or nlons == nlats
-            self.log.info('ASSUMING LAT DIM IS: {} ({})'.format(lat_axis,
-                                                                self.data.uwnd.shape))
+            self.log.info(
+                'ASSUMING LAT DIM IS: {} ({})'.format(lat_axis, self.data.uwnd.shape)
+            )
 
         self.hemis = [slice(None)] * self.data.uwnd.ndim
 
@@ -931,29 +918,27 @@ class STJKangPolvani(STJMetric):
 
         # Test if pressure is in Pa or hPa
         if self.data.lev.max() < 1100.0:
-            self.data.lev = self.data.lev * 100.
+            self.data.lev = self.data.lev * 100.0
 
         # Only compute flux div at 200hpa
-        self.wh_200 = np.where(self.data.lev == 20000.)[0]
+        self.wh_200 = np.where(self.data.lev == 20000.0)[0]
         assert len(self.wh_200) != 0, 'Cant find 200 hpa level'
 
         # Need surface data for calc shear
-        self.wh_1000 = np.where(self.data.lev == 100000.)[0]
+        self.wh_1000 = np.where(self.data.lev == 100000.0)[0]
         assert len(self.wh_1000) != 0, 'Cant find 1000 hpa level'
 
-        uwnd = xr.DataArray(self.data.uwnd[:, :, lat_elem, :],
-                            coords=[self.dates,
-                                    self.data.lev,
-                                    self.data.lat[lat_elem],
-                                    self.data.lon],
-                            dims=['time', 'pres', 'lat', 'lon'])
+        uwnd = xr.DataArray(
+            self.data.uwnd[:, :, lat_elem, :],
+            coords=[self.dates, self.data.lev, self.data.lat[lat_elem], self.data.lon],
+            dims=['time', 'pres', 'lat', 'lon'],
+        )
 
-        vwnd = xr.DataArray(self.data.vwnd[:, :, lat_elem, :],
-                            coords=[self.dates,
-                                    self.data.lev,
-                                    self.data.lat[lat_elem],
-                                    self.data.lon],
-                            dims=['time', 'pres', 'lat', 'lon'])
+        vwnd = xr.DataArray(
+            self.data.vwnd[:, :, lat_elem, :],
+            coords=[self.dates, self.data.lev, self.data.lat[lat_elem], self.data.lon],
+            dims=['time', 'pres', 'lat', 'lon'],
+        )
 
         return uwnd, vwnd
 
@@ -965,15 +950,21 @@ class STJKangPolvani(STJMetric):
 
         lat = self.data.lat[lat_elem]
 
-        k_e = Kinetic_Eddy_Energies(uwnd.values[:, self.wh_200, :, :],
-                                    vwnd.values[:, self.wh_200, :, :],
-                                    lat, self.props['pres_level'], self.data.lon)
+        k_e = Kinetic_Eddy_Energies(
+            uwnd.values[:, self.wh_200, :, :],
+            vwnd.values[:, self.wh_200, :, :],
+            lat,
+            self.props['pres_level'],
+            self.data.lon,
+        )
         k_e.get_components()
         k_e.calc_momentum_flux()
 
-        del_f = xr.DataArray(np.squeeze(k_e.del_f),
-                             coords=[self.dates, self.data.lat[lat_elem]],
-                             dims=['time', 'lat'])
+        del_f = xr.DataArray(
+            np.squeeze(k_e.del_f),
+            coords=[self.dates, self.data.lat[lat_elem]],
+            dims=['time', 'lat'],
+        )
         return del_f
 
     def get_jet_lat(self, del_f, uwnd, lat, hidx):
@@ -989,8 +980,10 @@ class STJKangPolvani(STJMetric):
         stj_int = np.zeros(uwnd.shape[0])
 
         for t in range(uwnd.shape[0]):
-            shear = (uwnd[t, self.wh_200, signchange[t, :]].values -
-                     uwnd[t, self.wh_1000, signchange[t, :]].values)
+            shear = (
+                uwnd[t, self.wh_200, signchange[t, :]].values
+                - uwnd[t, self.wh_1000, signchange[t, :]].values
+            )
             stj_lat[t] = lat[signchange[t, :]][np.argmax(shear)]
             stj_int[t] = uwnd[t, self.wh_200[0], np.where(lat == stj_lat[t])[0]].values
 
@@ -1015,8 +1008,12 @@ class STJKangPolvani(STJMetric):
 
     def loop_jet_lat(self, data, expected_lat, lat):
         """Get jet location at multiple times."""
-        return np.array([self.get_jet_loc(data[tidx, :], expected_lat[tidx], lat)
-                         for tidx in range(data.shape[0])])
+        return np.array(
+            [
+                self.get_jet_loc(data[tidx, :], expected_lat[tidx], lat)
+                for tidx in range(data.shape[0])
+            ]
+        )
 
 
 def lowest_valid(col):

@@ -449,17 +449,18 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_jra55_theta_mon.yml'.format(CFG_DIR))
 
         # Four main choices
-        # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'
-                            .format(CFG_DIR))
+        # jf_run = JetFindRun(
+        #     '{}/stj_config_erai_monthly_davisbirner_gv.yml'.format(CFG_DIR)
+        # )
 
         # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_jra55_daily_cades.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_daily_cades.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_cfsr_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
 
@@ -467,7 +468,7 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
 
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(1981, 12, 31)
+        date_e = dt.datetime(2018, 12, 31)
 
     client = Client()
     if sens_run:
@@ -482,7 +483,7 @@ def main(sample_run=True, sens_run=False):
                                    date_s=date_s, date_e=date_e)
     else:
         jf_run.run(date_s, date_e)
-
+    client.close()
     jf_run.log.info('JET FINDING COMPLETE')
 
 
