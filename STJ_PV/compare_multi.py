@@ -39,10 +39,21 @@ def main(extn='pdf', fig_mult=1.0):
             'NCEP-Daily':
             {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0'
                       '_zmean_1979-01-01_2016-12-31.nc'),
-             'label': 'Daily NCEP'}}
+             'label': 'Daily NCEP'},
+
+            'CFSR-Daily':
+            {'file': ('CFSR_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                      '_zmean_1979-01-01_2017-12-31.nc'),
+             'label': 'Daily CFSR'},
+
+            'CFSR-Monthly':
+            {'file': ('CFSR_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
+                      '_zmean_1979-01-01_2017-12-31.nc'),
+             'label': 'Monthly CFSR'}
+            }
 
     dsets = ['ERAI-Daily', 'ERAI-Monthly', 'MERRA-Daily', 'MERRA-Monthly',
-             'NCEP-Daily', 'NCEP-Monthly']
+             'NCEP-Daily', 'NCEP-Monthly', 'CFSR-Daily', 'CFSR-Monthly']
 
     fds = [FileDiag(data[dset], file_path='jet_out') for dset in dsets]
     metric = fds[0].metric
@@ -83,7 +94,8 @@ def make_violinplot(metric, axis, hems, hem, fig_mult):
     """Make categorial plot for hemisphere on axis."""
     colors = ['#FF993F', '#ff7f0e',     # Orange
               '#5BA05B', '#0BA00B',     # Green
-              '#6794B5', '#0069B5']     # Blue
+              '#6794B5', '#0069B5',     # Blue
+              '#AF7C7C', '#AF2525']     # Red
     sns.violinplot(x='season', y='lat', hue='kind',
                    data=metric[metric.hem == hem], ax=axis,
                    inner='quart', dashpattern='-',

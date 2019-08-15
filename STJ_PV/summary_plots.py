@@ -45,6 +45,10 @@ def main(run_name=None, props=None):
         props['date_s'] = '1980-01-01'
         props['date_e'] = '2017-12-31'
 
+    elif 'JRA55' in run_name:
+        props['data'] = run_name
+        props['fit'] = 8
+
     else:
         props['data'] = run_name
 
@@ -155,6 +159,7 @@ def main(run_name=None, props=None):
 def pair_grid(data, out_file):
     """Make PairGrid plot for each hemisphere."""
     dframe = data.to_dataframe()
+    dframe = dframe.dropna()
     nh_vars = ['{}_nh'.format(var) for var in ['theta', 'lat', 'intens']]
     sh_vars = ['{}_sh'.format(var) for var in ['theta', 'lat', 'intens']]
     df_nh = dframe[nh_vars]
@@ -228,8 +233,10 @@ SEAS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM', 'JJA',
 if __name__ == '__main__':
     DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
                 'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV',
-                'MERRA_MONTHLY_STJPV', 'MERRA_DAILY_STJPV']
+                'MERRA_MONTHLY_STJPV', 'MERRA_DAILY_STJPV',
+                'JRA55_DAILY_STJPV', 'CFSR_DAILY_THETA_STJPV',
+                'CFSR_MONTHLY_THETA_STJPV']
 
     #for RNAME in DATASETS[1:]:
     #    main(run_name=RNAME)
-    main(run_name=DATASETS[3])
+    main(run_name=DATASETS[-1])

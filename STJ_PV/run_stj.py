@@ -10,6 +10,7 @@ Authors: Penelope Maher, Michael Kelleher
 """
 import os
 import sys
+import pkg_resources
 import logging
 import argparse as arg
 import datetime as dt
@@ -18,14 +19,13 @@ import numpy as np
 import yaml
 import STJ_PV.stj_metric as stj_metric
 import STJ_PV.input_data as inp
-import pkg_resources
 
+from dask.distributed import Client
 
-np.seterr(all='ignore')
-warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
 CFG_DIR = pkg_resources.resource_filename('STJ_PV', 'conf')
 
-class JetFindRun(object):
+
+class JetFindRun:
     """
     Class containing properties about an individual attempt to find the subtropical jet.
 
@@ -101,6 +101,16 @@ class JetFindRun(object):
 
         self._set_metric()
         self.log_setup()
+
+    def __str__(self):
+        out_str = '{0} {1} {0}\n'.format('#' * 10, 'Run Config ')
+        for param in self.config:
+            out_str += '{:15s}: {}\n'.format(param, self.config[param])
+        out_str += '{0} {1} {0}\n'.format('#' * 10, 'Data Config')
+
+        for param in self.data_cfg:
+            out_str += '{:15s}: {}\n'.format(param, self.data_cfg[param])
+        return out_str
 
     def _set_metric(self):
         """Set metric and associated levels."""
@@ -183,17 +193,13 @@ class JetFindRun(object):
     def _get_data(self, date_s=None, date_e=None):
         """Retrieve data stored according to `self.data_cfg`."""
         if self.config['method'] == 'STJPV':
-            data = inp.InputData(self, date_s, date_e)
-        elif self.config['method'] == 'STJUMax':
-            data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
-        elif self.config['method'] == 'DavisBirner':
-            data = inp.InputDataWind(self, ['uwnd'], date_s, date_e)
+            data = inp.InputDataSTJPV(self, date_s, date_e)
+        elif self.config['method'] in ['STJUMax', 'DavisBirner']:
+            data = inp.InputDataUWind(self, date_s, date_e)
         else:
-            data = inp.InputDataWind(self, ['uwnd', 'vwnd'], date_s, date_e)
+            data = inp.InputDataUWind(self, ['uwnd', 'vwnd'], date_s, date_e)
 
-        data.get_data_input()
-
-        return data
+        return data.get_data()
 
     def run(self, date_s=None, date_e=None, save=True):
         """
@@ -224,11 +230,13 @@ class JetFindRun(object):
 
                 for shemis in [True, False]:
                     jet.find_jet(shemis)
+                jet.compute()
 
                 if year == date_s.year:
                     jet_all = jet
                 else:
                     jet_all.append(jet)
+                jet_all.save_jet()
         else:
             data = self._get_data(date_s, date_e)
             jet_all = self.metric(self, data)
@@ -236,9 +244,12 @@ class JetFindRun(object):
                 jet_all.find_jet(shemis)
 
         if save:
+            _out = None
             jet_all.save_jet()
         else:
-            return jet_all
+            _out = jet_all
+
+        return _out
 
     def run_sensitivity(self, sens_param, sens_range, date_s=None, date_e=None):
         """
@@ -415,11 +426,17 @@ def make_parse():
                         help='Perform a parameter sensitivity run',
                         default=False)
 
+    parser.add_argument('--warn', action='store_true',
+                        help='Show all warning messages', default=False)
+
+    parser.add_argument('--file', type=str, default=None,
+                        help='Configuration file path')
+
     args = parser.parse_args()
     return args
 
 
-def main(sample_run=True, sens_run=False):
+def main(sample_run=True, sens_run=False, cfg_file=None):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
@@ -428,6 +445,11 @@ def main(sample_run=True, sens_run=False):
         jf_run = JetFindRun('{}/stj_config_sample.yml'.format(CFG_DIR))
         date_s = dt.datetime(2016, 1, 1)
         date_e = dt.datetime(2016, 1, 3)
+
+    elif cfg_file is not None:
+        print(f'Run with {cfg_file}')
+        jf_run = JetFindRun(cfg_file)
+
     else:
         # ----------Other cases-------------
         # jf_run = JetFindRun('{}/stj_kp_erai_daily.yml'.format(CFG_DIR))
@@ -436,22 +458,35 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_jra55_theta_mon.yml'.format(CFG_DIR))
 
         # Four main choices
-        # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun(
+        #     '{}/stj_config_erai_monthly_davisbirner_gv.yml'.format(CFG_DIR)
+        # )
 
-        # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
-        # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_cfsr_mon.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_cfsr_day.yml'.format(CFG_DIR))
+
+        # jf_run = JetFindRun('{}/stj_config_jra55_mon.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_day.yml'.format(CFG_DIR))
+
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_monthly_cades.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_cfsr_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
 
-        # U-Max
+        # ---------U-Max----------
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
+        # ---Davis-Birner (2016)--
+        # jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'
+        #                     .format(CFG_DIR))
 
+    if not sample_run:
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(2016, 12, 31)
+        date_e = dt.datetime(2018, 12, 31)
 
+    client = Client()
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
                            'fit_deg': np.arange(3, 9),
@@ -464,10 +499,25 @@ def main(sample_run=True, sens_run=False):
                                    date_s=date_s, date_e=date_e)
     else:
         jf_run.run(date_s, date_e)
-
+    client.close()
     jf_run.log.info('JET FINDING COMPLETE')
+    client.close()
 
 
 if __name__ == "__main__":
     ARGS = make_parse()
-    main(sample_run=ARGS.sample, sens_run=ARGS.sens)
+    if not ARGS.warn:
+        # Running with --warn will display all warnings, which includes the
+        # warnings explicitly silenced below, otherwise, only warnings
+        # that haven't been planned for show up
+        np.seterr(all='ignore')
+        # This will occur for some polynomial fits were only a few points are valid
+        # which is dealt with in other ways
+        warnings.simplefilter('ignore', np.polynomial.polyutils.RankWarning)
+
+        # Ignore Runtime Warnings like:
+        # ...dask/core.py:119: RuntimeWarning: invalid value encountered in greater
+        # This occurs because not all points are valid, so dask/xarray warn, but this
+        # is expected since isentropic and isobaric surfaces frequently go below ground
+        warnings.simplefilter('ignore', RuntimeWarning)
+    main(sample_run=ARGS.sample, sens_run=ARGS.sens, cfg_file=ARGS.file)

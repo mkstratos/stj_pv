@@ -1,4 +1,4 @@
-path:       '/Volumes/FN_2187/erai/monthly/'
+path:       '/Volumes/data/erai/monthly/'
 short_name: 'ERAI_MONTHLY_THETA'
 
 # all_vars x n_years
