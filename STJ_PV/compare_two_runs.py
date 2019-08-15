@@ -23,6 +23,8 @@ class FileDiag(object):
             # If the file path is not provided, the input path in `info` is the abs path
             file_path = ''
         self.d_s = xr.open_dataset(os.path.join(file_path, info['file']))
+        if 'level' in self.d_s:
+            self.d_s = self.d_s.drop('level')
 
         self.dframe = None
         self.vars = None
@@ -57,18 +59,20 @@ class FileDiag(object):
                     metric_hem = frame
                 else:
                     # to avoid the following error:
-                    #*** ValueError: 'time' is both an index level and a column label, which is ambiguous.
+                    # *** ValueError: 'time' is both an index level and a
+                    # column label, which is ambiguous.
                     metric_hem.index.name = None
                     frame.index.name = None
                     metric_hem = metric_hem.merge(frame)
 
 
             dframes_tmp.append(metric_hem)
+
         metric = dframes_tmp[0].append(dframes_tmp[1])
 
         if len(hems) == 3:  # If eq is also wanted
             metric = metric.append(dframes_tmp[2])
-        metric['time'] = metric.index
+        # metric['time'] = metric.index
         metric['season'] = SEASONS[pd.DatetimeIndex(metric.time).month].astype(str)
         metric['kind'] = self.name
 
@@ -78,7 +82,6 @@ class FileDiag(object):
             times -= pd.Timedelta(hours=times[0].hour)
 
         metric.index = times
-
         return metric, metric.index[0], metric.index[-1]
 
     def append_metric(self, other):

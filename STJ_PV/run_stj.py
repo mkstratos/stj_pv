@@ -460,6 +460,9 @@ def main(sample_run=True, sens_run=False, cfg_file=None):
         # Four main choices
         jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun(
+        #     '{}/stj_config_erai_monthly_davisbirner_gv.yml'.format(CFG_DIR)
+        # )
 
         # jf_run = JetFindRun('{}/stj_config_cfsr_mon.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_cfsr_day.yml'.format(CFG_DIR))
@@ -496,9 +499,10 @@ def main(sample_run=True, sens_run=False, cfg_file=None):
                                    date_s=date_s, date_e=date_e)
     else:
         jf_run.run(date_s, date_e)
-
+    client.close()
     jf_run.log.info('JET FINDING COMPLETE')
     client.close()
+
 
 if __name__ == "__main__":
     ARGS = make_parse()

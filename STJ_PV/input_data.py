@@ -111,6 +111,10 @@ class InputData:
             chunks_out[exname] = data[exname].shape[0]
 
         for dim in chunks_out:
+            # Quick sanity check to make sure we don't divide by 0
+            if chunks_out[dim] == 0:
+                chunks_out[dim] = 1
+
             self.props.log.info(f'    - {dim}: {chunks_out[dim]}')
         self.props.log.info(f'  Chunk size: {npoints}')
 
