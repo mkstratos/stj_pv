@@ -428,11 +428,15 @@ def make_parse():
 
     parser.add_argument('--warn', action='store_true',
                         help='Show all warning messages', default=False)
+
+    parser.add_argument('--file', type=str, default=None,
+                        help='Configuration file path')
+
     args = parser.parse_args()
     return args
 
 
-def main(sample_run=True, sens_run=False):
+def main(sample_run=True, sens_run=False, cfg_file=None):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
@@ -441,6 +445,11 @@ def main(sample_run=True, sens_run=False):
         jf_run = JetFindRun('{}/stj_config_sample.yml'.format(CFG_DIR))
         date_s = dt.datetime(2016, 1, 1)
         date_e = dt.datetime(2016, 1, 3)
+
+    elif cfg_file is not None:
+        print(f'Run with {cfg_file}')
+        jf_run = JetFindRun(cfg_file)
+
     else:
         # ----------Other cases-------------
         # jf_run = JetFindRun('{}/stj_kp_erai_daily.yml'.format(CFG_DIR))
@@ -449,25 +458,30 @@ def main(sample_run=True, sens_run=False):
         # jf_run = JetFindRun('{}/stj_config_jra55_theta_mon.yml'.format(CFG_DIR))
 
         # Four main choices
-        # jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
+        jf_run = JetFindRun('{}/stj_config_erai_theta.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_erai_theta_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'
-                            .format(CFG_DIR))
 
-        # jf_run = JetFindRun('{}/stj_config_ncep_monthly.yml'.format(CFG_DIR))
-        # jf_run = JetFindRun('{}/stj_config_ncep.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_cfsr_mon.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_cfsr_day.yml'.format(CFG_DIR))
+
+        # jf_run = JetFindRun('{}/stj_config_jra55_mon.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_day.yml'.format(CFG_DIR))
 
         # jf_run = JetFindRun('{}/stj_config_merra_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_merra_daily.yml'.format(CFG_DIR))
-        jf_run = JetFindRun('{}/stj_config_jra55_daily_cades.yml'.format(CFG_DIR))
+        # jf_run = JetFindRun('{}/stj_config_jra55_monthly_cades.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_cfsr_monthly.yml'.format(CFG_DIR))
         # jf_run = JetFindRun('{}/stj_config_jra55_daily_titan.yml'.format(CFG_DIR))
 
-        # U-Max
+        # ---------U-Max----------
         # jf_run = JetFindRun('{}/stj_umax_erai_pres.yml'.format(CFG_DIR))
+        # ---Davis-Birner (2016)--
+        # jf_run = JetFindRun('{}/stj_config_erai_monthly_davisbirner_gv.yml'
+        #                     .format(CFG_DIR))
 
+    if not sample_run:
         date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(1981, 12, 31)
+        date_e = dt.datetime(2018, 12, 31)
 
     client = Client()
     if sens_run:
@@ -484,7 +498,7 @@ def main(sample_run=True, sens_run=False):
         jf_run.run(date_s, date_e)
 
     jf_run.log.info('JET FINDING COMPLETE')
-
+    client.close()
 
 if __name__ == "__main__":
     ARGS = make_parse()
@@ -502,4 +516,4 @@ if __name__ == "__main__":
         # This occurs because not all points are valid, so dask/xarray warn, but this
         # is expected since isentropic and isobaric surfaces frequently go below ground
         warnings.simplefilter('ignore', RuntimeWarning)
-    main(sample_run=ARGS.sample, sens_run=ARGS.sens)
+    main(sample_run=ARGS.sample, sens_run=ARGS.sens, cfg_file=ARGS.file)
