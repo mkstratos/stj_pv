@@ -312,18 +312,18 @@ class STJPV(STJMetric):
             theta_bnds = slice(None)
 
         lev_name = self.data.cfg['lev']
-        subset = {lev_name: theta_bnds}
+        lev_subset = {lev_name: theta_bnds}
 
         # Create a copy of the level subset so we can add the latitude hemisphere
         # subset to do both at once on the 4D arrays, without interfering with the 1D sel
         # because if the 'lat' dim isn't a dim on the self.data[lev_name] array, the
         # selection will raise an error
-        _latlev = subset.copy()
+        _latlev = lev_subset.copy()
         _latlev.update(self.hemis)
         _pv = self.data.ipv.sel(**_latlev).load()
         _uwnd = self.data.uwnd.sel(**_latlev).load()
         self.log.info('     COMPUTING THETA ON %.1e', pv_lev)
-        theta_xpv = utils.xrvinterp(self.data[lev_name].sel(**subset),
+        theta_xpv = utils.xrvinterp(self.data[lev_name].sel(**lev_subset),
                                     _pv,
                                     pv_lev, levname=lev_name, newlevname='pv').load()
 
