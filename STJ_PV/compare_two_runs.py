@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 """Script to compare two or more runs of STJ Find."""
 import os
+import yaml
 import pandas as pd
+from pandas.plotting import register_matplotlib_converters
 import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
-import pdb
-
+register_matplotlib_converters()
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
@@ -53,7 +54,14 @@ class FileDiag(object):
             metric_hem = None
             for frame in frames:
                 # Add a time column so that the merge works
-                frame['time'] = frame.index
+                # Bit of a hack, because we only use up to daily data, we can drop
+                # hours, so in case that's different between datasets, they compare fine
+                # using the .normalize() function of a Pandas DatetimeIndex
+
+                # This will need to be revisited probably when using CMIP data with
+                # non-real world calendars. But that's a problem for a different day :-)
+                _times = pd.DatetimeIndex(frame.index)
+                frame['time'] = _times.normalize()
 
                 if metric_hem is None:
                     metric_hem = frame
@@ -64,7 +72,6 @@ class FileDiag(object):
                     metric_hem.index.name = None
                     frame.index.name = None
                     metric_hem = metric_hem.merge(frame)
-
 
             dframes_tmp.append(metric_hem)
 
@@ -81,13 +88,13 @@ class FileDiag(object):
         if all(times.hour == times[0].hour):
             times -= pd.Timedelta(hours=times[0].hour)
 
-        metric.index = times
+        metric = metric.set_index(times)
         return metric, metric.index[0], metric.index[-1]
 
     def append_metric(self, other):
         """Append the DataFrame attribute (self.lats) to another FileDiag's DataFrame."""
         assert isinstance(other, FileDiag)
-        return self.metric.append(other.metric)
+        return self.metric.append(other.metric, sort=False)
 
     def time_subset(self, other):
         """Make two fds objects have matching times."""
@@ -97,12 +104,27 @@ class FileDiag(object):
             self.metric = fds0
             self.start_t = self.metric.index[0]
             self.end_t = self.metric.index[-1]
-        else:
+        elif self.metric.shape[0] < other.metric.shape[0]:
             # other is bigger
             fds1 = other.metric.loc[sorted(self.metric.time[self.metric.hem == 'nh'])]
             other.metric = fds1
             other.start_t = other.metric.index[0]
             other.end_t = other.metric.index[-1]
+
+        else:
+            # Temp single hemisphere to check time resolutions
+            o_hem = other.metric[other.metric.hem == 'nh']
+            s_hem = self.metric[self.metric.hem == 'nh']
+            s_tres = (s_hem.time[-1] - s_hem.time[0]) / s_hem.shape[0]
+            o_tres = (o_hem.time[-1] - o_hem.time[0]) / o_hem.shape[0]
+
+            if abs(o_hem.time[0] - s_hem.time[0]) < max(o_tres, s_tres):
+                # Difference in start times is smaller than time resolution
+                # so treat both times as the same
+                self.metric = self.metric.set_index(other.metric.index)
+                self.metric['time'] = self.metric.index
+            else:
+                raise ValueError('Times do not match, cannot compare')
 
     def __sub__(self, other):
         hems = ['nh', 'sh']
@@ -137,151 +159,17 @@ class FileDiag(object):
                     diff_out.index.name = None
                     frame.index.name = None
                     diff_out = diff_out.merge(frame)
-
         diff_out['season'] = SEASONS[pd.DatetimeIndex(diff_out.time).month].astype(str)
         return diff_out
 
 
 def main():
     """Selects two files to compare, loads and plots them."""
-    file_info = {'NCEP-mon':
-                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly'},
-
-                 'NCEP-mon-70max':
-                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_yN70.0_zmean_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Monthly 70Max'},
-
-                 'NCEP-day':
-                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily Z-Median'},
-
-                 'NCEP-day-zmean':
-                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmean_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'NCEP Daily Z-Mean'},
-
-                 'NCEP-PV': {'file': 'NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc',
-                             'label': 'NCEP PV'},
-
-                 'NCEP-Umax': {'file': ('NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0'
-                                        '_y010.0.nc'), 'label': 'NCEP U-max'},
-
-                 'ERAI-Theta':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV'},
-
-                 'ERAI-Theta-5':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'),
-                  'label': 'B Monthly ERAI PV 5.0˚'},
-
-                 'ERAI-Theta-DM':
-                 {'file': ('ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'),
-                  'label': 'A Monthly mean of daily ERAI PV'},
-
-                 'ERAI-Theta-Day':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV median'},
-
-                 'ERAI-Theta-Day_zmean':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'Daily ERAI PV mean'},
-
-                 'ERAI-Theta-Day-5':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'B Daily ERAI PV 5.0˚'},
-
-                 'ERAI-Regrid':
-                 {'file': ('ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit6_y010.0_yN65.0_'
-                           'zmean_1979-01-01_2016-12-31.nc'), 'label': 'ERAI Theta 2.5'},
-
-                 'ERAI-Uwind':
-                 {'file': ('ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'ERA-I U Max'},
-
-                 'ERAI-DavisBirner':
-                 {'file': ('ERAI_PRES_DavisBirner_zmean_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'ERA-I D-B'},
-
-
-                 'ERAI-Theta5': {'file': 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc',
-                                 'label': 'ERAI Theta5'},
-
-                 'ERAI-Pres':
-                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2015-12-31.nc'), 'label': 'ERAI Pres'},
-
-                 'ERAI-Pres-newlev':
-                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_'
-                           '1979-01-01_2016-12-31_newlevels.nc'),
-                  'label': 'ERAI Pres new'},
-
-                 'ERAI-Pres-oldlev':
-                 {'file': ('ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_'
-                           '1979-01-01_2016-12-31_oldlevels.nc'),
-                  'label': 'ERAI Pres old'},
-
-                 'ERAI-Epv':
-                 {'file': ('ERAI_EPVPRES_STJPV_pv2.0_fit8_y010.0_zmedian_'
-                           '1979-01-01_2015-12-31.nc'), 'label': 'ERAI EPV Pres'},
-
-                 'ERAI-KP': {'file': ('ERAI_DAILY_PRES_KangPolvani_zmean_'
-                                      '1979-01-01_2016-12-31.nc'), 'label': 'ERA-I K-P'},
-
-                 'ERAI-Theta_LR':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'Monthly ERAI PV Slice'},
-
-                 'ERAI-Theta-Day_LR':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'A Daily ERAI PV'},
-
-                 'MERRA-Mon':
-                 {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
-                           '1980-01-01_2017-12-31.nc'), 'label': 'Monthly MERRA'},
-
-                 'MERRA-Day':
-                 {'file': ('MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
-                           '1980-01-01_2017-12-31.nc'), 'label': 'Daily MERRA PV "Bad"'},
-
-                 'MERRA-Day-old':
-                 {'file': ('MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
-                           '1980-01-01_2017-12-31_old.nc'),
-                  'label': 'Daily MERRA PV Old'},
-
-                 'JRA-Mon':
-                 {'file': ('JRA55_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_'
-                           '1979-01-01_2016-12-31.nc'), 'label': 'Monthly JRA-55 PV'},
-
-                 'ERAI-Theta_zmean':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_'
-                           '1979-01-01_2016-12-31.nc'),
-                  'label': 'Monthly ERAI PV Zonal Mean'},
-
-                 'ERAI-Monthly_new':
-                 {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                           '_zmean_1979-01-01_2016-12-31.nc'),
-                  'label': 'Monthly ERA-I'},
-
-                 'ERAI-Daily_new':
-                 {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                           '_zmean_1979-01-01_2016-12-31.nc'),
-                  'label': 'Daily ERA-I'},
-
-                 'NCEP-Monthly_new':
-                 {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                           '_zmean_1979-01-01_2016-12-31.nc'),
-                  'label': 'Monthly NCEP'},
-
-                 'NCEP-Daily_new':
-                 {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                           '_zmean_1979-01-01_2016-12-31.nc'),
-                  'label': 'Daily NCEP'},
-                }
+    with open("runinfo.yml") as cfgin:
+        file_info = yaml.safe_load(cfgin.read())
 
     nc_dir = './jet_out'
-    #nc_dir = '/home/pm366/Documents/Data/'
+    # nc_dir = '/home/pm366/Documents/Data/'
     if not os.path.exists(nc_dir):
         nc_dir = '.'
 
@@ -292,7 +180,7 @@ def main():
     fig_width = (8.4 / 2.54) * fig_mult
     fig_height = fig_width * 1.3
 
-    in_names = ['ERAI-Monthly_new', 'ERAI-DavisBirner']
+    in_names = ['ERAI-Monthly', 'ERAI-DavisBirner']
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
@@ -315,13 +203,13 @@ def main():
     for axis in axes:
         axis.set_xlabel('')
         axis.set_ylabel('Latitude [deg]')
-    fig.subplots_adjust(left=0.11, bottom=0.05, right=0.98, top=0.98, hspace=0.0)
-    fig.legend(bbox_to_anchor=(0.15, 0.94), loc='upper left', borderaxespad=0.)
+    fig.subplots_adjust(left=0.13, bottom=0.05, right=0.98, top=0.98, hspace=0.0)
 
     for axis in axes:
         axis.legend_.remove()
         axis.tick_params(axis='y', rotation=90)
         axis.grid(b=True, ls='--', zorder=-1)
+    axes[1].legend(bbox_to_anchor=(0.5, 0.05), loc='lower center', borderaxespad=0.)
     # fig.suptitle('Seasonal jet latitude distributions')
 
     plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
@@ -329,6 +217,7 @@ def main():
 
     if fds[0].start_t != fds[1].start_t or fds[0].end_t != fds[1].end_t:
         fds[0].time_subset(fds[1])
+
     diff = fds[0] - fds[1]
 
     # Make timeseries plot for each hemisphere, and difference in each
@@ -352,6 +241,7 @@ def main():
     sns.catplot(x='season', y='lat', col='hem', data=diff, kind='bar')
     plt.tight_layout()
     plt.savefig('plt_diff_bar_{}-{}.{ext}'.format(ext=extn, *in_names))
+
 
 if __name__ == "__main__":
     main()

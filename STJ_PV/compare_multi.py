@@ -5,55 +5,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from compare_two_runs import FileDiag
 import seaborn as sns
+import yaml
+
 
 __author__ = 'Michael Kelleher'
 
 
 def main(extn='pdf', fig_mult=1.0):
     """Load and combine multiple jet runs into one DataFrame, plot info."""
-    data = {'ERAI-Monthly':
-            {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1979-01-01_2016-12-31.nc'),
-             'label': 'Monthly ERA-I'},
+    # File called runinfo.yml stores information about each JetFindRun
+    # with a label and file location
+    with open('runinfo.yml', 'r') as cfg:
+        data = yaml.safe_load(cfg.read())
 
-            'ERAI-Daily':
-            {'file': ('ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1979-01-01_2017-12-31.nc'),
-             'label': 'Daily ERA-I'},
-
-            'MERRA-Monthly':
-            {'file': ('MERRA_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1980-01-01_2017-12-31.nc'),
-             'label': 'Monthly MERRA'},
-
-            'MERRA-Daily':
-            {'file': ('MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1980-01-01_2017-12-31.nc'),
-             'label': 'Daily MERRA'},
-
-            'NCEP-Monthly':
-            {'file': ('NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1979-01-01_2016-12-31.nc'),
-             'label': 'Monthly NCEP'},
-
-            'NCEP-Daily':
-            {'file': ('NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1979-01-01_2016-12-31.nc'),
-             'label': 'Daily NCEP'},
-
-            'CFSR-Daily':
-            {'file': ('CFSR_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1979-01-01_2017-12-31.nc'),
-             'label': 'Daily CFSR'},
-
-            'CFSR-Monthly':
-            {'file': ('CFSR_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                      '_zmean_1979-01-01_2017-12-31.nc'),
-             'label': 'Monthly CFSR'}
-            }
-
-    dsets = ['ERAI-Daily', 'ERAI-Monthly', 'MERRA-Daily', 'MERRA-Monthly',
-             'NCEP-Daily', 'NCEP-Monthly', 'CFSR-Daily', 'CFSR-Monthly']
+    dsets = ['ERAI-Daily', 'ERAI-Monthly', 'MERRA2-Daily', 'MERRA2-Monthly',
+             'JRA55-Daily', 'JRA55-Monthly', 'CFSR-Daily', 'CFSR-Monthly']
 
     fds = [FileDiag(data[dset], file_path='jet_out') for dset in dsets]
     metric = fds[0].metric

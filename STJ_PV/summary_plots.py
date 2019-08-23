@@ -25,7 +25,7 @@ def main(run_name=None, props=None):
                  'yN': 65.0,
                  'zonal_reduce': 'mean',
                  'date_s': '1979-01-01',
-                 'date_e': '2017-12-31'}
+                 'date_e': '2018-12-31'}
 
     if run_name is None:
         props['data'] = 'ERAI_MONTHLY_THETA_STJPV'
@@ -40,14 +40,10 @@ def main(run_name=None, props=None):
                  'date_e': '2016-01-03'}
         props['data'] = 'NCEP_NCAR_DAILY_STJPV'
 
-    elif 'MERRA' in run_name:
+    elif 'MERRA2' in run_name:
         props['data'] = run_name
         props['date_s'] = '1980-01-01'
-        props['date_e'] = '2017-12-31'
-
-    elif 'JRA55' in run_name:
-        props['data'] = run_name
-        props['fit'] = 8
+        props['date_e'] = '2018-12-31'
 
     else:
         props['data'] = run_name
@@ -233,10 +229,10 @@ SEAS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM', 'JJA',
 if __name__ == '__main__':
     DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
                 'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV',
-                'MERRA_MONTHLY_STJPV', 'MERRA_DAILY_STJPV',
-                'JRA55_DAILY_STJPV', 'CFSR_DAILY_THETA_STJPV',
-                'CFSR_MONTHLY_THETA_STJPV']
+                'MERRA2_MONTHLY_STJPV', 'MERRA2_DAILY_STJPV',
+                'JRA55_MONTHLY_STJPV', 'JRA55_DAILY_STJPV',
+                'CFSR_DAILY_THETA_STJPV', 'CFSR_MONTHLY_THETA_STJPV']
 
-    #for RNAME in DATASETS[1:]:
-    #    main(run_name=RNAME)
-    main(run_name=DATASETS[-1])
+    for RNAME in DATASETS[2:]:
+        main(run_name=RNAME)
+    # main(run_name=DATASETS[-1])
