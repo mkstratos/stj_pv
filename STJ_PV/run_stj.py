@@ -11,6 +11,7 @@ Authors: Penelope Maher, Michael Kelleher
 import os
 import sys
 import pkg_resources
+import multiprocessing
 import logging
 import argparse as arg
 import datetime as dt
@@ -20,7 +21,7 @@ import yaml
 import STJ_PV.stj_metric as stj_metric
 import STJ_PV.input_data as inp
 
-from dask.distributed import Client
+from dask.distributed import Client, LocalCluster
 
 CFG_DIR = pkg_resources.resource_filename('STJ_PV', 'conf')
 
@@ -431,12 +432,13 @@ def make_parse():
 
     parser.add_argument('--file', type=str, default=None,
                         help='Configuration file path')
-
+    parser.add_argument('--ys', type=str, default="1979", help="Start Year")
+    parser.add_argument('--ye', type=str, default="2018", help="End Year")
     args = parser.parse_args()
     return args
 
 
-def main(sample_run=True, sens_run=False, cfg_file=None):
+def main(sample_run=True, sens_run=False, cfg_file=None, year_s=1979, year_e=2018):
     """Run the STJ Metric given a configuration file."""
     # Generate an STJProperties, allows easy access to these properties across methods.
 
@@ -483,10 +485,14 @@ def main(sample_run=True, sens_run=False, cfg_file=None):
         #                     .format(CFG_DIR))
 
     if not sample_run:
-        date_s = dt.datetime(1979, 1, 1)
-        date_e = dt.datetime(2018, 12, 31)
+        date_s = dt.datetime(year_s, 1, 1)
+        date_e = dt.datetime(year_e, 12, 31)
 
-    client = Client()
+    cpus = multiprocessing.cpu_count()
+    cluster = LocalCluster(n_workers=cpus // 4, threads_per_worker=4)
+    client = Client(cluster)
+    jf_run.log.info(client)
+
     if sens_run:
         sens_param_vals = {'pv_value': np.arange(1.0, 4.5, 0.5),
                            'fit_deg': np.arange(3, 9),
@@ -501,7 +507,6 @@ def main(sample_run=True, sens_run=False, cfg_file=None):
         jf_run.run(date_s, date_e)
     client.close()
     jf_run.log.info('JET FINDING COMPLETE')
-    client.close()
 
 
 if __name__ == "__main__":
@@ -520,4 +525,11 @@ if __name__ == "__main__":
         # This occurs because not all points are valid, so dask/xarray warn, but this
         # is expected since isentropic and isobaric surfaces frequently go below ground
         warnings.simplefilter('ignore', RuntimeWarning)
-    main(sample_run=ARGS.sample, sens_run=ARGS.sens, cfg_file=ARGS.file)
+
+    main(
+        sample_run=ARGS.sample,
+        sens_run=ARGS.sens,
+        cfg_file=ARGS.file,
+        year_s=int(ARGS.ys),
+        year_e=int(ARGS.ye)
+    )

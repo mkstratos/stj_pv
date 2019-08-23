@@ -87,7 +87,7 @@ class InputData:
         """Re-chunk input data to ideal size."""
         self.in_data[var] = self.in_data[var].chunk(self.chunk)
 
-    def _set_chunks(self, data, max_size=1e6, excldims=('lev', 'lat')):
+    def _set_chunks(self, data, max_size=3e6, excldims=('lev', 'lat')):
         """Get ideal-ish chunks in a different way."""
         shape = data.shape
         npoints = np.prod(shape)

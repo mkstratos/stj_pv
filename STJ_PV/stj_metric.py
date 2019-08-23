@@ -493,6 +493,11 @@ class STJPV(STJMetric):
         # Our zonal wind data is on isentropic levels. Lower levels are bound to be below
         # the surface in some places, so we need to use the lowest valid wind level as
         # the surface, so do some magic to make that happen.
+        _lev = self.data.cfg['lev']
+        if self.data[_lev].shape[0] != self.data.chunks[_lev][0]:
+            # re-chunk wind to ensure continuity along vertical axis
+            self.data = self.data.chunk({_lev: -1})
+
         uwnd_sfc = xr.apply_ufunc(
             lowest_valid,
             self.data.uwnd,
