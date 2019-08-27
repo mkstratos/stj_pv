@@ -1,0 +1,128 @@
+---
+ERAI-Daily_new:
+  file: ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc
+  label: Daily ERA-I
+
+ERAI-DavisBirner:
+  file: ERAI_PRES_DavisBirner_zmean_1979-01-01_2016-12-31.nc
+  label: ERA-I D-B
+
+ERAI-Epv:
+  file: ERAI_EPVPRES_STJPV_pv2.0_fit8_y010.0_zmedian_1979-01-01_2015-12-31.nc
+  label: ERAI EPV Pres
+
+ERAI-KP:
+  file: ERAI_DAILY_PRES_KangPolvani_zmean_1979-01-01_2016-12-31.nc
+  label: ERA-I K-P
+
+ERAI-Monthly_new:
+  file: ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc
+  label: Monthly ERA-I
+
+ERAI-Pres:
+  file: ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmedian_1979-01-01_2015-12-31.nc
+  label: ERAI Pres
+
+ERAI-Pres-newlev:
+  file: ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_1979-01-01_2016-12-31_newlevels.nc
+  label: ERAI Pres new
+
+ERAI-Pres-oldlev:
+  file: ERAI_PRES_STJPV_pv2.0_fit8_y010.0_zmean_1979-01-01_2016-12-31_oldlevels.nc
+  label: ERAI Pres old
+
+ERAI-Regrid:
+  file: ERAI_MONTHLY_THETA_2p5_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc
+  label: ERAI Theta 2.5
+
+ERAI-Theta:
+  file: ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_1979-01-01_2016-12-31.nc
+  label: Monthly ERAI PV
+
+ERAI-Theta-5:
+  file: ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_1979-01-01_2016-12-31.nc
+  label: "B Monthly ERAI PV 5.0\u02DA"
+
+ERAI-Theta-DM:
+  file: ERAI_MONTHLY_DM_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_1979-01-01_2016-12-31.nc
+  label: A Monthly mean of daily ERAI PV
+
+ERAI-Theta-Day:
+  file: ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_1979-01-01_2016-12-31.nc
+  label: Daily ERAI PV median
+
+ERAI-Theta-Day-5:
+  file: ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y05.0_zmedian_1979-01-01_2016-12-31.nc
+  label: "B Daily ERAI PV 5.0\u02DA"
+
+ERAI-Theta-Day_LR:
+  file: ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_1979-01-01_2016-12-31.nc
+  label: A Daily ERAI PV
+
+ERAI-Theta-Day_zmean:
+  file: ERAI_DAILY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_1979-01-01_2016-12-31.nc
+  label: Daily ERAI PV mean
+
+ERAI-Theta5:
+  file: ERAI_MONTHLY_THETA_STJPV_pv2.0_fit5_y010.0.nc
+  label: ERAI Theta5
+
+ERAI-Theta_LR:
+  file: ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmedian_lon45-100_1979-01-01_2016-12-31.nc
+  label: Monthly ERAI PV Slice
+
+ERAI-Theta_zmean:
+  file: ERAI_MONTHLY_THETA_STJPV_pv2.0_fit8_y010.0_zmean_1979-01-01_2016-12-31.nc
+  label: Monthly ERAI PV Zonal Mean
+
+ERAI-Uwind:
+  file: ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc
+  label: ERA-I U Max
+
+JRA-Mon:
+  file: JRA55_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc
+  label: Monthly JRA-55 PV
+
+MERRA-Day:
+  file: MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1980-01-01_2017-12-31.nc
+  label: Daily MERRA PV "Bad"
+
+MERRA-Day-old:
+  file: MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1980-01-01_2017-12-31_old.nc
+  label: Daily MERRA PV Old
+
+MERRA-Mon:
+  file: MERRA_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1980-01-01_2017-12-31.nc
+  label: Monthly MERRA
+
+NCEP-Daily_new:
+  file: NCEP_NCAR_DAILY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc
+  label: Daily NCEP
+
+NCEP-Monthly_new:
+  file: NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc
+  label: Monthly NCEP
+
+NCEP-PV:
+  file: NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit12_y010.0.nc
+  label: NCEP PV
+
+NCEP-Umax:
+  file: NCEP_NCAR_MONTHLY_HR_STJUMax_pres25000.0_y010.0.nc
+  label: NCEP U-max
+
+NCEP-day:
+  file: NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmedian_1979-01-01_2016-12-31.nc
+  label: NCEP Daily Z-Median
+
+NCEP-day-zmean:
+  file: NCEP_NCAR_DAILY_STJPV_pv2.0_fit8_y010.0_zmean_1979-01-01_2016-12-31.nc
+  label: NCEP Daily Z-Mean
+
+NCEP-mon:
+  file: NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_zmedian_1979-01-01_2016-12-31.nc
+  label: NCEP Monthly
+
+NCEP-mon-70max:
+  file: NCEP_NCAR_MONTHLY_STJPV_pv2.0_fit8_y010.0_yN70.0_zmean_1979-01-01_2016-12-31.nc
+  label: NCEP Monthly 70Max

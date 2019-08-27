@@ -9,5 +9,5 @@ lower_p_level: 40000.0
 surface_p_level: 85000.0
 year_s: 1979
 year_e: 2016
-min_lat: 10
+min_lat: 15
 max_lat: 90

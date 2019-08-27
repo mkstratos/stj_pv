@@ -187,7 +187,7 @@ class DiagPlots(object):
                                               for dimn in ['time', vlon, vlat]})
 
         # Find the zonal mean zonal wind for this hemisphere
-        uwnd_hemis = data.uwnd.where(self.stj.hemis).mean(dim=vlon)[tix, ...]
+        uwnd_hemis = data.uwnd.sel(**self.stj.hemis).mean(dim=vlon)[tix]
 
         # Make contour plot (theta vs. lat) of zmzw
         axes[hidx].contourf(uwnd_hemis[vlat], uwnd_hemis[vlev],
