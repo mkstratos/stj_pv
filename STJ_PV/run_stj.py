@@ -503,6 +503,7 @@ def main(sample_run=True, sens_run=False, cfg_file=None, year_s=1979, year_e=201
         _threads = 2
 
     cluster = LocalCluster(n_workers=cpus // _threads, threads_per_worker=_threads)
+
     client = Client(cluster)
     jf_run.log.info(client)
 
