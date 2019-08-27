@@ -495,9 +495,9 @@ def main(sample_run=True, sens_run=False, cfg_file=None, year_s=1979, year_e=201
         date_e = dt.datetime(year_e, 12, 31)
 
     cpus = multiprocessing.cpu_count()
-    if cpus % 4:
+    if cpus % 4 == 0:
         _threads = 4
-    elif cpus % 3:
+    elif cpus % 3 == 0:
         _threads = 3
     else:
         _threads = 2
