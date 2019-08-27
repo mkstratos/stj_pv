@@ -63,7 +63,6 @@ class JetFindRun:
                            'max_lat': 65.0, 'update_pv': False,
                            'year_s': 1979, 'year_e': 2015}
         else:
-
             # Open the configuration file, put its contents into a variable to be read by
             # YAML reader
             self.config, cfg_failed = check_run_config(config_file)
@@ -273,8 +272,15 @@ class JetFindRun:
             for param in params_avail:
                 print(param)
             sys.exit(1)
-
         for param_val in sens_range:
+            # Fix the parameter type so it outputs using yaml.safe_dump when we call
+            # STJMetric.save_jet(), this prevents a yaml.representer.RepresenterError
+            # Because yaml.safe_dump can't interpret numpy floats or ints as of v5.1
+            if isinstance(param_val, (np.float64, np.float32, np.float16)):
+                param_val = float(param_val)
+            elif isinstance(param_val, (np.int8, np.uint8, np.int16, np.int32, np.int64)):
+                param_val = int(param_val)
+
             self.log.info('----- RUNNING WITH %s = %f -----', sens_param, param_val)
             # Save original config value
             param_orig = self.config[sens_param]
@@ -489,7 +495,14 @@ def main(sample_run=True, sens_run=False, cfg_file=None, year_s=1979, year_e=201
         date_e = dt.datetime(year_e, 12, 31)
 
     cpus = multiprocessing.cpu_count()
-    cluster = LocalCluster(n_workers=cpus // 4, threads_per_worker=4)
+    if cpus % 4:
+        _threads = 4
+    elif cpus % 3:
+        _threads = 3
+    else:
+        _threads = 2
+
+    cluster = LocalCluster(n_workers=cpus // _threads, threads_per_worker=_threads)
     client = Client(cluster)
     jf_run.log.info(client)
 
