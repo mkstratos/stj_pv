@@ -7,8 +7,9 @@ import matplotlib.ticker as ticker
 import xarray as xr
 import scipy.stats as sts
 from seaborn import despine
+import pandas as pd
 
-NC_DIR = './jet_out/sens/daily'
+NC_DIR = './jet_out/sens'
 
 
 def main(run_type, param_name, param_vals, dates, var='lat'):
@@ -31,7 +32,8 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     """
     opts = {'run_type': run_type, 'fit': 6,
             'y0': 10, 'pv_lev': 2.0, 'yN': 65.0}
-    plot_seas = True
+    plot_all = False
+    plot_seas = False
     plot_mon = False
     plot_mon_std = True
     plot_ts = False
@@ -53,10 +55,16 @@ def main(run_type, param_name, param_vals, dates, var='lat'):
     plt.rc('font', family='sans-serif', size=8 * fig_mult)
     sens_out = None
 
+    if plot_all:
+        fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
+        figure = plt.subplots(1, 2, figsize=fig_size)
+        sens_out = sens_all(d_in, var, param_name, figure, func="trend")
+        plt.close()
+
     if plot_seas:
         fig_size = (fig_width / 25.4, (fig_width * 0.6) / 25.4)
         figure = plt.subplots(1, 2, figsize=fig_size)
-        sens_out = sens_seasonal(d_in, var, param_name, figure)
+        sens_out = sens_seasonal(d_in, var, param_name, figure, func="mean")
         plt.close()
 
     if plot_mon:
@@ -103,8 +111,79 @@ def plot_timeseries(d_in, var, param_name, figure):
     plt.tight_layout()
     fig.savefig('plt_compare_{}_{}.{}'.format(var, param_name, EXTN))
 
+def trend(data):
+    times = pd.DatetimeIndex(data.time.values).to_julian_date()
+    reg = np.zeros(data.shape[0])
+    for idx in range(data.shape[0]):
+        reg[idx] = sts.linregress(times, data[idx, :])[0] * 365 * 10
+    return xr.DataArray(
+        reg, dims=(data.dims[0]), coords={data.dims[0]: data.coords[data.dims[0]]}
+    )
 
-def sens_seasonal(d_in, var, param_name, figure):
+
+def sens_all(d_in, var, param_name, figure, func="mean"):
+    """Plot seasonal sensitivity to a parameter."""
+    sens_out = {}
+    fig, axis = figure
+    cols_nh = ['2o', '3o', '2.', '1v']
+    cols_sh = ['2o', '0x', '1v', '2.']
+    param_vals = d_in[param_name]
+
+    nh_seas = d_in['{}_nh'.format(var)]
+    sh_seas = d_in['{}_sh'.format(var)]
+    if func == "trend":
+        nh_sm = nh_seas.pipe(trend)
+        sh_sm = sh_seas.pipe(trend)
+    else:
+        nh_sm = nh_seas.mean(axis=1)
+        sh_sm = sh_seas.mean(axis=1)
+
+    if param_name == 'fit':
+        # Degree of fit is discrete variable that can only be
+        # an integer, don't put a line in
+        line_str = 'C{}'
+    else:
+        line_str = 'C{}-'
+    snx = 0
+    axis[0].plot(param_vals, nh_sm, line_str.format(cols_nh[snx]),)
+    axis[1].plot(param_vals, sh_sm, line_str.format(cols_sh[snx]),)
+
+    sens_out[('NH', 'all')] = sts.linregress(param_vals,
+                                             nh_sm)
+    sens_out[('SH', 'all')] = sts.linregress(param_vals,
+                                             sh_sm)
+    axis[0].set_xlabel(PARAMS[param_name])
+    if func == "mean":
+        axis[0].set_ylabel('Mean Jet {name} [{units}]'.format(**VARS[var]))
+    elif func == "trend":
+        axis[0].set_ylabel('Jet {name} trend [{units} / dec]'.format(**VARS[var]))
+    # if param_name == 'fit' and var == 'lat':
+    #     axis[0].legend(loc='upper center', bbox_to_anchor=(0.5, 0.5))
+    # else:
+    for axi in axis:
+        despine(ax=axi, offset=0)
+
+    # axis[0].legend(ncol=2)
+    axis[0].set_title('(a) Northern Hemisphere')
+    axis[0].grid(**GRID_STYLE)
+    axis[1].set_xlabel(PARAMS[param_name])
+    # axis[1].legend(ncol=2)
+    axis[1].set_title('(b) Southern Hemisphere')
+    axis[1].grid(**GRID_STYLE)
+
+    if var == 'lat' and func == "mean":
+        axis[0].set_ylim([25, 45])
+        axis[1].invert_yaxis()
+        axis[1].set_ylim([-45, -25])
+        axis[1].set_ylim([-25, -45])
+    fig.subplots_adjust(left=0.15, bottom=0.13, right=0.97,
+                        top=0.93, wspace=0.26)
+    # plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var]['name']))
+    fig.savefig('{}/plt_all_{}_{}_{}.{}'.format(OUT_DIR, func, var, param_name, EXTN))
+    return sens_out
+
+
+def sens_seasonal(d_in, var, param_name, figure, func="mean"):
     """Plot seasonal sensitivity to a parameter."""
     sens_out = {}
     fig, axis = figure
@@ -114,8 +193,12 @@ def sens_seasonal(d_in, var, param_name, figure):
 
     nh_seas = d_in['{}_nh'.format(var)].groupby('time.season')
     sh_seas = d_in['{}_sh'.format(var)].groupby('time.season')
-    nh_sm = nh_seas.mean(axis=1)
-    sh_sm = sh_seas.mean(axis=1)
+    if func == "trend":
+        nh_sm = nh_seas.apply(trend)
+        sh_sm = sh_seas.apply(trend)
+    else:
+        nh_sm = nh_seas.mean(axis=1)
+        sh_sm = sh_seas.mean(axis=1)
 
     for snx, season in enumerate(nh_sm.season):
         if param_name == 'fit':
@@ -135,7 +218,10 @@ def sens_seasonal(d_in, var, param_name, figure):
                                                             sh_sm[:, snx])
 
     axis[0].set_xlabel(PARAMS[param_name])
-    axis[0].set_ylabel('Mean Jet {name} [{units}]'.format(**VARS[var]))
+    if func == "mean":
+        axis[0].set_ylabel('Mean Jet {name} [{units}]'.format(**VARS[var]))
+    elif func == "trend":
+        axis[0].set_ylabel('Jet {name} trend [{units} / dec]'.format(**VARS[var]))
     # if param_name == 'fit' and var == 'lat':
     #     axis[0].legend(loc='upper center', bbox_to_anchor=(0.5, 0.5))
     # else:
@@ -150,15 +236,15 @@ def sens_seasonal(d_in, var, param_name, figure):
     axis[1].set_title('(b) Southern Hemisphere')
     axis[1].grid(**GRID_STYLE)
 
-    if var == 'lat':
+    if var == 'lat' and func == "mean":
         axis[0].set_ylim([25, 45])
-        # axis[1].invert_yaxis()
-        # axis[1].set_ylim([-45, -25])
+        axis[1].invert_yaxis()
+        axis[1].set_ylim([-45, -25])
         axis[1].set_ylim([-25, -45])
     fig.subplots_adjust(left=0.11, bottom=0.13, right=0.97,
                         top=0.93, wspace=0.26)
     # plt.suptitle('Seasonal Mean Jet {}'.format(VARS[var]['name']))
-    fig.savefig('{}/plt_season_mean_{}_{}.{}'.format(OUT_DIR, var, param_name, EXTN))
+    fig.savefig('{}/plt_season_{}_{}_{}.{}'.format(OUT_DIR, func, var, param_name, EXTN))
     return sens_out
 
 
@@ -257,15 +343,16 @@ def create_table_param(sens):
     """Create a LaTeX table of numeric sensitivities, parameters as columns."""
     print(' & & '.join(sens.keys()))
     print(' & '.join(['NH', 'SH'] * len(sens.keys())))
-    for season in ['DJF', 'MAM', 'JJA', 'SON']:
+    for season in ['all', 'DJF', 'MAM', 'JJA', 'SON']:
         out_line = '{} & '.format(season)
         for var in sens:
             for hem in ['NH', 'SH']:
-                if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
-                    fmt_str = ' \\textbf{%.2f} & '
-                else:
-                    fmt_str = ' %.2f & '
-                out_line += fmt_str % sens[var]['lat'][(hem, season)].slope
+                if (hem, season) in sens[var]['lat']:
+                    if sens[var]['lat'][(hem, season)].pvalue <= 0.05:
+                        fmt_str = ' \\textbf{%.2f} & '
+                    else:
+                        fmt_str = ' %.2f & '
+                    out_line += fmt_str % sens[var]['lat'][(hem, season)].slope
         out_line = '{}\\\\'.format(out_line[:-2])
         print(out_line)
 
@@ -273,8 +360,9 @@ def create_table_param(sens):
 def run():
     """Set dates, variable names, and parameters to plot sensitivity."""
     # run_type = 'NCEP_NCAR_MONTHLY_STJPV'
-    run_type = 'NCEP_NCAR_DAILY_STJPV'
-    dates = ('1979-01-01', '2017-12-31')
+    # run_type = 'NCEP_NCAR_DAILY_STJPV'
+    run_type = "ERAI_MONTHLY_THETA_STJPV"
+    dates = ('1979-01-01', '2018-12-31')
     param_vals = {'pv_lev': np.arange(1.0, 4.5, 0.5),
                   'fit': np.arange(3, 9),
                   'y0': np.arange(2.5, 15, 2.5),
@@ -297,7 +385,7 @@ VARS = {'lat': {'name': 'Latitude Position', 'units': 'deg'},
         'intens': {'name': 'Intensity', 'units': 'm/s'}}
 EXTN = 'pdf'
 GRID_STYLE = {'b': True, 'ls': '--', 'lw': 0.3}
-OUT_DIR = './plots/sens/daily'
+OUT_DIR = './plots/sens'
 
 if __name__ == "__main__":
     run()

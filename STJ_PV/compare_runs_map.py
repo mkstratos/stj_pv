@@ -135,10 +135,8 @@ def main(width=174, figscale=1.0, extn='png'):
     in_names = ['ERAI-DB', 'ERAI-Uwind']
     labels = [INFO[name]['label'] for name in in_names]
 
-    dates = {'nh': pd.Timestamp('2018-07-01'),
-             'sh': pd.Timestamp('2016-01-01')}
-    # dates = {'nh': pd.Timestamp('2015-12-01'),
-    #          'sh': pd.Timestamp('2014-08-01')}
+    dates = {'nh': pd.Timestamp('2018-05-01'),
+             'sh': pd.Timestamp('2017-03-01')}
 
     nc_dir = './jet_out'
     wind_dir = '/Volumes/data/erai/monthly/'

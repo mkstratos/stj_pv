@@ -193,18 +193,18 @@ def summary_table(data_in, out_file):
 
     # Set output precision
     pd.set_option('display.float_format', lambda x: '%.1f' % x)
-
+    var_order = ['lat_sh', 'lat_nh', 'intens_sh',
+                 'intens_nh', 'theta_sh', 'theta_nh']
+    annual = pd.DataFrame({'Annual': data_in.to_dataframe().mean()}).T
+    seasonal = data_seasonal.to_dataframe()
+    annual = annual.append(seasonal)[var_order]
     with open('seasonal_stats_{}.tex'.format(out_file), 'w') as fout:
-        annual = pd.DataFrame({'Annual': data_in.to_dataframe().mean()}).T
-        seasonal = data_seasonal.to_dataframe()
-        annual = annual.append(seasonal)
         fout.write(annual.to_latex())
 
     with open('monthly_stats_{}.tex'.format(out_file), 'w') as fout:
         fout.write(data_monthly.to_dataframe().to_latex())
 
     with open('annual_stats_{}.tex'.format(out_file), 'w') as fout:
-        annual = pd.DataFrame({'Annual': data_in.to_dataframe().mean()})
         fout.write(annual.T.to_latex())
 
 
@@ -227,12 +227,10 @@ SEAS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM', 'JJA',
                  'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 if __name__ == '__main__':
-    DATASETS = ['NCEP_NCAR_MONTHLY_STJPV', 'NCEP_NCAR_DAILY_STJPV',
-                'ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV',
+    DATASETS = ['ERAI_MONTHLY_THETA_STJPV', 'ERAI_DAILY_THETA_STJPV',
                 'MERRA2_MONTHLY_STJPV', 'MERRA2_DAILY_STJPV',
                 'JRA55_MONTHLY_STJPV', 'JRA55_DAILY_STJPV',
                 'CFSR_DAILY_THETA_STJPV', 'CFSR_MONTHLY_THETA_STJPV']
 
-    for RNAME in DATASETS[2:]:
+    for RNAME in DATASETS:
         main(run_name=RNAME)
-    # main(run_name=DATASETS[-1])
