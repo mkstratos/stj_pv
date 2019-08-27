@@ -11,16 +11,18 @@ import compare_two_runs as c2r
 from mpl_toolkits import basemap as bmp
 import STJ_PV.run_stj as run_stj
 
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 __author__ = 'Michael Kelleher'
 
-HEM_LIMS = {'nh': [23, 54], 'sh': [-54, -23]}
-INFO = {'ERAI-PVGrad':
-        {'file': ('ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0'
-                  '_zmean_1979-01-01_2016-12-31.nc'), 'label': 'PV Grad'},
+HEM_LIMS = {'nh': [13, 54], 'sh': [-54, -13]}
+INFO = {'ERAI-DB':
+        {'file': ('ERAI_PRES_DavisBirner_zmean_1979-01-01_2018-12-31.nc'),
+         'label': 'Davis-Birner'},
 
         'ERAI-Uwind':
         {'file': ('ERAI_PRES_STJUMax_pres25000.0_y010.0_yN65.0_zmean_'
-                  '1979-01-01_2016-12-31.nc'), 'label': 'U Max'}}
+                  '1979-01-01_2018-12-31.nc'), 'label': 'U Max'}}
 
 
 def draw_map_lines(pmap, axis):
@@ -68,12 +70,15 @@ def get_pvgrad_pos(date):
         An array of jet latitude locations (hemisphere, time, lon)
 
     """
-    jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
+    # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_theta.yml')
+    jf_run = run_stj.JetFindRun(
+        './conf/stj_config_erai_monthly_davisbirner_gv.yml'
+    )
     # Force update_pv and force_write to be False,
     # optional override of zonal-mean
     jf_run.config['update_pv'] = False
     jf_run.config['force_write'] = False
-    jf_run.config['zonal_opt'] = 'indv'
+    jf_run.config['zonal_opt'] = 'mean'
     jet = jf_run.run(date_s=date, date_e=date + pd.Timedelta(days=34),
                      save=False)
     try:
@@ -83,7 +88,7 @@ def get_pvgrad_pos(date):
     except OSError:
         print('Log file not found: {}'.format(jf_run.config['log_file']))
 
-    return jet.jet_lat
+    return [jet.out_data['lat_{}'.format(hem)] for hem in ['sh', 'nh']]
 
 
 def plot_annotations(fig, axes, cfill):
@@ -117,8 +122,8 @@ def plot_annotations(fig, axes, cfill):
 
 def plot_labels(fig, figscale):
     """Put a, b, c, ... on plots."""
-    labels = {'a': {'x': 0.07, 'y': 0.95}, 'b': {'x': 0.07, 'y': 0.5},
-              'c': {'x': 0.6, 'y': 0.95}, 'd': {'x': 0.6, 'y': 0.5}}
+    labels = {'a': {'x': 0.07, 'y': 0.9}, 'b': {'x': 0.07, 'y': 0.45},
+              'c': {'x': 0.56, 'y': 0.9}, 'd': {'x': 0.56, 'y': 0.45}}
 
     for label in labels:
         fig.text(**labels[label], s=f'({label})', fontsize=figscale * 9.0)
@@ -127,17 +132,15 @@ def plot_labels(fig, figscale):
 def main(width=174, figscale=1.0, extn='png'):
     """Load data, make plots."""
     # Parameters, labels, etc.
-    in_names = ['ERAI-PVGrad', 'ERAI-Uwind']
+    in_names = ['ERAI-DB', 'ERAI-Uwind']
     labels = [INFO[name]['label'] for name in in_names]
 
-    dates = {'nh': pd.Timestamp('2010-07-01'),
-             'sh': pd.Timestamp('2016-03-01')}
-    # dates = {'nh': pd.Timestamp('2015-12-01'),
-    #          'sh': pd.Timestamp('2014-08-01')}
+    dates = {'nh': pd.Timestamp('2018-05-01'),
+             'sh': pd.Timestamp('2017-03-01')}
 
     nc_dir = './jet_out'
-    wind_dir = '/Volumes/FN_2187/erai/monthly/'
-    theta_lev = 350
+    wind_dir = '/Volumes/data/erai/monthly/'
+    theta_lev = 300
 
     # Set the font to sans-serif and size 9 (but scaled)
     plt.rc('font', family='sans-serif', size=9 * figscale)
@@ -179,8 +182,8 @@ def main(width=174, figscale=1.0, extn='png'):
         axes[idx, 0].set_ylabel(c2r.HEMS[hem])
 
         # Restrict to 2010-2016
-        axes[idx, 0].set_xlim([pd.Timestamp('2010-01-01'),
-                               pd.Timestamp('2016-06-30')])
+        axes[idx, 0].set_xlim([pd.Timestamp('2012-01-01'),
+                               pd.Timestamp('2018-12-31')])
 
         # Show which date is being plotted in the map with a verical line
         axes[idx, 0].axvline(dates[hem], color='k', ls='--', lw=1.1, zorder=0)
@@ -189,7 +192,7 @@ def main(width=174, figscale=1.0, extn='png'):
         axes[idx, 0].set_ylim(HEM_LIMS[hem])
 
         # Open ERAI data to extract zonal wind
-        dsw = xr.open_dataset(f'{wind_dir}/erai_theta_{dates[hem].year}.nc')
+        dsw = xr.open_dataset(f'{wind_dir}/erai_pres_{dates[hem].year}.nc')
 
         # Select the correct day and level from the u-wind
         uwnd = dsw.sel(time=dates[hem], level=theta_lev).u
@@ -230,9 +233,10 @@ def main(width=174, figscale=1.0, extn='png'):
 
         # Transform the longitude and latitude points of the identified jet
         # to map coords then plot it on pmap
-        pvgrad_map = pmap(lon[:-1:2], pv_grad_lat[hem_idx, 0][::2])
-        pmap.plot(*pvgrad_map, 'o', color=cols[labels[0]],
-                  ms=0.9, ax=axes[idx, 1])
+        if pv_grad_lat[hem_idx].ndim != 1:
+            pvgrad_map = pmap(lon[:-1:2], pv_grad_lat[hem_idx][0, ::2].values)
+            pmap.plot(*pvgrad_map, 'o', color=cols[labels[0]],
+                      ms=0.9, ax=axes[idx, 1])
 
         _pvgrad = dfh[1][dfh[1].kind == labels[0]]
         pmap.drawparallels(_pvgrad[_pvgrad.time == dates[hem]].lat,

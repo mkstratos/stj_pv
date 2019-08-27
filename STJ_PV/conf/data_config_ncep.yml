@@ -1,5 +1,5 @@
 # File path and dataset name
-path:       '/Volumes/FN_2187/ncep2/'
+path:       '/Volumes/data/ncep2/'
 short_name: 'NCEP_NCAR_DAILY'
 
 # Input file possibilities:

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from seaborn import despine
+
 __author__ = 'Michael Kelleher, Penny Maher'
 
 
@@ -24,21 +25,26 @@ def plot_data(info):
     _, axes = plt.subplots(1, 2, figsize=(fig_w, fig_w * (9 / 16)))
 
     # Coordinates (axis, x of axis)
-    coords = {'x': {'Monthly': 0, 'Daily': 1},
-              'axis': {'Northern Hemisphere': 0, 'Southern Hemisphere': 1},
-              'color': {'NCEP': 0, 'ERAI': 1, 'MERRA': 2},
-              'xplus': {'NCEP': -0.11, 'ERAI': 0.0, 'MERRA': 0.11}}
+    coords = {
+        'x': {'Monthly': 0, 'Daily': 1},
+        'axis': {'Northern Hemisphere': 0, 'Southern Hemisphere': 1},
+        'color': {'CFSR': 0, 'ERA-I': 1, 'JRA55': 2, 'MERRA2': 3},
+        'xplus': {'CFSR': -0.2, 'ERA-I': -0.07, 'JRA55': 0.07, 'MERRA2': 0.2},
+    }
     axkey = 'Hemisphere'
     xkey = 'Frequency'
-
+    # leg_handles = {}
     for _, row in data.iterrows():
         ax_ix = coords['axis'][row[axkey]]
         x_ix = coords['x'][row[xkey]] + coords['xplus'][row['Reanalysis']]
         cix = coords['color'][row['Reanalysis']]
 
-        sct_args = {'NCEP': {'marker': 'o', 's': info['ms'], 'zorder': 6},
-                    'ERAI': {'marker': 'o', 's': info['ms'], 'zorder': 7},
-                    'MERRA': {'marker': 'o', 's': info['ms'], 'zorder': 8}}
+        sct_args = {
+            'CFSR': {'marker': 'o', 's': info['ms'], 'zorder': 6},
+            'JRA55': {'marker': 'o', 's': info['ms'], 'zorder': 7},
+            'ERA-I': {'marker': 'o', 's': info['ms'], 'zorder': 8},
+            'MERRA2': {'marker': 'o', 's': info['ms'], 'zorder': 9},
+        }
 
         if row['Upper'] * row['Lower'] > 0:
             sct_args[row['Reanalysis']]['c'] = 'C{}'.format(cix)
@@ -46,19 +52,29 @@ def plot_data(info):
             sct_args[row['Reanalysis']]['facecolor'] = 'white'
             sct_args[row['Reanalysis']]['edgecolor'] = 'C{}'.format(cix)
 
-        if ax_ix == 1 and coords['x'][row[xkey]] == 0:
+        if ax_ix == 0 and coords['x'][row[xkey]] == 1:
             sct_args[row['Reanalysis']]['label'] = row['Reanalysis']
 
-        axes[ax_ix].scatter(x_ix, row[info['data_name']],
-                            **sct_args[row['Reanalysis']])
-        axes[ax_ix].vlines(x_ix, row['Lower'], row['Upper'],
-                           'C{}'.format(cix), lw=2.5, zorder=2)
-        capsize = 0.1
+        axes[ax_ix].scatter(
+            x_ix, row[info['data_name']], **sct_args[row['Reanalysis']]
+        )
 
-        axes[ax_ix].hlines(row['Lower'], x_ix - capsize, x_ix + capsize,
-                           'C{}'.format(cix))
-        axes[ax_ix].hlines(row['Upper'], x_ix - capsize, x_ix + capsize,
-                           'C{}'.format(cix))
+        axes[ax_ix].vlines(
+            x_ix,
+            row['Lower'],
+            row['Upper'],
+            'C{}'.format(cix),
+            lw=2.5,
+            zorder=2,
+        )
+        capsize = 0.07
+
+        axes[ax_ix].hlines(
+            row['Lower'], x_ix - capsize, x_ix + capsize, 'C{}'.format(cix)
+        )
+        axes[ax_ix].hlines(
+            row['Upper'], x_ix - capsize, x_ix + capsize, 'C{}'.format(cix)
+        )
 
     xlabels, xticks = invert_coords(coords, 'x')
     axlabels, axidx = invert_coords(coords, 'axis')
@@ -83,26 +99,36 @@ def plot_data(info):
 
     axes[coords['axis']['Southern Hemisphere']].invert_yaxis()
     axes[0].set_ylabel(info['ylabel'])
-    axes[1].legend(bbox_to_anchor=info['legend'], frameon=False, framealpha=1.)
+
+    # _keys = [('Daily', 'Northern Hemisphere', reana) for reana in sct_args]
+    axes[0].legend(
+        bbox_to_anchor=info['legend'], frameon=False, framealpha=1.0
+    )
 
     plt.tight_layout()
     plt.savefig('plt_{data_name}_all.pdf'.format(**info))
 
 
-
 def main():
     """Setup info for plots, call plot creation function."""
-    info = {'trends': {'data_name': 'Trend', 'data_file': 'trends.csv',
-                       'ylabel': u'Latitude Trend [\u00b0 / decade]',
-                       'y_lim': [-0.67, 0.67],
-                       'legend': (0.99, 0.965),
-                       'ms': 70},
-            'means': {'data_name': 'Mean',
-                      'data_file': 'position.csv',
-                      'ylabel': u'Latitude Position [\u00b0]',
-                      'y_lim': ([28, 38], [-38, -28]),
-                      'legend': (0.4, 0.965),
-                      'ms': 30}}
+    info = {
+        'trends': {
+            'data_name': 'Trend',
+            'data_file': 'trends.csv',
+            'ylabel': u'Latitude Trend [\u00b0 / decade]',
+            'y_lim': [-0.97, 0.97],
+            'legend': (0.99, 0.965),
+            'ms': 65,
+        },
+        'means': {
+            'data_name': 'Mean',
+            'data_file': 'position.csv',
+            'ylabel': u'Latitude Position [\u00b0]',
+            'y_lim': ([28, 38], [-38, -28]),
+            'legend': (0.4, 0.965),
+            'ms': 30,
+        },
+    }
 
     plot_data(info['means'])
 

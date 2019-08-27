@@ -31,6 +31,8 @@ def main(time_freq):
                         'y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc'),
              'jra55-monthly': ('./jet_out/JRA55_MONTHLY_THETA_STJPV_pv2.0_fit6_'
                                'y010.0_yN65.0_zmean_1979-01-01_2016-12-31.nc'),
+             'jra55-daily': ('./jet_out/JRA55_DAILY_STJPV_pv2.0_fit8_y010.0_'
+                             'yN65.0_zmean_1979-01-01_2017-12-31.nc'),
              'merra': ('./jet_out/MERRA_MONTHLY_STJPV_pv2.0_fit6_y010.0_'
                        'yN65.0_zmean_1980-01-01_2016-12-31.nc'),
              'merra-daily': ('./jet_out/MERRA_DAILY_STJPV_pv2.0_fit6_y010.0_'
@@ -43,7 +45,7 @@ def main(time_freq):
     cols = {'nh': {'DJF': 0, 'MAM': 3, 'JJA': 2, 'SON': 1},
             'sh': {'DJF': 2, 'MAM': 1, 'JJA': 0, 'SON': 3}}
     seasons = ['DJF', 'MAM', 'JJA', 'SON']
-    seasonal = data_in.resample(freq='Q-MAY', dim='time')
+    seasonal = data_in.resample(time='Q-MAY').mean()
 
     hem_desc = {'nh': 'Northern hemisphere', 'sh': 'Southern hemisphere'}
     jet_vars = {'lat': 'jet latitude [deg]', 'intens': 'jet intensity [m/s]',
@@ -89,4 +91,4 @@ def main(time_freq):
 
 
 if __name__ == '__main__':
-    main('jra55-monthly')
+    main('jra55-daily')

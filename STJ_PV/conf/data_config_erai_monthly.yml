@@ -1,5 +1,5 @@
-path: '/Volumes/FN_2187/erai/monthly'
-wpath: '/Volumes/FN_2187/erai/monthly'
+path: '/Volumes/data/erai/monthly'
+wpath: '/Volumes/data/erai/monthly'
 #wpath: '/scratch/mk450/Data/ERA_INT/monthly/'
 short_name: 'ERAI_PRES'
 

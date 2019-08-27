@@ -1,5 +1,5 @@
 ---
-data_cfg: 'data_config_erai_monthly_gv.yml'
+data_cfg: 'data_config_erai_monthly.yml'
 freq: 'mon'
 zonal_opt: 'mean'
 method: 'DavisBirner'
@@ -9,4 +9,5 @@ lower_p_level: 40000.0
 surface_p_level: 85000.0
 year_s: 1979
 year_e: 2016
-
+min_lat: 15
+max_lat: 90

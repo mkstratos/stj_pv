@@ -2,12 +2,11 @@
 """Generate or load input data for STJ Metric."""
 import os
 import numpy as np
-import netCDF4 as nc
-# Dependent code
-import utils
-import STJ_PV.data_out as dout
-import psutil
 import pkg_resources
+import datetime as dt
+import xarray as xr
+# Dependent code
+import STJ_PV.utils as utils
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
@@ -16,667 +15,364 @@ def package_data(relpath, file_name):
     """Get data relative to this installed package.
     Generally used for the sample data."""
     _data_dir = pkg_resources.resource_filename('STJ_PV', relpath)
-    return nc.Dataset(os.path.join(_data_dir, file_name), 'r')
+    return xr.open_dataset(os.path.join(_data_dir, file_name))
 
 
-class InputData(object):
+class InputData:
     """
     Contains the relevant input data and routines for an JetFindRun.
 
     Parameters
     ----------
     jet_find : :py:meth:`~STJ_PV.run_stj.JetFindRun`
-        Object containing properties about the metric calculation to be done. Used to
-        locate correct files, and variables within those files.
+        Object containing properties about the metric calculation
+        to be performed. Used to locate correct files, and variables
+        within those files.
     year : int, optional
         Year of data to load, not used when all years are in a single file
 
     """
+    # For the default InputData class, there are no required fields
+    # this should be overridden in child classes for each metric
+    load_vars = []
 
     def __init__(self, props, date_s=None, date_e=None):
         """Initialize InputData object, using JetFindRun class."""
         self.props = props
-        self.config = props.config
         self.data_cfg = props.data_cfg
+
         if date_s is not None:
             self.year = date_s.year
         else:
             self.year = None
 
-        # Initialize attributes defined in open_files or open_ipv_data
-        self.time = None
-        self.time_units = None
-        self.calendar = None
+        self.in_data = {}
+        self.out_data = {}
 
-        self.lon = None
-        self.lat = None
-        self.lev = None
-        self.th_lev = None
+        self.sel = {self.data_cfg['time']: slice(None),
+                    self.data_cfg['lev']: slice(None),
+                    self.data_cfg['lat']: slice(None),
+                    self.data_cfg['lon']: slice(None)}
 
-        # Each input data _must_ have u-wind, isentropic pv, and thermal tropopause,
-        # but _might_ need the v-wind and air temperature to calculate PV/thermal-trop
-        self.uwnd = None
-        self.ipv = None
-        self.dyn_trop = None
-        self.in_data = None
+        self.chunk = {self.data_cfg['time']: None,
+                      self.data_cfg['lev']: None,
+                      self.data_cfg['lat']: None,
+                      self.data_cfg['lon']: None}
 
         if date_s is not None or date_e is not None:
-            self._select(date_s, date_e)
-        else:
-            self.d_select = slice(None)
+            self.sel[self.data_cfg['time']] = slice(date_s, date_e)
 
-    def _select(self, date_s=None, date_e=None):
-        """
-        Return a subset of the data between two times.
+        self._select_setup()
 
-        Parameters
-        ----------
-        date_s, date_e : :py:meth:`datetime.datetime` for start and end of selection,
-            optional. Default: None
-
-        """
-        if self.time is None:
-            self._load_time(self._find_pv_update())
-        dates = nc.num2date(self.time, self.time_units, self.calendar)
-        if date_s is not None and date_e is not None:
-            # We have both start and end
-            self.d_select = np.logical_and(dates >= date_s, dates <= date_e)
-
-        elif date_s is None and date_e is not None:
-            # Beginning of data to an endpoint
-            self.d_select = dates <= date_e
-
-        elif date_s is not None and date_e is None:
-            # Start time to end of data
-            self.d_select = dates >= date_s
-
-        self.time = self.time[self.d_select]
-
-    def _find_pv_update(self):
-        pv_file = os.path.join(self.data_cfg['wpath'],
-                               self.data_cfg['file_paths']['ipv'].format(year=self.year))
-        return self.config['update_pv'] or not os.path.exists(pv_file)
-
-    def get_data_input(self):
-        """Get input data for metric calculation."""
-        # First, check if we want to update data, or need to create from scratch
-        # if not, then we can load existing data
-
-        pv_update = self._find_pv_update()
-        if pv_update:
-            self._load_data(pv_update)
-            self._calc_ipv()
-            if 'force_write' in self.props.config:
-                force_write = self.props.config['force_write']
-            else:
-                force_write = False
-            if self.time.shape[0] >= self.d_select.shape[0] or force_write:
-                # Only write output if it's the entire file
-                self._write_ipv()
-            else:
-                self.props.log.info('NOT WRITING FILE: time: {}, d_select: {}'
-                                    .format(self.time.shape[0], self.d_select.shape[0]))
-        else:
-            self._load_ipv()
-
-        if self.th_lev[0] > self.th_lev[-1]:
-            self.ipv = self.ipv[:, ::-1, ...]
-            self.uwnd = self.uwnd[:, ::-1, ...]
-            self.th_lev = self.th_lev[::-1]
-
-    def check_input_range(self, year_s, year_e):
-        """
-        Create/check input data for a range of years.
-
-        Parameters
-        ----------
-        year_s, year_e : int
-            Start and end years of period, respectively
-
-        """
+    def _select_setup(self):
+        """Set up selection dictionary to be passed to xarray.DataArray.sel."""
         cfg = self.data_cfg
-        pv_file_fmt = os.path.join(cfg['wpath'], cfg['file_paths']['ipv'])
+        for cvar in ['lon', 'lev']:
+            # In the data config file, the start and end values will be
+            # labeled as lon_s, lon_e (for longitude as an example)
+            _start = '{}_s'.format(cvar)
+            _end = '{}_e'.format(cvar)
+            if _start and _end in cfg:
+                self.sel[cfg[cvar]] = slice(cfg[_start], cfg[_end])
 
-        for year in range(year_s, year_e + 1):
-            self.year = year
-            self.props.log.info('CHECKING INPUT FOR {}'.format(year))
-            pv_file = pv_file_fmt.format(year=self.year)
-            self.props.log.info('CHECKING: {}'.format(pv_file))
+    def _load_data(self):
+        """Load all required data."""
+        for data_var in self.load_vars:
+            try:
+                self._load_one_file(data_var)
+            except (KeyError, FileNotFoundError):
+                self.props.log.info('FILE FOR %s NOT FOUND', data_var)
 
-            pv_update = self._find_pv_update()
+    def _chunk_data(self, var):
+        """Re-chunk input data to ideal size."""
+        self.in_data[var] = self.in_data[var].chunk(self.chunk)
 
-            if pv_update:
-                self._load_data(pv_update)
-                self._calc_ipv()
-                self._write_ipv()
+    def _set_chunks(self, data, max_size=3e6, excldims=('lev', 'lat')):
+        """Get ideal-ish chunks in a different way."""
+        shape = data.shape
+        npoints = np.prod(shape)
+        excl_n = [self.data_cfg[excldim] for excldim in excldims]
+        dims = [coord for coord in data.coords
+                if coord in data.dims and coord not in excl_n]
+        chunks = {dim: data[dim].shape[0] for dim in dims}
+        divis = {dim: 1 for dim in dims}
+        n_iter = 0
 
-    def _load_time(self, pv_update=False):
-        if pv_update:
-            var = 'uwnd'
-        else:
-            var = 'ipv'
+        while npoints > max_size and n_iter < 10:
+            _pts = np.prod([data[name].shape[0] for name in excl_n])
+            for dim in dims:
+                divis[dim] *= 2
+                _pts *= chunks[dim] // divis[dim]
+            npoints = _pts
+            n_iter += 1
+        self.props.log.info(f'  Chunking took {n_iter} iterations')
+        chunks_out = {dim: chunks[dim] // divis[dim] for dim in dims}
+        for exname in excl_n:
+            chunks_out[exname] = data[exname].shape[0]
 
-        # Load an example file
-        try:
-            file_name = self.data_cfg['file_paths'][var].format(year=self.year)
-        except KeyError:
-            file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
+        for dim in chunks_out:
+            # Quick sanity check to make sure we don't divide by 0
+            if chunks_out[dim] == 0:
+                chunks_out[dim] = 1
 
-        if not os.path.exists(os.path.join(self.data_cfg['path'], file_name)):
-            # Fall back to 'all' if the input file is not found
-            file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
+            self.props.log.info(f'    - {dim}: {chunks_out[dim]}')
+        self.props.log.info(f'  Chunk size: {npoints}')
 
-        try:
-            nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
-        except FileNotFoundError:
-            nc_file = package_data(self.data_cfg['path'], file_name)
+        self.chunk = chunks_out
 
-        self.time = nc_file.variables[self.data_cfg['time']][:]
-        if isinstance(self.time, np.ma.MaskedArray):
-            # Some data has masked time, if it is, remove those values
-            # this issue may crop up elsewhere, but sort it there first
-            self.time = self.time.compressed()
-
-        # Set time units and calendar properties
-        self.time_units = nc_file.variables[self.data_cfg['time']].units
-        try:
-            self.calendar = nc_file.variables[self.data_cfg['time']].calendar
-        except (KeyError, AttributeError):
-            self.calendar = 'standard'
-        nc_file.close()
-
-    def _load_data(self, pv_update=False):
-        cfg = self.data_cfg
-        self.in_data = {}
-
-        data_vars = []
-        if pv_update:
-            data_vars.extend(['uwnd', 'vwnd', 'tair'])
-            if 'epv' in cfg:
-                # If we already have PV on isobaric levels, load only pv, u-wind, t-air
-                data_vars = ['epv', 'uwnd', 'tair']
-
-        if cfg['ztype'] == 'theta':
-            # If input data is isentropic already..need pressure on theta, not air temp
-            if pv_update:
-                data_vars.remove('tair')
-            data_vars.append('pres')
-
-        # This is how they're called in the configuration file, each should point to
-        # how the variable is called in the actual netCDF file
-        dim_vars = ['lev', 'lat', 'lon']
-
-        # Load u/v/t; create pv file that has ipv, tpause file with tropopause lev
-        first_file = True
-        nc_file = None
-        for var in data_vars:
-            nc_file, first_file = self._load_one_file(var, dim_vars,
-                                                      nc_file, first_file)
-            if cfg['single_var_file']:
-                nc_file.close()
-                nc_file = None
-
-        if not cfg['single_var_file']:
-            nc_file.close()
-
-    def _load_one_file(self, var, dim_vars, nc_file=None, first_file=True):
+    def _load_one_file(self, var, file_var=None):
+        """Load a single netCDF file as an xarray.Dataset."""
         cfg = self.data_cfg
         vname = cfg[var]
-        if self.in_data is None:
-            self.in_data = {}
 
-        if nc_file is None:
-            # Format the name of the file, join it with the path, open it
-            try:
-                file_name = cfg['file_paths'][var].format(year=self.year)
-            except KeyError:
-                file_name = cfg['file_paths']['all'].format(year=self.year)
-            self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
-                                                               file_name)))
-            try:
-                nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
-            except FileNotFoundError:
-                nc_file = package_data(cfg['path'], file_name)
+        # Use this to set the file variable name (look for uwnd in ipv file)
+        if file_var is None:
+            file_var = var
 
-        # Load coordinate variables
-        if first_file:
-            if self.time is None:
-                self._load_time()
-            for dvar in dim_vars:
-                v_in_name = cfg[dvar]
-                if dvar == 'lev' and cfg['ztype'] == 'pres':
-                    setattr(self, dvar,
-                            nc_file.variables[v_in_name][:] * cfg['pfac'])
-                else:
-                    setattr(self, dvar, nc_file.variables[v_in_name][:])
+        # Format the name of the file, join it with the path, open it
+        try:
+            file_name = cfg['file_paths'][file_var].format(year=self.year)
+        except KeyError:
+            file_name = cfg['file_paths']['all'].format(year=self.year)
 
-        if 'lon_s' in cfg and 'lon_e' in cfg:
+        self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
+                                                           file_name)))
+        try:
+            nc_file = xr.open_dataset(os.path.join(cfg['path'], file_name))
+        except FileNotFoundError:
+            nc_file = package_data(cfg['path'], file_name)
 
-            # TODO: take account of longitudes being -180 - 180 or 0 - 360
-            lon_sel = np.logical_and(self.lon >= cfg['lon_s'],
-                                     self.lon <= cfg['lon_e'])
-            if first_file:
-                self.lon = self.lon[lon_sel]
-        else:
-            lon_sel = slice(None)
+        self.in_data[var] = nc_file[vname].sel(**self.sel)
+        _fails = 0
+        while self.in_data[var][cfg['time']].shape[0] == 0 and _fails < 15:
+            # Update the time slice so that it covers potential mis-match
+            # between how days are requested and how they're stored in the
+            # netCDF file (e.g. ask for 2013-07-14 00:00, but the netCDF
+            # file has 2013-07-14 09:00)
+            _day = dt.timedelta(hours=23)
+            self.sel[cfg['time']] = slice(self.sel[cfg['time']].start,
+                                          self.sel[cfg['time']].stop + _day)
+            self.in_data[var] = nc_file[vname].sel(**self.sel)
+            self.props.log.info('UPDATING TIME SLICE BY 1 DAY %s',
+                                (self.sel[cfg['time']].stop
+                                 .strftime('%Y-%m-%d %HZ')))
 
-        if 'lev_s' in cfg and 'lev_e' in cfg:
-            lev_sel = np.logical_and(self.lev >= cfg['lev_s'],
-                                     self.lev <= cfg['lev_e'])
-            if first_file:
-                self.lev = self.lev[lev_sel]
-        else:
-            lev_sel = slice(None)
+            # Iterate, but don't get stuck here
+            _fails += 1
 
-        first_file = False
+        if all([self.chunk[var] is None for var in self.chunk]):
+            self._set_chunks(self.in_data[var])
 
-        select = (self.d_select, lev_sel, slice(None), lon_sel)
-        self.props.log.info("\tLOAD: {}".format(var))
-        self.in_data[var] = nc_file.variables[vname][select].astype(np.float16)
+        self._chunk_data(var)
 
-        return nc_file, first_file
+    def get_data(self):
+        """Get a single xarray.Dataset of required components for metric."""
+        data = xr.Dataset(self.out_data,
+                          attrs={'cfg': self.data_cfg, 'year': self.year})
+        return data
 
-
-    def _gen_chunks(self, n_chunks=3):
-        """Split data into time-period chunks if needed."""
-        total_mem = psutil.virtual_memory().total
-        # Data is in numpy float32, so total size is npoints * 32 / 8 in bytes
-        dset_size = np.prod(self.in_data['uwnd'].shape) * 32 / 8
-        ideal_chunks = int(np.floor(100 / (np.prod(self.in_data['uwnd'].shape) * 32 / 8 /
-                                           psutil.virtual_memory().available * 100)))
-        if ideal_chunks > n_chunks:
-            n_chunks = ideal_chunks
-        if (dset_size / total_mem) > 0.01:
-            n_times = self.in_data['uwnd'].shape[0]
-            # This sets the chunk width to at least 1
-            cwidth = max(1, n_times // n_chunks)
-            chunks = [[ix, ix + cwidth] for ix in range(0, n_times + cwidth, cwidth)]
-            # Using the above range, the last chunk generated is beyond the shape of axis0
-            chunks.pop(-1)
-            # Set the last element of the last chunk to None, just in case, so all data
-            # gets calculated no matter how the chunks are created
-            chunks[-1][-1] = None
-        else:
-            chunks = [(0, None)]
-        return chunks
-
-    def _calc_ipv(self):
-        # Shorthand for configuration dictionary
-        cfg = self.data_cfg
-        if self.in_data is None:
-            self._load_data()
-        self.props.log.info('Starting IPV calculation')
-
-        # calculate IPV
-        if cfg['ztype'] == 'pres':
-            th_shape = list(self.in_data['uwnd'].shape)
-            th_shape[1] = self.props.th_levels.shape[0]
-
-            # Pre-allocate memory for PV and Wind fields
-            self.ipv = np.ma.zeros(th_shape)
-            self.uwnd = np.ma.zeros(th_shape)
-            chunks = self._gen_chunks()
-            self.props.log.info('CALCULATE IPV USING {} CHUNKS'.format(len(chunks)))
-            for ix_s, ix_e in chunks:
-                if 'epv' not in self.in_data:
-                    self.props.log.info('USING U, V, T TO COMPUTE IPV')
-                    self.ipv[ix_s:ix_e, ...], _, self.uwnd[ix_s:ix_e, ...] =\
-                        utils.ipv(self.in_data['uwnd'][ix_s:ix_e, ...],
-                                  self.in_data['vwnd'][ix_s:ix_e, ...],
-                                  self.in_data['tair'][ix_s:ix_e, ...],
-                                  self.lev, self.lat, self.lon, self.props.th_levels)
-                else:
-                    self.props.log.info('USING ISOBARIC PV TO COMPUTE IPV')
-                    thta = utils.theta(self.in_data['tair'][ix_s:ix_e, ...], self.lev)
-                    self.ipv[ix_s:ix_e, ...] = \
-                        utils.vinterp(self.in_data['epv'][ix_s:ix_e, ...],
-                                      thta, self.props.th_levels)
-                    self.uwnd[ix_s:ix_e, ...] = \
-                        utils.vinterp(self.in_data['uwnd'][ix_s:ix_e, ...],
-                                      thta, self.props.th_levels)
-            self.ipv *= 1e6  # Put PV in units of PVU
-            self.th_lev = self.props.th_levels
-
-        elif cfg['ztype'] == 'theta':
-            self.ipv = utils.ipv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
-                                       self.in_data['pres'], self.lat, self.lon,
-                                       self.lev)
-        self.props.log.info('Finished calculating IPV')
-
-    def _calc_dyn_trop(self):
-        """Calculate dynamical tropopause (pv==2PVU)."""
-        pv_lev = self.config['pv_value']
-        pv_lev = np.array([abs(pv_lev)])
-
-        self.props.log.info('Start calculating dynamical tropopause')
-        if self.ipv is None:
-            # Calculate PV
-            self._load_ipv()
-
-        # Calculate Theta on PV == 2 PVU
-        _nh = [slice(None), slice(None), self.lat >= 0, slice(None)]
-        _sh = [slice(None), slice(None), self.lat < 0, slice(None)]
-
-        dyn_trop_nh = utils.vinterp(self.th_lev, self.ipv[_nh] * 1e6, pv_lev)
-        dyn_trop_sh = utils.vinterp(self.th_lev, self.ipv[_sh] * 1e6, -1 * pv_lev)
-        if self.lat[0] > self.lat[-1]:
-            self.dyn_trop = np.append(dyn_trop_nh, dyn_trop_sh, axis=1)
-        else:
-            self.dyn_trop = np.append(dyn_trop_sh, dyn_trop_nh, axis=1)
-
-        self.props.log.info('Finished calculating dynamical tropopause')
-
-    def _write_ipv(self, out_file=None):
-        """
-        Save IPV data generated to a file, either netCDF4 or pickle.
-
-        Parameters
-        ----------
-        out_file : string, optional
-            Output file path for pickle or netCDF4 file, will contain ipv data and coords
-
-        """
+    def write_data(self, out_file=None):
+        """Write netCDF file of the out_data."""
         if out_file is None:
-            file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
+            file_name = (self.data_cfg['file_paths']['ipv']
+                         .format(year=self.year))
             out_file = os.path.join(self.data_cfg['wpath'], file_name)
 
         if not os.access(out_file, os.W_OK):
-            write_dir = pkg_resources.resource_filename('STJ_PV', self.data_cfg['wpath'])
+            write_dir = pkg_resources.resource_filename(
+                'STJ_PV', self.data_cfg['wpath']
+            )
             out_file = os.path.join(write_dir, file_name)
 
-        self.props.log.info('WRITE IPV: {}'.format(out_file))
-
-        coord_names = ['time', 'lev', 'lat', 'lon']
-        coords = {cname: getattr(self, cname) for cname in coord_names}
-        coords['lev'] = self.th_lev
-
-        props = {'name': 'isentropic_potential_vorticity',
-                 'descr': 'Potential vorticity on theta levels',
-                 'units': 'PVU', 'short_name': 'ipv', 'levvar': self.data_cfg['lev'],
-                 'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
-                 'timevar': self.data_cfg['time'], 'time_units': self.time_units,
-                 'calendar': self.calendar, 'lat_units': 'degrees_north',
-                 'lon_units': 'degrees_east', 'lev_units': 'K', '_FillValue': 9.0e16}
-
-        # IPV in the file should be in 1e-6 PVU
-        ipv_out = dout.NCOutVar(self.ipv * 1e-6, props=props, coords=coords)
-        u_th_out = dout.NCOutVar(self.uwnd, props=dict(props), coords=coords)
-        u_th_out.set_props({'name': 'zonal_wind_component',
-                            'descr': 'Zonal wind on isentropic levels',
-                            'units': 'm s-1', 'short_name': self.data_cfg['uwnd']})
-
-        dout.write_to_netcdf([ipv_out, u_th_out], '{}'.format(out_file))
-        self.props.log.info('Finished Writing')
-
-    def _write_dyn_trop(self, out_file=None):
-        """
-        Save dynamical tropopause data generated to a file, either netCDF4 or pickle.
-
-        Parameters
-        ----------
-        out_file : string, optional
-            Output file path for pickle or netCDF4 file, will contain ipv data and coords
-
-        """
-        if out_file is None:
-            file_name = self.data_cfg['file_paths']['dyn_trop'].format(year=self.year)
-            out_file = os.path.join(self.data_cfg['wpath'], file_name)
-
-        self.props.log.info('WRITE DYN TROP: {}'.format(out_file))
-
-        coord_names = ['time', 'lat', 'lon']
-        coords = {cname: getattr(self, cname) for cname in coord_names}
-        props = {'name': 'dynamical_tropopause_theta',
-                 'descr': 'Potential temperature on potential vorticity = 2PVU',
-                 'units': 'K', 'short_name': 'dyntrop',
-                 'latvar': self.data_cfg['lat'], 'lonvar': self.data_cfg['lon'],
-                 'timevar': self.data_cfg['time'], 'time_units': self.time_units,
-                 'calendar': self.calendar, 'lat_units': 'degrees_north',
-                 'lon_units': 'degrees_east'}
-
-        dyn_trop_out = dout.NCOutVar(self.dyn_trop, props=props, coords=coords)
-        dout.write_to_netcdf([dyn_trop_out], '{}'.format(out_file))
-        self.props.log.info('Finished Writing Dynamical Tropopause')
-
-    def _load_ipv(self):
-        """Open IPV file, load into self.ipv."""
-        if self.time is None:
-            self._load_time(pv_update=False)
-        file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
-        in_file = os.path.join(self.data_cfg['wpath'], file_name)
-        self.props.log.info("LOAD IPV FROM FILE: {}".format(in_file))
-        try:
-            ipv_in = nc.Dataset(in_file, 'r')
-        except FileNotFoundError:
-            ipv_in = package_data(self.data_cfg['wpath'], file_name)
-
-        coord_names = ['lat', 'lon']
-        for cname in coord_names:
-            setattr(self, cname, ipv_in.variables[self.data_cfg[cname]][:])
-
-        if 'lon_s' in self.data_cfg and 'lon_e' in self.data_cfg:
-            # TODO: take account of longitudes being -180 - 180 or 0 - 360
-            lon_sel = np.logical_and(self.lon >= self.data_cfg['lon_s'],
-                                     self.lon <= self.data_cfg['lon_e'])
-            self.lon = self.lon[lon_sel]
-        else:
-            lon_sel = slice(None)
-
-        self.ipv = ipv_in.variables[self.data_cfg['ipv']][self.d_select, ..., lon_sel]
-        self.ipv *= 1e6
-        self._load_one_file('uwnd', ['lev', 'lat', 'lon'], first_file=False)
-        self.uwnd = self.in_data['uwnd']
-        # self.uwnd = ipv_in.variables[self.data_cfg['uwnd']][self.d_select, ..., lon_sel]
-
-        self.th_lev = ipv_in.variables[self.data_cfg['lev']][:]
-        ipv_in.close()
+        self.props.log.info('Begin writing to %s', out_file)
+        self.get_data().to_netcdf(out_file)
+        self.props.log.info('Finished writing to %s', out_file)
 
 
-class InputDataWind(object):
+class InputDataSTJPV(InputData):
     """
-    Contains the relevant input data and routines for an JetFindRun.
+    Contains the relevant input data and routines for an STJPV jet find.
 
     Parameters
     ----------
     jet_find : :py:meth:`~STJ_PV.run_stj.JetFindRun`
-        Object containing properties about the metric calculation to be done. Used to
-        locate correct files, and variables within those files.
+        Object containing properties about the metric calculation
+        to be performed. Used to locate correct files, and variables
+        within those files.
     year : int, optional
         Year of data to load, not used when all years are in a single file
 
     """
+    load_vars = ['uwnd', 'vwnd', 'tair', 'epv', 'ipv']
 
-    def __init__(self, props, var_names, date_s=None, date_e=None):
+    def __init__(self, props, date_s=None, date_e=None):
         """Initialize InputData object, using JetFindRun class."""
-        self.props = props
-        self.config = props.config
-        self.data_cfg = props.data_cfg
-        # if 'pres_level' in self.config:
-        #     self.plev = self.config['pres_level']
-        # else:
-        #     self.plev = None
-        self.plev = None
+        super(InputDataSTJPV, self).__init__(props, date_s, date_e)
 
-        if date_s is not None:
-            self.year = date_s.year
-        else:
-            self.year = None
-
-        # Initialize attributes defined in open_files or open_ipv_data
-        self.time = None
-        self.time_units = None
-        self.calendar = None
-
-        self.lon = None
-        self.lat = None
-        self.lev = None
+        # Each STJPV input data _must_ have u-wind and isentropic pv
+        # but _might_ also need the v-wind and air temperature to
+        # calculate isentropic pv
+        self.out_data = {'uwnd': None, 'ipv': None}
         self.th_lev = None
 
-        # Each input data _must_ have u-wind, isentropic pv, and thermal tropopause,
-        # but _might_ need the v-wind and air temperature to calculate PV/thermal-trop
-        self.in_data = None
+    def _find_pv_update(self):
+        """Determine if PV needs to be computed/re-computed."""
+        pv_file_name = (self.data_cfg['file_paths']['ipv']
+                        .format(year=self.year))
+        pv_file = os.path.join(self.data_cfg['wpath'], pv_file_name)
+        return self.props.config['update_pv'] or not os.path.exists(pv_file)
 
-        if isinstance(var_names, str):
-            self.var_names = [var_names]
-        else:
-            self.var_names = var_names
-
-        for var_name in self.var_names:
-            setattr(self, var_name, None)
-
-        self._load_time()
-
-        if date_s is not None or date_e is not None:
-            self._select(date_s, date_e)
-        else:
-            self.d_select = slice(None)
-
-    def get_data_input(self):
-        """Get input data for metric calculation."""
-        # First, check if we want to update data, or need to create from scratch
-        # if not, then we can load existing data
+    def _calc_ipv(self):
+        # Shorthand for configuration dictionary
         cfg = self.data_cfg
+        dimvars = {cvar: cfg[cvar] for cvar in ['time', 'lev', 'lat', 'lon']}
+        if not self.in_data:
+            self._load_data()
+        self.props.log.info('Starting IPV calculation')
+        # calculate IPV
+        if cfg['ztype'] == 'pres':
+            if 'epv' not in self.in_data:
+                self.props.log.info('USING U, V, T TO COMPUTE IPV')
+                ipv, _, uwnd = utils.xripv(self.in_data['uwnd'],
+                                           self.in_data['vwnd'],
+                                           self.in_data['tair'],
+                                           dimvars=dimvars,
+                                           th_levels=self.props.th_levels
+                                           )
 
-        for var_name in self.var_names:
-
-            self._load_data(var_name)
-            if cfg['ztype'] == 'theta':
-                if var_name == 'uwnd':
-                    self._calc_interp(var_name)
             else:
-                var_attrib = self.in_data[var_name]
+                self.props.log.info('USING ISOBARIC PV TO COMPUTE IPV')
+                thta = utils.xrtheta(self.in_data['tair'], pvar=cfg['lev'])
+                ipv = utils.xrvinterp(self.in_data['epv'], thta,
+                                      self.props.th_levels,
+                                      levname=cfg['lev'],
+                                      newlevname=cfg['lev'])
 
-            if len(self.lev) > 1 and (self.lev[0] > self.lev[-1]):
-                var_attrib = self.in_data[var_name][:, ::-1, ...]
-                self.lev = self.lev[::-1]
+                uwnd = utils.xrvinterp(self.in_data['uwnd'], thta,
+                                       self.props.th_levels,
+                                       levname=cfg['lev'],
+                                       newlevname=cfg['lev'])
 
-            setattr(self, var_name, var_attrib)
+            self.out_data['ipv'] = ipv
+            self.out_data['uwnd'] = uwnd
 
-    def _select(self, date_s=None, date_e=None):
-        """
-        Return a subset of the data between two times.
+            self.th_lev = self.props.th_levels
 
-        Parameters
-        ----------
-        date_s, date_e : :py:meth:`datetime.datetime` for start and end of selection,
-            optional. Default: None
+        elif cfg['ztype'] == 'theta':
+            ipv = utils.xripv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
+                                    self.in_data['pres'], dimvars)
+            self.out_data['ipv'] = ipv
+            self.out_data['uwnd'] = self.in_data['uwnd']
 
-        """
-        dates = nc.num2date(self.time, self.time_units, self.calendar)
-        if date_s is not None and date_e is not None:
-            # We have both start and end
-            self.d_select = np.logical_and(dates >= date_s, dates <= date_e)
+        ipv_attrs = {'units': '10^-6 PVU',
+                     'standard_name': 'isentropic_potential_vorticity',
+                     'descr': 'Potential vorticity on isentropic levels'}
+        uwnd_attrs = {'units': 'm s-1',
+                      'standard_name': 'zonal_wind_component',
+                      'descr': 'Zonal wind on isentropic levels'}
 
-        elif date_s is None and date_e is not None:
-            # Beginning of data to an endpoint
-            self.d_select = dates <= date_e
+        self.out_data['ipv'] = self.out_data['ipv'].assign_attrs(ipv_attrs)
+        self.out_data['uwnd'] = self.out_data['uwnd'].assign_attrs(uwnd_attrs)
+        self.props.log.info('Finished calculating IPV')
 
-        elif date_s is not None and date_e is None:
-            # Start time to end of data
-            self.d_select = dates >= date_s
-
-        self.time = self.time[self.d_select]
-
-    def _load_time(self):
-        var = self.var_names[0]
-
-        # Load an example file
+    def _load_ipv(self):
+        """Open IPV and Isentropic U-wind file(s), load into self.out_data."""
+        file_name = self.data_cfg['file_paths']['ipv'].format(year=self.year)
+        in_file = os.path.join(self.data_cfg['wpath'], file_name)
+        self.props.log.info("LOAD IPV FROM FILE: {}".format(in_file))
+        self._load_one_file('ipv')
         try:
-            file_name = self.data_cfg['file_paths'][var].format(year=self.year)
+            # Check for uwind in the IPV file first
+            self._load_one_file('uwnd', file_var='ipv')
         except KeyError:
-            file_name = self.data_cfg['file_paths']['all'].format(year=self.year)
+            # But fall back on the uwind file
+            self._load_one_file('uwnd')
 
-        try:
-            nc_file = nc.Dataset(os.path.join(self.data_cfg['path'], file_name), 'r')
-        except FileNotFoundError:
-            nc_file = package_data(self.data_cfg['path'], file_name)
+        self.out_data = self.in_data
+        self.th_lev = self.in_data['ipv'][self.data_cfg['lev']]
 
+    def _write_ipv(self):
+        """Write generated IPV data to file."""
+        pv_file_name = (self.data_cfg['file_paths']['ipv']
+                        .format(year=self.year))
+        pv_file = os.path.join(self.data_cfg['wpath'], pv_file_name)
+        self.props.log.info('WRITING PV FILE %s', pv_file)
+        encoding = {'zlib': True, 'complevel': 9}
 
-        self.time = nc_file.variables[self.data_cfg['time']][:]
+        dsout = xr.Dataset(self.out_data)
+        dsout[self.data_cfg['lev']] = dsout[self.data_cfg['lev']].assign_attrs(
+                {'units': 'K', 'standard_name': 'potential_temperature'}
+        )
+        dsout.encoding = dict((var, encoding) for var in dsout.data_vars)
+        dsout.to_netcdf(pv_file, encoding=dsout.encoding)
+        self.props.log.info('DONE WRITING PV FILE')
 
-        # Set time units and calendar properties
-        self.time_units = nc_file.variables[self.data_cfg['time']].units
-        try:
-            self.calendar = nc_file.variables[self.data_cfg['time']].calendar
-        except (KeyError, AttributeError):
-            self.calendar = 'standard'
-        nc_file.close()
+    def get_data(self):
+        """Load and compute required data, return xarray.Dataset."""
+        if 'force_write' in self.props.config:
+            force_write = self.props.config['force_write']
+        else:
+            force_write = False
 
-    def _load_data(self, var_name):
-        cfg = self.data_cfg
-        self.in_data = {}
+        if self._find_pv_update():
+            self._calc_ipv()
+            if self.sel[self.data_cfg['time']] == slice(None) or force_write:
+                self._write_ipv()
 
-        data_vars = [var_name]
+        else:
+            self._load_ipv()
 
-        if cfg['ztype'] == 'theta':
-            # If input data is isentropic already..need pressure on theta, not air temp
-            data_vars.append('pres')
+        if self.th_lev[0] > self.th_lev[-1]:
+            for data_var in ['uwnd', 'ipv']:
+                self.out_data[data_var] = self.out_data[data_var][:, ::-1]
+            self.th_lev = self.th_lev[::-1]
 
-        # This is how they're called in the configuration file, each should point to
-        # how the variable is called in the actual netCDF file
-        dim_vars = ['lev', 'lat', 'lon']
-
-        # Load u/v/t; create pv file that has ipv, tpause file with tropopause lev
-        first_file = True
-        nc_file = None
-        for var in data_vars:
-            vname = cfg[var]
-            if nc_file is None:
-                # Format the name of the file, join it with the path, open it
-                try:
-                    file_name = cfg['file_paths'][var].format(year=self.year)
-                except KeyError:
-                    file_name = cfg['file_paths']['all'].format(year=self.year)
-
-                self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
-                                                                   file_name)))
-                try:
-                    nc_file = nc.Dataset(os.path.join(cfg['path'], file_name), 'r')
-                except FileNotFoundError:
-                    nc_file = package_data(self.data_cfg['path'], file_name)
-
-            self.props.log.info("\tLOAD: {}".format(var))
-            if first_file:
-                for dvar in dim_vars:
-                    v_in_name = cfg[dvar]
-                    if dvar == 'time':
-                        setattr(self, dvar, nc_file.variables[v_in_name][:])
-                    elif dvar == 'lev' and cfg['ztype'] == 'pres':
-                        setattr(self, dvar, nc_file.variables[v_in_name][:] * cfg['pfac'])
-                    else:
-                        setattr(self, dvar, nc_file.variables[v_in_name][:])
-
-                # Set time units and calendar properties
-                self.time_units = nc_file.variables[cfg['time']].units
-                try:
-                    self.calendar = nc_file.variables[cfg['time']].calendar
-                except (KeyError, AttributeError):
-                    self.calendar = 'standard'
-
-                first_file = False
-
-            if self.plev is not None:
-                lev_sel = self.lev == self.plev
-            else:
-                lev_sel = slice(None)
-
-            try:
-                self.in_data[var] = (nc_file.variables[vname][self.d_select, lev_sel, ...]
-                                     .astype(np.float16))
-            except IndexError:
-                self.in_data[var] = (nc_file.variables[vname][self.d_select, ...]
-                                     .astype(np.float16))
+        return xr.Dataset(self.out_data,
+                          attrs={'cfg': self.data_cfg, 'year': self.year})
 
 
-            if cfg['single_var_file']:
-                nc_file.close()
-                nc_file = None
+class InputDataUWind(InputData):
+    """
+    Contains the relevant input data and routines for an STJPV jet find.
 
-        if not cfg['single_var_file']:
-            nc_file.close()
+    Parameters
+    ----------
+    jet_find : :py:meth:`~STJ_PV.run_stj.JetFindRun`
+        Object containing properties about the metric calculation
+        to be performed. Used to locate correct files, and variables
+        within those files.
+    year : int, optional
+        Year of data to load, not used when all years are in a single file
+
+    """
+    load_vars = ['uwnd']
+
+    def __init__(self, props, date_s=None, date_e=None):
+        """Initialize InputData object, using JetFindRun class."""
+        super(InputDataUWind, self).__init__(props, date_s, date_e)
+
+        # Each UWind input data _must_ have u-wind
+        # but _might_ also need the pressure calculate isobaric uwind
+        self.out_data = {'uwnd': None}
 
     def _calc_interp(self, var_name):
-        self.lev = self.props.p_levels
-        data_interp = utils.vinterp(self.in_data[var_name], self.in_data['pres'],
-                                    self.lev)
-        setattr(self, var_name, data_interp)
+        lev = self.props.p_levels
+        data_interp = utils.xrvinterp(self.in_data[var_name],
+                                      self.in_data['pres'],
+                                      lev, levname=self.data_cfg['lev'],
+                                      newlevname='pres')
+
+        self.out_data[var_name] = data_interp
+
+    def get_data(self):
+        """Load and compute (if needed) U-Wind on selected pressure level."""
+        if self.data_cfg == 'theta':
+            self.load_vars.append('pres')
+            self._load_data()
+            self._calc_interp('uwnd')
+        else:
+            self._load_data()
+            self.out_data = self.in_data
+
+        return xr.Dataset(self.out_data,
+                          attrs={'cfg': self.data_cfg, 'year': self.year})

@@ -2,13 +2,15 @@
 """Utility functions not specific to subtropical jet finding."""
 from __future__ import division
 import numpy as np
+import xarray as xr
+import xarray.ufuncs as xu
 from scipy import interpolate as interp
 
 __author__ = "Penelope Maher, Michael Kelleher"
 
 # Constants to be used within this file
 # specify the range and increment over which to calculate IPV
-TH_LEV = np.arange(300, 501, 5)
+TH_LEV = np.arange(300.0, 501.0, 5)
 RAD = np.pi / 180.0     # radians per degree
 OM = 7.292e-5           # Angular rotation rate of earth    [rad]
 GRV = 9.81              # Acceleration due to GRVity        [m/s^2]
@@ -262,6 +264,175 @@ def vinterp(data, vcoord, vlevels):
     return np.squeeze(out_data)
 
 
+def inc_with_z(vcoord, levname):
+    """
+    Find what proportion of `vcoord` is increasing along the `levname` axis.
+
+    Parameters
+    ----------
+    vcoord : :class:`xarray.DataArray`
+        array of vertical coordinate to test
+    levname : str
+        String name of vertical coordinate variable along which to test
+
+    Returns
+    -------
+    pctinc : float
+        Percentage of valid points in vcoord which are increasing
+        with increasing index
+
+    """
+    _sabove = {levname: slice(1, None)}
+    _sbelow = {levname: slice(None, -1)}
+
+    # number of valid points on the 0th surface
+    nvalid = vcoord.isel(**{levname: 0}).notnull().sum().drop(levname)
+
+    # Places where the vcoord value on the 0th surface is less than the -1th (top)
+    n_incr = (vcoord.isel(**{levname: 0}) < vcoord.isel(**{levname: -1}))
+
+    # Sum the number where v[0] < v[-1], divide by number of valid points
+    pctinc = n_incr.sum(skipna=True) / nvalid
+
+    return pctinc
+
+
+def _xrvinterp_single(data, vcoord, lev, levname='lev'):
+    """
+    Perform linear interpolation along vertical axis on an :class:`xarray.DataArray`.
+
+    Parameters
+    ----------
+    data : :class:`xarray.DataArray` (>= 2D)
+        array of data to be interpolated
+    vcoord : :class:`xarray.DataArray`
+        array representing the vertical structure
+        (height/pressure/PV/theta/etc.) of `data`. This should be >= 2D, and
+        data[levname].shape == vcoord[levname].shape
+    lev : float
+        Level, in same units as vcoord, to interpolate to
+    levname : string
+        Name of the vertical level coordinate variable upon
+        which to interpolate
+
+    Returns
+    -------
+    out_data : array_like, (data.shape[0], 1, \*data.shape[2:])
+        Data on `lev`
+
+    """
+    # Slice shortcut dicts, above looks like [1:], below looks like [:-1]
+    _sabove = {levname: slice(1, None)}
+    _sbelow = {levname: slice(None, -1)}
+
+    if inc_with_z(vcoord, levname) <= 0.8:
+        # Fewer than 80% of points are increasing with index, swap directions
+        _sbelow, _sabove = _sabove, _sbelow
+
+    # Original levels from vcoord, should match original levels from data
+    _olevs = vcoord[levname]
+
+    # Selection dictionary to map levelname to coordinates above / below
+    _coord_above = {levname: _olevs.isel(**_sabove)}
+    _coord_below = {levname: _olevs.isel(**_sbelow)}
+
+    # xarray.DataArray of booleans, true where the level "below" is less than
+    # or equal to the desired level, false everywhere else
+    below = (vcoord.isel(**_sbelow) <= lev).drop(levname)
+
+    # xarray.DataArray of booleans, true where the level "above" is
+    # greater than the desired level, false everywhere else
+    above = (vcoord.isel(**_sabove) > lev).drop(levname)
+
+    # Combine, this means select all points where
+    # vcoord[LEVEL - 1] <= lev && vcoord[LEVEL + 1] > lev
+    idx = xu.logical_and(above, below)
+
+    # This is vcoord[:, 1:, ...], wherever idx is true and NaN everywhere else
+    ix_ab = xr.where(idx.assign_coords(**_coord_above),
+                     vcoord.isel(**_sabove), np.nan)
+
+    # This is vcoord[:, :-1, ...], wherever idx is true and NaN everywhere else
+    ix_bl = xr.where(idx.assign_coords(**_coord_below),
+                     vcoord.isel(**_sbelow), np.nan)
+
+    # Drop the coordinate information for the index xarrays, otherwise the
+    # maths won't work (+, -, /, *)
+    ix_ab = ix_ab.drop(levname)
+    ix_bl = ix_bl.drop(levname)
+
+    # Compute linear interpolation weights
+    wgt1 = ((lev - ix_bl) / (ix_ab - ix_bl))
+    wgt0 = 1.0 - wgt1
+
+    # Perform the linear interpolation, sum over all original levels, to
+    # eliminate the vertical dimension and remove all the NaNs
+    out = (wgt0 * data.isel(**_sbelow).drop(levname) +
+           wgt1 * data.isel(**_sabove).drop(levname)).sum(dim=levname)
+
+    return out
+
+
+def xrvinterp(data, vcoord, vlevs, levname, newlevname):
+    """
+    Perform vertical interpolation for several levels for an :class:`xarray.DataArray`
+
+    Parameters
+    ----------
+    data :  :class:`xarray.DataArray` (>= 2D)
+        array of data to be interpolated
+    vcoord :  :class:`xarray.DataArray`
+        array representing the vertical structure
+        (height/pressure/PV/theta/etc.) of `data`. This should be >= 2D, and
+        data[levname].shape == vcoord[levname].shape
+    vlevs : array_like (1D)
+        Levels, in same units as vcoord, to interpolate to
+    levname : string
+        Name of the vertical level coordinate variable upon
+        which to interpolate
+    newlevname : string
+        Name of new vertical level coordinate variable
+
+    Returns
+    -------
+    out_data : array_like, (data.shape[0], vlevs.shape[0], \*data.shape[2:])
+        Data on vlevels
+
+    Notes
+    -----
+    If the input vertical coordinate data is increasing / decreasing with
+    height in different places (e.g. potential vorticity across hemispheres),
+    mask data and compute each part separately then add them together
+    (if appropriate) or combine them, or whatever you'd like
+    to do with them. We're not the boss of you :)
+
+    """
+    # Use a list-comprehension to assemble all the vertical coordinates
+    intp = [_xrvinterp_single(data, vcoord, lev, levname) for lev in vlevs]
+    # Concatenate the length (vlevs.shape[0]) list of xarray.DataArrays
+    # The concat_dims is default, and avoids weirdness when data rank is small
+    # (e.g. data.ndim < vcoord.ndim). Assing vlevs to be the values
+    # for the new coordinate
+    intp = xr.concat(intp, dim=newlevname).assign_coords(**{newlevname: vlevs})
+
+    # Transpose the data, so the new level dimension is where the old level
+    # dimension used to be in the original data or vcoord xarray.DataArray
+    # depending on which has higher rank
+    if data.ndim > vcoord.ndim:
+        _dims = list(data.dims)
+    else:
+        _dims = list(vcoord.dims)
+
+    lix = _dims.index(levname)
+    _dims[lix] = newlevname
+    intp = intp.transpose(*_dims)
+
+    # Use where to mask out values that are extrapolated
+    intp = intp.where(intp <= data.max()).where(intp >= data.min())
+
+    return intp
+
+
 def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
     """
     Perform interpolation on 2-dimensions on up to 4-dimensional numpy array.
@@ -339,6 +510,40 @@ def interp_nd(lat, theta_in, data, lat_hr, theta_hr):
     return data_interp
 
 
+def xrtheta(tair, pvar='level'):
+    """
+    Calculate potential temperature from temperature and pressure coordinate.
+
+    Parameters
+    ----------
+    tair : :class:`xarray.DataArray`
+        ND array of air temperature [in K]
+    pvar : string
+        Pressure level coordinate name for tair
+
+    Returns
+    -------
+    theta : :class:`xarray.DataArray`
+        ND array of potential temperature in K, same shape
+        as `tair` input
+
+    """
+    # Attempt to figure pressure units
+    try:
+        p_units = tair[pvar].attrs['units']
+    except KeyError:
+        p_units = None
+
+    # Default assumption is that pressure is in Pascals
+    p_0 = 100000.0
+    if p_units in ['hPa', 'mb', 'millibar']:
+        # if pressure is in hPa (or similar), fix p_0
+        p_0 /= 100.
+
+    # Compute and return theta
+    return tair * (p_0 / tair[pvar]) ** KPPA
+
+
 def theta(tair, pres):
     """
     Calculate potential temperature from temperature and pressure coordinate.
@@ -376,6 +581,39 @@ def theta(tair, pres):
         p_axis = pres[slice_idx]
 
     return tair * (p_0 / p_axis) ** KPPA
+
+
+def xr_inv_theta(thta, pvar='level'):
+    """
+    Calculate potential temperature from temperature and pressure coordinate.
+
+    Parameters
+    ----------
+    thta : :class:`xarray.DataArray`
+        ND array of potential temperature [in K]
+    pvar : string
+        Pressure level coordinate name for tair
+
+    Returns
+    -------
+    tair : :class:`xarray.DataArray`
+        ND array of air temperature in K, same shape as `thta` input
+
+    """
+    # Attempt to figure pressure units
+    try:
+        p_units = thta[pvar].attrs['units']
+    except KeyError:
+        p_units = None
+
+    # Default assumption is that pressure is in Pascals
+    p_0 = 100000.0
+    if p_units in ['hPa', 'mb', 'millibar']:
+        # if pressure is in hPa (or similar), fix p_0
+        p_0 /= 100.
+
+    # Compute and return theta
+    return thta * (p_0 / thta[pvar]) ** -KPPA
 
 
 def inv_theta(thta, pres):
@@ -711,6 +949,60 @@ def diff_cfd(data, axis=-1, cyclic=False):
     return diff
 
 
+def diff_cfd_xr(data, dim='lon', cyclic=False):
+    """
+    Calculate centered finite difference along an axis with even spacing.
+
+    Parameters
+    ----------
+    data : :class:`xarray.DataArray`
+        N-D array of data of which to calculate the differences
+    dim : string
+        Dimension name of `data` along which differences are calculated
+    cyclic : bool
+        Flag to indicate whether `data` is cyclic on `axis`
+
+    Returns
+    -------
+    diff : :class:`xarray.DataArray`
+        N-D array of central finite differences
+        of `data` along `axis`
+
+    """
+    # For centred differences along longitude direction (e.g.) this is
+    # eqivalent to: diff = data[..., 2:] - data[..., :-2] for axis == -1
+    diff = (data.isel(**{dim: slice(2, None)}).drop(dim)
+            - data.isel(**{dim: slice(None, -2)}).drop(dim))
+    diff = diff.assign_coords(**{dim: data[dim].isel(**{dim: slice(1, -1)})})
+
+    if cyclic:
+        # Cyclic boundary in "East"
+        # Equiv to diff[..., 0] = data[..., 1:2] - data[..., -1:]
+        d_1 = (data.isel(**{dim: 1}).drop(dim) -
+               data.isel(**{dim: -1})).drop(dim)
+
+        # Cyclic boundary in "West"
+        # Equiv to diff[..., -1] = data[..., 0:1] - data[..., -2:-1]
+        d_2 = (data.isel(**{dim: 0}).drop(dim) -
+               data.isel(**{dim: -2})).drop(dim)
+
+    else:
+        # Otherwise edges are forward/backward differences
+        # Boundary in "South", (data[..., 1:2] - data[..., 0:1])
+        d_1 = data.isel(**{dim: 1}) - data.isel(**{dim: 0})
+        d_2 = data.isel(**{dim: -1}) - data.isel(**{dim: -2})
+
+    # Assign the coordiate to each "point"
+    d_1 = d_1.assign_coords(**{dim: data[dim].isel(**{dim: 0})})
+    d_2 = d_2.assign_coords(**{dim: data[dim].isel(**{dim: -1})})
+
+    # Concatinate along the difference dimension
+    diff = xr.concat((d_1, diff, d_2), dim=dim)
+
+    # Use .transpose to make sure diff dims are same as data dims
+    return diff.transpose(*data.dims)
+
+
 def diffz(data, vcoord, axis=None):
     """
     Calculate vertical derivative for data on uneven vertical levels.
@@ -770,6 +1062,59 @@ def diffz(data, vcoord, axis=None):
     dxdz[slc[-1:None]] = (data[slc[-1:None]] - data[slc[-2:-1]]) / dz1
 
     return dxdz
+
+
+def xrdiffz(data, vcoord, dim='lev'):
+    """
+    Calculate vertical derivative for data on uneven vertical levels.
+
+    Parameters
+    ----------
+    data : :class:`xarray.DataArray`
+        N-D array of input data to be differentiated, where
+        data.shape[axis] == vcoord.shape[0]
+    vcoord : :class:`xarray.DataArray`
+        Vertical coordinate, 1D
+    dim : string
+        Vertical dimension name, must exist in both `data` and `vcoord`
+
+    Returns
+    -------
+    dxdz : :class:`xarray.DataArray`
+        N-D array of d(data)/d(vcoord), same shape as input `data`
+
+    """
+    d_z = (vcoord.isel(**{dim: slice(1, None)}).drop(dim) -
+           vcoord.isel(**{dim: slice(None, -1)}).drop(dim))
+    d_z1 = d_z.isel(**{dim: slice(1, None)})
+    d_z2 = d_z.isel(**{dim: slice(None, -1)})
+
+    # Central difference for uneven levels
+
+    diff = ((d_z2 * data.isel(**{dim: slice(2, None)}).drop(dim) +
+             (d_z1 - d_z2) * data.isel(**{dim: slice(1, -1)}).drop(dim) -
+             d_z1 * data.isel(**{dim: slice(None, -2)}).drop(dim)) /
+            (2.0 * d_z1 * d_z2))
+    diff = diff.assign_coords(**{dim: data[dim].isel(**{dim: slice(1, -1)})})
+
+    # Do forward difference at 0th level [:, 1, :, :] - [:, 0, :, :]
+    dz1 = (vcoord.isel(**{dim: 1}).drop(dim) -
+           vcoord.isel(**{dim: 0}).drop(dim))
+    diff_0 = (data.isel(**{dim: 1}).drop(dim) -
+              data.isel(**{dim: 0}).drop(dim)) / dz1
+    diff_0 = diff_0.assign_coords(**{dim: data[dim].isel(**{dim: 0})})
+
+    # Do backward difference at Nth level
+    dz2 = (vcoord.isel(**{dim: -1}).drop(dim) -
+           vcoord.isel(**{dim: -2}).drop(dim))
+    diff_1 = (data.isel(**{dim: -1}).drop(dim) -
+              data.isel(**{dim: -2}).drop(dim)) / dz2
+    diff_1 = diff_1.assign_coords(**{dim: data[dim].isel(**{dim: -1})})
+
+    # Combine all the differences
+    diff = xr.concat((diff_0, diff, diff_1), dim=dim)
+
+    return diff.transpose(*data.dims)
 
 
 def convert_radians_latlon(lat, lon):
@@ -852,6 +1197,46 @@ def dlon_dlat(lon, lat, cyclic=True):
     return dlong, dlatg
 
 
+def xr_dlon_dlat(data, vlon='lon', vlat='lat', cyclic=True):
+    """
+    Calculate distance on lat/lon axes on spherical grid for :class:`xarray.DataArray`
+
+    Parameters
+    ----------
+    data : :class:`xarray.DataArray`
+        DataArray with latitude and longitude coordinates
+    vlon, vlat : string
+        Variable names of latitude and longitude
+
+    Returns
+    ----------
+    dlong : :class:`xarray.DataArray`
+        NLat x Nlon array of horizontal distnaces
+        along longitude axis in m
+    dlatg : :class:`xarray.DataArray`
+        NLat x Nlon array of horizontal distances
+        along latitude axis in m
+
+    """
+    lon = data[vlon]
+    lat = data[vlat]
+
+    lon, lat = convert_radians_latlon(lon, lat)
+    dlon = diff_cfd_xr(lon, dim=vlon, cyclic=False).compute()
+    if cyclic:
+        # If cyclic, the endpoints are central not fwd/bkw diffs, so assume
+        # that the grid is regular, and double the edges
+        dlon[0] *= 2
+        dlon[-1] *= 2
+
+    dlat = diff_cfd_xr(lat, dim=vlat, cyclic=False)
+
+    dlon = dlon * EARTH_R * lat.pipe(np.cos)
+    dlat = dlat * EARTH_R
+
+    return dlon, dlat
+
+
 def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
     r"""
     Calculate the relative vorticity given zonal (uwnd) and meridional (vwnd) winds.
@@ -909,6 +1294,45 @@ def rel_vort(uwnd, vwnd, lat, lon, cyclic=True):
         # If data isn't cyclic, then d(vwnd) and d(lon) will be one dim shorter on last
         # dimension, so we need to make up for that in the d(uwnd)/d(lat) field to match
         dudlat = duwnd[..., 1:-1] / dlatg
+
+    return dvdlon - dudlat
+
+
+def xr_rel_vort(uwnd, vwnd, dimvars, cyclic=True):
+    r"""
+    Calculate the relative vorticity given zonal (u) and meridional (v) winds.
+
+    Parameters
+    ----------
+    uwnd : :class:`xarray.DataArray`
+        Array of Zonal wind (with at least lat / lon dimensions)
+    vwnd : :class:`xarray.DataArray`
+        Array of Meridional wind with same dimensions as uwnd
+    cyclic : boolean
+        Flag to indicate if data is cyclic in longitude direction
+
+    Returns
+    -------
+    rel_vort : :class:`xarray.DataArray`
+        Relative vorticity V = U x V (cross product of U and V wind)
+        with same dimensions as uwnd & vwnd
+
+    """
+    # Use .get to avoid key errors if dimvars is wrong, just defualt to
+    # lat / lon, and if those are wrong, it'll fail later
+    vlon = dimvars.get('lon', 'lon')
+    vlat = dimvars.get('lat', 'lat')
+
+    # Get dlon and dlat in spherical coords
+    dlong, dlatg = xr_dlon_dlat(uwnd, vlon=vlon, vlat=vlat, cyclic=cyclic)
+
+    dvwnd = diff_cfd_xr(vwnd, dim=vlon, cyclic=cyclic)
+    duwnd = diff_cfd_xr(uwnd, dim=vlat, cyclic=False)
+
+    # Divide vwnd differences by longitude differences
+    dvdlon = dvwnd / dlong
+    # Divide uwnd differences by latitude differences
+    dudlat = duwnd / dlatg
 
     return dvdlon - dudlat
 
@@ -1050,3 +1474,115 @@ def ipv_theta(uwnd, vwnd, pres, lat, lon, th_levels):
 
     # Return isentropic potential vorticity
     return ipv_out
+
+
+def xripv_theta(uwnd, vwnd, pres, dimvars):
+    """
+    Calculate isentropic PV on theta surfaces from data on theta levels.
+
+    Parameters
+    ----------
+    uwnd : :class:`xarray.DataArray`
+        3 or 4-D zonal wind component (t, theta, y, x) or (theta, y, x)
+    vwnd : :class:`xarray.DataArray`
+        3 or 4-D meridional wind component (t, theta, y, x) or (theta, y, x)
+    pres : :class:`xarray.DataArray`
+        3 or 4-D pressure in Pa (t, theta, y, x) or (theta, y, x)
+    dimvars : dict
+        Mapping of variable names for standard coordinates. This will default
+        to 'theta' -> 'theta', 'lat' -> 'lat', 'lon' -> 'lon'
+
+    Returns
+    -------
+    ipv : :class:`xarray.DataArray`
+        3 or 4-D isentropic potential vorticity in units
+        of m-2 s-1 K kg-1 (e.g. 10^6 PVU)
+
+    """
+    th_var = dimvars.get('lev', 'level')
+    # Calculate relative vorticity on isentropic levels
+    rel_v = xr_rel_vort(uwnd, vwnd, dimvars, cyclic=True)
+
+    # Calculate d{Theta} / d{pressure} on isentropic levels
+    dthdp = 1.0 / xrdiffz(pres, pres[th_var], dim=th_var)
+
+    # Calculate Coriolis force
+    # First, get axis matching latitude to input data
+    f_cor = 2.0 * OM * (RAD * uwnd[dimvars['lat']]).pipe(np.sin)
+
+    # Calculate IPV, then correct for y-derivative problems at poles
+    ipv_out = -GRV * (rel_v + f_cor) * dthdp
+
+    # Return isentropic potential vorticity
+    return ipv_out
+
+
+def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
+    """
+    Calculate isentropic PV on theta surfaces from :class:`xarray.DataArray`.
+
+    Notes
+    -----
+    Interpolation assumes pressure is monotonically increasing.
+
+    Parameters
+    ----------
+    uwnd : :class:`xarray.DataArray`
+        3 or 4-D zonal wind component (t, p, y, x) or (p, y, x)
+    vwnd : :class:`xarray.DataArray`
+        3 or 4-D meridional wind component (t, p, y, x) or (p, y, x)
+    tair : :class:`xarray.DataArray`
+        3 or 4-D air temperature (t, p, y, x) or (p, y, x)
+    dimvars : dict
+        Mapping of variable names for standard coordinates. This will default
+        to 'lev' -> 'level', 'lat' -> 'lat', 'lon' -> 'lon'
+    th_levels : array_like
+        1D array of Theta levels on which to calculate PV
+
+
+    Returns
+    -------
+    ipv : :class:`xarray.DataArray`
+        3 or 4-D isentropic potential vorticity in units
+        of m-2 s-1 K kg-1 (e.g. 10^6 PVU)
+    p_th : :class:`xarray.DataArray`
+        Pressure on isentropic levels [Pa]
+    u_th : :class:`xarray.DataArray`
+        Zonal wind on isentropic levels [m/s]
+
+    """
+    # import pdb;pdb.set_trace()
+    th_levels = np.float32(th_levels)
+    if dimvars is None:
+        dimvars = {'lev': 'level', 'lat': 'lat', 'lon': 'lon'}
+
+    vlev = dimvars['lev']
+
+    # Calculate potential temperature on isobaric (pressure) levels
+    thta = xrtheta(tair, pvar=vlev)
+
+    # Interpolate zonal, meridional wind, pressure to isentropic from
+    # isobaric levels
+
+    u_th = xrvinterp(uwnd, thta, th_levels, levname=vlev,
+                     newlevname=vlev)
+    v_th = xrvinterp(vwnd, thta, th_levels, levname=vlev,
+                     newlevname=vlev)
+
+    # Check the units of uwnd.level to be sure to use Pa
+    try:
+        _punits = uwnd.level['units']
+    except (KeyError, AttributeError):
+        _punits = None
+    if _punits in ['hPa', 'mb', 'millibar']:
+        scale = 100.
+    else:
+        scale = 1.
+
+    p_th = xrvinterp(scale * uwnd[vlev], thta, th_levels, levname=vlev,
+                     newlevname=vlev)
+
+    # Calculate IPV on theta levels
+    ipv_out = xripv_theta(u_th, v_th, p_th, dimvars)
+
+    return ipv_out, p_th, u_th
