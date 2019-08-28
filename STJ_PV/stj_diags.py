@@ -22,7 +22,7 @@ class DiagPlots(object):
     Plot diagnostic metrics about subtropical jet properties.
     """
 
-    def __init__(self, stj_props, metric):
+    def __init__(self, stj_props, metric, ilon=None):
         """
         Setup DiagMetrics, input from STJIPVMetric and STJProperties classes.
         """
@@ -31,6 +31,7 @@ class DiagPlots(object):
         self.stj = None
         self.contours = None
         self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
+        self.ilon = ilon
 
         # Figure size set to 129 mm wide, 152 mm tall
         self.fig_mult = 2.
@@ -158,7 +159,11 @@ class DiagPlots(object):
                     .format(self.props.data_cfg['short_name'],
                             data['level'][zix].values, date.strftime('%Y-%m-%d')))
         out_file = out_file.replace('.', 'p')
-        plt.savefig('{}.{}'.format(out_file, EXTN))
+        if self.ilon is None:
+            plt.savefig('{}.{}'.format(out_file, EXTN))
+        else:
+            plt.savefig('{}_{}.{}'.format(out_file, self.ilon, EXTN))
+
         plt.clf()
         plt.close()
 
@@ -171,7 +176,11 @@ class DiagPlots(object):
         vlev = self.props.data_cfg['lev']
         vlon = self.props.data_cfg['lon']
         dtheta, theta_fit, theta_xpv, select, lat, y_s, y_e = self._jet_details(shem)
-        jet_pos = select[tix, :].mean(dim=self.props.data_cfg['lon'])
+        if self.ilon is None:
+            jet_pos = select[tix, :].mean(dim=vlon)
+        else:
+            jet_pos = select[tix, :].sel(**{vlon: self.ilon}, method="nearest")
+
 
         # Append the list of jet latitude at each longitude in this hemisphere
         self.jet_info['lat_all'].append(select[tix])
@@ -187,22 +196,35 @@ class DiagPlots(object):
                                               for dimn in ['time', vlon, vlat]})
 
         # Find the zonal mean zonal wind for this hemisphere
-        uwnd_hemis = data.uwnd.sel(**self.stj.hemis).mean(dim=vlon)[tix]
+        if self.ilon is None:
+            uwnd_hemis = data.uwnd.sel(**self.stj.hemis).mean(dim=vlon)[tix]
+        else:
+            uwnd_hemis = (data.uwnd.sel(**self.stj.hemis)
+                          .sel(**{vlon: self.ilon}, method="nearest")[tix])
 
         # Make contour plot (theta vs. lat) of zmzw
         axes[hidx].contourf(uwnd_hemis[vlat], uwnd_hemis[vlev],
                             uwnd_hemis, self.contours, cmap='RdBu_r', extend='both')
 
+        # Plot mean theta profile
+        if self.ilon is None:
+            theta_mean_zm = theta_xpv[tix].mean(dim=vlon)
+        else:
+            theta_mean_zm = theta_xpv[tix].sel(**{vlon: self.ilon}, method="nearest")
+
+        axes[hidx].plot(theta_xpv[vlat], theta_mean_zm, 'k.',
+                        ms=2.0 * self.fig_mult,
+                        label=r'$\theta_{%i}$' % self.props.config['pv_value'])
+
         # Plot Mean theta fit
-        theta_fit_zm = theta_fit_eval.mean(dim=vlon)
+        if self.ilon is None:
+            theta_fit_zm = theta_fit_eval.mean(dim=vlon)
+        else:
+            theta_fit_zm = theta_fit_eval.sel(**{vlon: self.ilon}, method="nearest")
+
         axes[hidx].plot(theta_fit_zm[vlat], theta_fit_zm.squeeze(), 'C0-',
                         label=r'$\theta_{%i}$ Fit' % self.props.config['pv_value'],
                         lw=lwid)
-
-        # Plot mean theta profile
-        axes[hidx].plot(theta_xpv[vlat], theta_xpv[tix].mean(dim=vlon), 'k.',
-                        ms=2.0 * self.fig_mult,
-                        label=r'$\theta_{%i}$' % self.props.config['pv_value'])
 
         axes[hidx].plot(jet_pos, theta_fit_zm.sel(**{vlat: jet_pos.drop('time')},
                                                   method='nearest'),
@@ -210,15 +232,23 @@ class DiagPlots(object):
 
         # Duplicate the axis
         ax2 = axes[hidx].twinx()
-        ax2.plot(dtheta[vlat], dtheta[tix].mean(dim=vlon),
+        if self.ilon is None:
+            dtheta_zm = dtheta[tix].mean(dim=vlon)
+        else:
+            dtheta_zm = dtheta[tix].sel(**{vlon: self.ilon}, method="nearest")
+
+        ax2.plot(dtheta[vlat], dtheta_zm,
                  'C2--', label=r'$\partial\theta_{%i}/\partial\phi$' %
                  self.props.config['pv_value'], lw=lwid)
 
         # Restrict axis to only between 280 - 400K
         axes[hidx].set_ylim([300, 400])
 
-        # Restrict to +/- 4 so that both SH and NH have same Y-axis
-        ax2.set_ylim([-4, 4])
+        if self.ilon is None:
+            # Restrict to +/- 4 so that both SH and NH have same Y-axis
+            ax2.set_ylim([-4, 4])
+        else:
+            ax2.set_ylim([-50, 50])
 
         # Set the color to match the dTheta/dphi line
         ax2.tick_params('y', colors='C2')
@@ -286,7 +316,7 @@ class DiagPlots(object):
             lon_0 = 0.0
 
         tix, zix = index
-        pmap = basemap.Basemap(projection='cyl', lon_0=lon_0, resolution='c', ax=axis)
+        pmap = basemap.Basemap(projection='eck4', lon_0=lon_0, resolution='c', ax=axis)
         # pmap = basemap.Basemap(projection='kav7', lon_0=lon_0, resolution='c')
         # pmap = basemap.Basemap(projection='cyl', llcrnrlat=-90, urcrnrlat=90,
         #                        llcrnrlon=0, urcrnrlon=360)
@@ -301,15 +331,20 @@ class DiagPlots(object):
                               cmap='RdBu_r', ax=axis, extend='both')
 
         pmap.drawcoastlines(ax=axis, linewidth=0.5, color='grey')
-        lat_spc = 30
-        lon_spc = 60
+        lat_spc = 15
+        lon_spc = 30
         line_props = {'ax': axis, 'linewidth': 0.1, 'dashes': [3, 10]}
-        pmap.drawparallels(np.arange(-90, 90 + lat_spc, lat_spc), **line_props)
-        pmap.drawmeridians(np.arange(0, 360 + lon_spc, lon_spc), **line_props)
-        pmap.drawparallels(np.arange(-90, 90 + lat_spc * 2, lat_spc * 2),
-                           labels=[True, False, False, False], **line_props)
-        pmap.drawmeridians([30, 180, 330], labels=[False, False, False, True],
-                           **line_props)
+        _lat_grid = np.arange(-90, 90 + lat_spc, lat_spc)
+        _lon_grid = np.arange(0, 360 + lon_spc, lon_spc)
+        pmap.drawparallels(_lat_grid, **line_props)
+        pmap.drawmeridians(_lon_grid, **line_props)
+
+        pmap.drawparallels(
+            _lat_grid[::4], labels=[True, False, False, False], **line_props
+        )
+        pmap.drawmeridians(
+            _lon_grid[::4], labels=[False, False, False, True], **line_props
+        )
 
         # Draw horizontal lines for jet location in each hemisphere
         # Dashes list is [pixels on, pixels off], higher numbers are better
@@ -360,7 +395,7 @@ def main():
         jf_run.config['update_pv'] = False
         jf_run.config['force_write'] = False
         jf_run.config['zonal_opt'] = 'indv'
-        diags = DiagPlots(jf_run, stj_metric.STJPV)
+        diags = DiagPlots(jf_run, stj_metric.STJPV, ilon=180)
         diags.test_method_plot(date)
 
         try:
