@@ -30,7 +30,7 @@ class DiagPlots(object):
         self.metric = metric
         self.stj = None
         self.contours = None
-        self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
+        self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': [], 'jet_mean': []}
         self.ilon = ilon
 
         # Figure size set to 129 mm wide, 152 mm tall
@@ -56,9 +56,15 @@ class DiagPlots(object):
         """
         data = input_data.InputDataSTJPV(self.props, date_s=date, date_e=date)
         data = data.get_data()
-        self.stj = self.metric(self.props, data)
         vlat = self.props.data_cfg['lat']
         vlon = self.props.data_cfg['lon']
+
+        if data[vlon].min() == 0.0:
+            data = data.roll(**{vlon: data[vlon].shape[0] // 2})
+            _lons = np.linspace(-180.0, 180.0, data[vlon].shape[0], endpoint=False)
+            data = data.assign_coords(**{vlon: _lons})
+
+        self.stj = self.metric(self.props, data)
 
         tix = 0
         zix = 6
@@ -99,7 +105,7 @@ class DiagPlots(object):
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0],
                      '#fc4f30', lw=1.5 * self.fig_mult)
 
-        for hidx, jet_pos in enumerate(self.jet_info['jet_lat']):
+        for hidx, jet_pos in enumerate(self.jet_info['jet_mean']):
             lati = lat_idx.sel(**{vlat: jet_pos}, method='nearest').values
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.8 * self.fig_mult)
             # Mean vs. median
@@ -186,6 +192,8 @@ class DiagPlots(object):
         self.jet_info['lat_all'].append(select[tix])
         # Append the median jet latitude in this hemisphere to the list
         self.jet_info['jet_lat'].append(jet_pos)
+        # Always keep the zonal mean jet position too
+        self.jet_info['jet_mean'].append(select[tix, :].mean(dim=vlon))
         # Append the index of this hemisphere's jet on the full set of latitudes
         # self.jet_info['jet_idx'].append(list(data.lat).index(lat[jet_pos]))
 
@@ -248,7 +256,7 @@ class DiagPlots(object):
             # Restrict to +/- 4 so that both SH and NH have same Y-axis
             ax2.set_ylim([-4, 4])
         else:
-            ax2.set_ylim([-50, 50])
+            ax2.set_ylim([-4, 4])
 
         # Set the color to match the dTheta/dphi line
         ax2.tick_params('y', colors='C2')
@@ -379,7 +387,7 @@ class DiagPlots(object):
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
+    dates = [dt.datetime(2013, 1, 1), dt.datetime(2013, 6, 1)]
     # dates = pd.date_range('1981-02-05', '1981-02-20', freq='D')
 
     # This loop does not work well if outputting to .eps files, just run the code twice
@@ -395,7 +403,7 @@ def main():
         jf_run.config['update_pv'] = False
         jf_run.config['force_write'] = False
         jf_run.config['zonal_opt'] = 'indv'
-        diags = DiagPlots(jf_run, stj_metric.STJPV, ilon=180)
+        diags = DiagPlots(jf_run, stj_metric.STJPV, ilon=180.)
         diags.test_method_plot(date)
 
         try:
