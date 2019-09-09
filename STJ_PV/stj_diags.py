@@ -22,7 +22,7 @@ class DiagPlots(object):
     Plot diagnostic metrics about subtropical jet properties.
     """
 
-    def __init__(self, stj_props, metric, ilon=None):
+    def __init__(self, stj_props, metric, ilon=None, extra=None):
         """
         Setup DiagMetrics, input from STJIPVMetric and STJProperties classes.
         """
@@ -32,6 +32,7 @@ class DiagPlots(object):
         self.contours = None
         self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': [], 'jet_mean': []}
         self.ilon = ilon
+        self.extra = extra
 
         # Figure size set to 129 mm wide, 152 mm tall
         self.fig_mult = 2.
@@ -82,7 +83,7 @@ class DiagPlots(object):
         self.contours = np.arange(-np.ceil(uwnd_max), np.ceil(uwnd_max) + spc, spc)
 
         for hidx, shem in enumerate([True, False]):
-            ax2 = self.plot_zonal_slice(data, shem, hidx, tix, axes)
+            ax2 = self.plot_zonal_slice(data, shem, hidx, tix, axes, self.extra)
 
         axes[0].set_ylabel(r'$\theta$ [K]', rotation='horizontal')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
@@ -173,7 +174,7 @@ class DiagPlots(object):
         plt.clf()
         plt.close()
 
-    def plot_zonal_slice(self, data, shem, hidx, tix, axes):
+    def plot_zonal_slice(self, data, shem, hidx, tix, axes, extra=None):
         """
         Plots zonal mean jet diagnostic picture.
         """
@@ -187,6 +188,11 @@ class DiagPlots(object):
         else:
             jet_pos = select[tix, :].sel(**{vlon: self.ilon}, method="nearest")
 
+        if extra is not None:
+            _extra_lev = np.array([extra]) * 1e-6
+            if shem:
+                _extra_lev *= -1
+            theta_4pv, _, _ = self.stj.isolate_pv(_extra_lev)
 
         # Append the list of jet latitude at each longitude in this hemisphere
         self.jet_info['lat_all'].append(select[tix])
@@ -217,12 +223,21 @@ class DiagPlots(object):
         # Plot mean theta profile
         if self.ilon is None:
             theta_mean_zm = theta_xpv[tix].mean(dim=vlon)
+            if extra is not None:
+                theta_4pv = theta_4pv[tix].mean(dim=vlon)
         else:
             theta_mean_zm = theta_xpv[tix].sel(**{vlon: self.ilon}, method="nearest")
+            if extra is not None:
+                theta_4pv = theta_4pv[tix].sel(**{vlon: self.ilon}, method="nearest")
 
         axes[hidx].plot(theta_xpv[vlat], theta_mean_zm, 'k.',
                         ms=2.0 * self.fig_mult,
                         label=r'$\theta_{%i}$' % self.props.config['pv_value'])
+
+        if extra is not None:
+            axes[hidx].plot(theta_4pv[vlat], theta_4pv, 'kx',
+                            ms=1.0 * self.fig_mult,
+                            label=r'$\theta_{%i}$' % extra)
 
         # Plot Mean theta fit
         if self.ilon is None:
@@ -389,7 +404,7 @@ def main():
 
     dates = [dt.datetime(2013, 1, 1), dt.datetime(2013, 6, 1)]
     # dates = pd.date_range('1981-02-05', '1981-02-20', freq='D')
-
+    # dates = [dt.datetime(2002, 1, 5)]
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
         # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')
@@ -403,7 +418,7 @@ def main():
         jf_run.config['update_pv'] = False
         jf_run.config['force_write'] = False
         jf_run.config['zonal_opt'] = 'indv'
-        diags = DiagPlots(jf_run, stj_metric.STJPV, ilon=180.)
+        diags = DiagPlots(jf_run, stj_metric.STJPV, ilon=180)
         diags.test_method_plot(date)
 
         try:
