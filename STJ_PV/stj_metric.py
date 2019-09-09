@@ -25,22 +25,22 @@ except subprocess.CalledProcessError:
 
 
 class STJMetric:
-    """Generic Class containing Sub Tropical Jet metric methods and attributes."""
+    """
+    Generic Class containing Sub Tropical Jet metric methods and attributes.
+
+    Parameters
+    ----------
+    name : string
+        Name of this type of method
+    data : :class:`~STJ_PV.input_data.InputData`
+        Object containing required input data
+    props : :class:`~STJ_PV.run_stj.JetFindRun`
+        Properties about the current jet finding attempt, including log file
+
+    """
 
     def __init__(self, name=None, data=None, props=None):
-        """
-        Initialize a subtropical jet metric.
-
-        Parameters
-        ----------
-        name : string
-            Name of this type of method
-        data : InputData
-            Object containing required input data
-        props : JetFindRun
-            Properties about the current jet finding attempt, including log file
-
-        """
+        """Initialize a subtropical jet metric."""
         self.name = name
         self.data = data
         self.props = props.config
@@ -166,9 +166,9 @@ class STJPV(STJMetric):
 
     Parameters
     ----------
-    props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
+    props : :class:`~STJ_PV.run_stj.JetFindRun`
         Class containing properties about the current search for the STJ
-    data : :py:meth:`~STJ_PV.input_data.InputData`
+    data : :class:`~STJ_PV.input_data.InputData`
         Input data class containing a year (or more) of required data
 
     """
@@ -602,15 +602,21 @@ class STJPV(STJMetric):
 class STJDavisBirner(STJMetric):
     """
     Subtropical jet position metric using the method of Davis and Birner 2016.
-       "Climate Model Biases in the Width of the Tropical Belt
-        Parameters".
-    The logic for the method is to subtract the surface wind and then find the
-    max in the upper level wind.
+
+    Parameters
     ----------
     props : :py:meth:`~STJ_PV.run_stj.JetFindRun`
         Class containing properties about the current search for the STJ
     data : :py:meth:`~STJ_PV.input_data.InputData`
         Input data class containing a year (or more) of required data
+
+    Notes
+    -----
+    Based on "Climate Model Biases in the Width of the Tropical Belt Parameters",
+    Davis and Birner (2016)
+
+    The logic for the method is to subtract the surface wind and then find the
+    max in the upper level wind.
 
     """
 
@@ -729,6 +735,7 @@ class STJDavisBirner(STJMetric):
         return stj_lat, stj_intens
 
     def test_plot(self, lat, max_wind_surface, lat_idx, stj_lat, stj_intens):
+        """Make a test plot for this method."""
         print("jet intensity is: ", stj_intens)
         import matplotlib.pyplot as plt
 
@@ -833,12 +840,11 @@ class STJKangPolvani(STJMetric):
         Class containing properties about the current search for the STJ
     data : :py:meth:`~STJ_PV.input_data.InputData`
         Input data class containing a year (or more) of required data
+
     """
 
     def __init__(self, props, data):
-
         """Initialise Metric using Kang and Polvani Method."""
-
         name = 'KangPolvani'
         super(STJKangPolvani, self).__init__(name=name, props=props, data=data)
 
@@ -869,7 +875,6 @@ class STJKangPolvani(STJMetric):
             If True, find jet position in Southern Hemisphere, if False, find N.H. jet
 
         """
-
         lat_elem, hidx = self.set_hemis(shemis)
 
         uwnd, vwnd = self._prep_data(lat_elem)
@@ -899,7 +904,6 @@ class STJKangPolvani(STJMetric):
             Hemisphere index 0 for SH, 1 for NH
 
         """
-
         lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
 
         if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
@@ -952,11 +956,7 @@ class STJKangPolvani(STJMetric):
         return uwnd, vwnd
 
     def get_flux_div(self, uwnd, vwnd, lat_elem):
-        """
-        Calculate the meridional eddy momentum flux divergence
-
-        """
-
+        """Calculate the meridional eddy momentum flux divergence."""
         lat = self.data.lat[lat_elem]
 
         k_e = Kinetic_Eddy_Energies(
@@ -977,11 +977,7 @@ class STJKangPolvani(STJMetric):
         return del_f
 
     def get_jet_lat(self, del_f, uwnd, lat, hidx):
-        """
-        Find the 200hpa zero crossing of the meridional eddy momentum flux divergence
-
-        """
-
+        """Find the 200hpa zero crossing of meridional eddy momentum flux divergence."""
         signchange = ((np.roll(np.sign(del_f), 1) - np.sign(del_f)) != 0).values
         signchange[:, 0], signchange[:, -1] = False, False
 
@@ -1026,7 +1022,20 @@ class STJKangPolvani(STJMetric):
 
 
 def lowest_valid(col):
-    """Given 1-D array find lowest (along axis) valid data."""
+    """
+    Given 1-D array find lowest (along axis) valid data.
+
+    Parameters
+    ----------
+    col : array_like
+        1D array of data
+
+    Returns
+    -------
+    valid : col.dtype
+        Lowest (in index) valid value in `col`
+
+    """
     return col[np.isfinite(col).argmax()]
 
 
