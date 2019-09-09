@@ -8,16 +8,19 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
+
 register_matplotlib_converters()
 SEASONS = np.array([None, 'DJF', 'DJF', 'MAM', 'MAM', 'MAM',
                     'JJA', 'JJA', 'JJA', 'SON', 'SON', 'SON', 'DJF'])
 
 HEMS = {'nh': 'Northern Hemisphere', 'sh': 'Southern Hemisphere'}
 
+
 class FileDiag(object):
     """
     Contains information about an STJ metric output file in a DataFrame.
     """
+
     def __init__(self, info, opts_hem=None, file_path=None):
         self.name = info['label']
         if file_path is None:
@@ -47,8 +50,13 @@ class FileDiag(object):
         self.vars = set([var.split('_')[0] for var in self.dframe])
         if 'time' in self.vars:
             self.vars.remove('time')
-        dframes = [[pd.DataFrame({var: self.dframe['{}_{}'.format(var, hem)], 'hem': hem})
-                    for var in self.vars] for hem in hems]
+        dframes = [
+            [
+                pd.DataFrame({var: self.dframe['{}_{}'.format(var, hem)], 'hem': hem})
+                for var in self.vars
+            ]
+            for hem in hems
+        ]
         dframes_tmp = []
         for frames in dframes:
             metric_hem = None
@@ -144,9 +152,16 @@ class FileDiag(object):
             outside = [df2[df2.hem == hem][var] for hem in hems]
 
             # For each hemisphere, make the difference of self - other a DataFrame
-            diff_c = [pd.DataFrame({var: inside[idx] - outside[idx], 'hem': hems[idx],
-                                    'time': df1[df1.hem == hems[idx]].time})
-                      for idx in range(len(hems))]
+            diff_c = [
+                pd.DataFrame(
+                    {
+                        var: inside[idx] - outside[idx],
+                        'hem': hems[idx],
+                        'time': df1[df1.hem == hems[idx]].time,
+                    }
+                )
+                for idx in range(len(hems))
+            ]
 
             # Combine the two hemispheres into one DF
             diff.append(diff_c[0].append(diff_c[1]))
@@ -181,6 +196,12 @@ def main():
     fig_height = fig_width * 1.3
 
     in_names = ['ERAI-Monthly', 'ERAI-DavisBirner']
+    # Make a list with just the labels (since this is what the dataframe will have in it
+    labels = [file_info[in_name]['label'] for in_name in in_names]
+    # Define a colour for each kind
+    colors = ['C1', 'C0']
+    # And make a dict to map label -> colour
+    color_map = dict(zip(labels, colors))
 
     fds = [FileDiag(file_info[in_name], file_path=nc_dir) for in_name in in_names]
 
@@ -191,14 +212,34 @@ def main():
     # solid rather than dashed, may want to come back to this and figure out a way
     # to implement it in a nice (non-hacked!) way for others and PR it to seaborn
     fig, axes = plt.subplots(2, 1, figsize=(fig_width, fig_height), sharex=True)
-    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'nh'],
-                   split=True, inner='quart', ax=axes[0], cut=0, linewidth=1.0 * fig_mult,
-                   dashpattern='-')
+    sns.violinplot(
+        x='season',
+        y='lat',
+        hue='kind',
+        data=data[data.hem == 'nh'],
+        split=True,
+        inner='quart',
+        ax=axes[0],
+        cut=0,
+        linewidth=1.0 * fig_mult,
+        dashpattern='-',
+        palette=colors,
+    )
     axes[0].set_yticks(np.arange(30, 60, 10))
 
-    sns.violinplot(x='season', y='lat', hue='kind', data=data[data.hem == 'sh'],
-                   split=True, inner='quart', ax=axes[1], cut=0, linewidth=1.0 * fig_mult,
-                   dashpattern='-')
+    sns.violinplot(
+        x='season',
+        y='lat',
+        hue='kind',
+        data=data[data.hem == 'sh'],
+        split=True,
+        inner='quart',
+        ax=axes[1],
+        cut=0,
+        linewidth=1.0 * fig_mult,
+        dashpattern='-',
+        palette=colors,
+    )
     axes[1].set_yticks(np.arange(-50, -20, 10))
     for axis in axes:
         axis.set_xlabel('')
@@ -209,7 +250,7 @@ def main():
         axis.legend_.remove()
         axis.tick_params(axis='y', rotation=90)
         axis.grid(b=True, ls='--', zorder=-1)
-    axes[1].legend(bbox_to_anchor=(0.5, 0.05), loc='lower center', borderaxespad=0.)
+    axes[1].legend(bbox_to_anchor=(0.5, 0.05), loc='lower center', borderaxespad=0.0)
     # fig.suptitle('Seasonal jet latitude distributions')
 
     plt.savefig('plt_dist_{}-{}.{ext}'.format(ext=extn, *in_names))
@@ -221,21 +262,39 @@ def main():
     diff = fds[0] - fds[1]
 
     # Make timeseries plot for each hemisphere, and difference in each
-    fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+    # fig, axes = plt.subplots(2, 2, figsize=(15, 5))
+    _width = 174
+    fig_width = _width * fig_mult
+    figsize = (fig_width / 25.4, (fig_width * (9 / 16) / 25.4))
+
+    fig_ts, axes_ts = plt.subplots(2, 1, figsize=figsize)
+    fig_diff, axes_diff = plt.subplots(2, 1, figsize=figsize)
+
     for idx, dfh in enumerate(data.groupby('hem')):
         hem = dfh[0]
-        axes[idx, 1].plot(diff.lat[diff.hem == hem])
+        axes_diff[idx].plot(diff.time[diff.hem == hem], diff.lat[diff.hem == hem])
 
         for kind, dfk in dfh[1].groupby('kind'):
-            axes[idx, 0].plot(dfk.lat, label=kind)
-        axes[idx, 0].set_title(HEMS[hem])
-        axes[idx, 1].set_title('{} Difference'.format(HEMS[hem]))
-        axes[idx, 0].grid(b=True, ls='--')
-        axes[idx, 1].grid(b=True, ls='--')
+            axes_ts[idx].plot(dfk.lat, label=kind, color=color_map[kind])
+            print(f"{kind:20s} {hem} mean: {dfk.lat.mean():.1f} std: {dfk.lat.std():.1f}")
 
-    axes[0, 0].legend()
-    plt.tight_layout()
-    plt.savefig('plt_diff_timeseries_{}-{}.{ext}'.format(ext=extn, *in_names))
+        axes_ts[idx].set_title(HEMS[hem])
+        if hem == 'nh':
+            axes_ts[idx].set_ylim([20, 50])
+        else:
+            axes_ts[idx].set_ylim([-50, -20])
+        # axes_diff[idx].set_ylim([-20, 20])
+        axes_diff[idx].set_title('{} Difference'.format(HEMS[hem]))
+        axes_ts[idx].grid(b=True, ls='--')
+        axes_diff[idx].grid(b=True, ls='--')
+
+    axes_ts[0].legend()
+
+    fig_ts.tight_layout()
+    fig_diff.tight_layout()
+
+    fig_ts.savefig('plt_timeseries_{}-{}.{ext}'.format(ext=extn, *in_names))
+    fig_diff.savefig('plt_timeseries_diff_{}-{}.{ext}'.format(ext=extn, *in_names))
 
     # Make a bar chart of mean difference
     sns.catplot(x='season', y='lat', col='hem', data=diff, kind='bar')

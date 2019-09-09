@@ -22,7 +22,7 @@ class DiagPlots(object):
     Plot diagnostic metrics about subtropical jet properties.
     """
 
-    def __init__(self, stj_props, metric, ilon=None):
+    def __init__(self, stj_props, metric, ilon=None, extra=None):
         """
         Setup DiagMetrics, input from STJIPVMetric and STJProperties classes.
         """
@@ -30,8 +30,9 @@ class DiagPlots(object):
         self.metric = metric
         self.stj = None
         self.contours = None
-        self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': []}
+        self.jet_info = {'lat_all': [], 'jet_lat': [], 'jet_idx': [], 'jet_mean': []}
         self.ilon = ilon
+        self.extra = extra
 
         # Figure size set to 129 mm wide, 152 mm tall
         self.fig_mult = 2.
@@ -56,9 +57,15 @@ class DiagPlots(object):
         """
         data = input_data.InputDataSTJPV(self.props, date_s=date, date_e=date)
         data = data.get_data()
-        self.stj = self.metric(self.props, data)
         vlat = self.props.data_cfg['lat']
         vlon = self.props.data_cfg['lon']
+
+        if data[vlon].min() == 0.0:
+            data = data.roll(**{vlon: data[vlon].shape[0] // 2})
+            _lons = np.linspace(-180.0, 180.0, data[vlon].shape[0], endpoint=False)
+            data = data.assign_coords(**{vlon: _lons})
+
+        self.stj = self.metric(self.props, data)
 
         tix = 0
         zix = 6
@@ -76,7 +83,7 @@ class DiagPlots(object):
         self.contours = np.arange(-np.ceil(uwnd_max), np.ceil(uwnd_max) + spc, spc)
 
         for hidx, shem in enumerate([True, False]):
-            ax2 = self.plot_zonal_slice(data, shem, hidx, tix, axes)
+            ax2 = self.plot_zonal_slice(data, shem, hidx, tix, axes, self.extra)
 
         axes[0].set_ylabel(r'$\theta$ [K]', rotation='horizontal')
         ax2.set_ylabel(r'$\partial\theta/\partial\phi$ [K/rad]', color='C2')
@@ -99,7 +106,7 @@ class DiagPlots(object):
         axes[3].plot(np.mean(data.uwnd[tix, zix, ...], axis=-1), map_y[:, 0],
                      '#fc4f30', lw=1.5 * self.fig_mult)
 
-        for hidx, jet_pos in enumerate(self.jet_info['jet_lat']):
+        for hidx, jet_pos in enumerate(self.jet_info['jet_mean']):
             lati = lat_idx.sel(**{vlat: jet_pos}, method='nearest').values
             axes[3].axhline(map_y[lati, 0], color='k', lw=1.8 * self.fig_mult)
             # Mean vs. median
@@ -167,7 +174,7 @@ class DiagPlots(object):
         plt.clf()
         plt.close()
 
-    def plot_zonal_slice(self, data, shem, hidx, tix, axes):
+    def plot_zonal_slice(self, data, shem, hidx, tix, axes, extra=None):
         """
         Plots zonal mean jet diagnostic picture.
         """
@@ -181,11 +188,18 @@ class DiagPlots(object):
         else:
             jet_pos = select[tix, :].sel(**{vlon: self.ilon}, method="nearest")
 
+        if extra is not None:
+            _extra_lev = np.array([extra]) * 1e-6
+            if shem:
+                _extra_lev *= -1
+            theta_4pv, _, _ = self.stj.isolate_pv(_extra_lev)
 
         # Append the list of jet latitude at each longitude in this hemisphere
         self.jet_info['lat_all'].append(select[tix])
         # Append the median jet latitude in this hemisphere to the list
         self.jet_info['jet_lat'].append(jet_pos)
+        # Always keep the zonal mean jet position too
+        self.jet_info['jet_mean'].append(select[tix, :].mean(dim=vlon))
         # Append the index of this hemisphere's jet on the full set of latitudes
         # self.jet_info['jet_idx'].append(list(data.lat).index(lat[jet_pos]))
 
@@ -209,12 +223,21 @@ class DiagPlots(object):
         # Plot mean theta profile
         if self.ilon is None:
             theta_mean_zm = theta_xpv[tix].mean(dim=vlon)
+            if extra is not None:
+                theta_4pv = theta_4pv[tix].mean(dim=vlon)
         else:
             theta_mean_zm = theta_xpv[tix].sel(**{vlon: self.ilon}, method="nearest")
+            if extra is not None:
+                theta_4pv = theta_4pv[tix].sel(**{vlon: self.ilon}, method="nearest")
 
         axes[hidx].plot(theta_xpv[vlat], theta_mean_zm, 'k.',
                         ms=2.0 * self.fig_mult,
                         label=r'$\theta_{%i}$' % self.props.config['pv_value'])
+
+        if extra is not None:
+            axes[hidx].plot(theta_4pv[vlat], theta_4pv, 'kx',
+                            ms=1.0 * self.fig_mult,
+                            label=r'$\theta_{%i}$' % extra)
 
         # Plot Mean theta fit
         if self.ilon is None:
@@ -248,7 +271,7 @@ class DiagPlots(object):
             # Restrict to +/- 4 so that both SH and NH have same Y-axis
             ax2.set_ylim([-4, 4])
         else:
-            ax2.set_ylim([-50, 50])
+            ax2.set_ylim([-4, 4])
 
         # Set the color to match the dTheta/dphi line
         ax2.tick_params('y', colors='C2')
@@ -379,9 +402,9 @@ class DiagPlots(object):
 def main():
     """Generate jet finder, make diagnostic plots."""
 
-    dates = [dt.datetime(2015, 1, 1), dt.datetime(2015, 6, 1)]
+    dates = [dt.datetime(2013, 1, 1), dt.datetime(2013, 6, 1)]
     # dates = pd.date_range('1981-02-05', '1981-02-20', freq='D')
-
+    # dates = [dt.datetime(2002, 1, 5)]
     # This loop does not work well if outputting to .eps files, just run the code twice
     for date in dates:
         # jf_run = run_stj.JetFindRun('./conf/stj_config_erai_monthly_gv.yml')

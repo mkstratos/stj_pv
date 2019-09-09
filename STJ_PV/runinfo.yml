@@ -1,7 +1,8 @@
 ---
 ERAI-Monthly:
     file: 'ERAI_MONTHLY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2018-12-31.nc'
-    label: 'Monthly ERA-I STJPV'
+    label: 'Monthly ERA-I'
+    # label: 'Tropopause Gradient'
 
 ERAI-Daily:
     file: 'ERAI_DAILY_THETA_STJPV_pv2.0_fit6_y010.0_yN65.0_zmean_1979-01-01_2018-12-31.nc'
@@ -33,4 +34,8 @@ JRA55-Monthly:
 
 ERAI-DavisBirner:
     file: 'ERAI_PRES_DavisBirner_zmean_1979-01-01_2018-12-31.nc'
-    label: 'Monthly ERA-I D-B'
+    label: 'Davis-Birner'
+
+ERAI-KP:
+    file: 'ERAI_DAILY_PRES_KangPolvani_zmean_1979-01-01_2016-12-31.nc'
+    label: 'Kang-Polvani'
