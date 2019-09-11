@@ -2,8 +2,23 @@
 """
 Run STJ: Main module "glue" that connects Subtropical Jet Metric calc, plot and diags.
 
-To run, set stj configuration file, start and end dates in `main()` and run with
-`$ python run_stj.py`
+    `python run_stj.py --help`
+
+Usage
+-----
+
+    usage: run_stj.py [-h] [--sample] [--sens] [--warn] [--file FILE] [--ys YS] [--ye YE]
+            Find the sub-tropical jet
+
+    optional arguments:
+      -h, --help   show this help message and exit
+      --sample     Perform a sample run
+      --sens       Perform a parameter sensitivity run
+      --warn       Show all warning messages
+      --file FILE  Configuration file path
+      --ys YS      Start Year
+      --ye YE      End Year
+
 
 Authors: Penelope Maher, Michael Kelleher
 

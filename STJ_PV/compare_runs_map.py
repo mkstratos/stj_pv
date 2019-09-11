@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 import seaborn as sns
-import compare_two_runs as c2r
+import STJ_PV.compare_two_runs as c2r
 from mpl_toolkits import basemap as bmp
 import STJ_PV.run_stj as run_stj
 
