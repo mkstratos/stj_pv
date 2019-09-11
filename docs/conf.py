@@ -449,3 +449,9 @@ intersphinx_mapping = {'py': ('https://docs.python.org/3.6', None),
                        'matplotlib': ('https://matplotlib.org', None),
                        'xr': ('https://xarray.pydata.org/en/stable/', None),
                        'mpl_toolkits': ('http://matplotlib.org/basemap/', None)}
+
+# Workaround for issue with spacing of parameter and type with sphinx 2.0
+# and sphinx_rtd_theme
+# See: https://github.com/readthedocs/sphinx_rtd_theme/issues/766
+def setup(app):
+    app.add_stylesheet("basic.css")
