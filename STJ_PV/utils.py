@@ -537,7 +537,7 @@ def xrtheta(tair, pvar='level'):
 
     # Default assumption is that pressure is in Pascals
     p_0 = 100000.0
-    if p_units in ['hPa', 'mb', 'millibar']:
+    if p_units in ['hPa', 'mb', 'mbar', 'millibar', 'millibars']:
         # if pressure is in hPa (or similar), fix p_0
         p_0 /= 100.
 
