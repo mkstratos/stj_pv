@@ -9,7 +9,7 @@ AUTHOR = 'Penelope Maher, Michael Kelleher'
 
 setup(
     name='STJ_PV',
-    version='1.0',
+    version='1.0.0',
     author=AUTHOR,
     author_email='p.maher@exeter.ac.uk, kelleherme@ornl.gov',
     packages=['STJ_PV', ],
