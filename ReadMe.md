@@ -11,6 +11,11 @@ We reccomend:
 * Python >= 3.6 (>= 3.5 required)
 * Creating a new Anaconda environment (so package versions do not conflict between this and other projects)
 
+## Citing this code
+Citation for v1.0.0 is available [here](https://doi.org/10.11578/dc.20191106.1)
+
+Our DOI is: 10.11578/dc.20191106.1
+
 ### SETUP
 Create a new Anaconda environment using:
 
