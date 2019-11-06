@@ -19,7 +19,6 @@
 #
 import os
 import sys
-from PSphinxTheme import utils
 sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath('../../'))
 
@@ -43,6 +42,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'sphinx.ext.autosummary',
+    'sphinx_rtd_theme',
     'numpydoc'
 ]
 numpydoc_show_class_members = False
@@ -64,7 +64,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'STJ Metric'
-copyright = '2017, Penelope Maher, Michael Kelleher'
+copyright = '2016-2019, Penelope Maher, Michael Kelleher'
 author = 'Penelope Maher, Michael Kelleher'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -136,8 +136,8 @@ todo_include_todos = True
 #
 # html_theme = 'nature'
 # html_theme = 'agogo'
-# html_theme = 'sphinx_rtd_theme'
-html_theme = 'sphinxdoc'
+html_theme = 'sphinx_rtd_theme'
+# html_theme = 'sphinxdoc'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -449,3 +449,9 @@ intersphinx_mapping = {'py': ('https://docs.python.org/3.6', None),
                        'matplotlib': ('https://matplotlib.org', None),
                        'xr': ('https://xarray.pydata.org/en/stable/', None),
                        'mpl_toolkits': ('http://matplotlib.org/basemap/', None)}
+
+# Workaround for issue with spacing of parameter and type with sphinx 2.0
+# and sphinx_rtd_theme
+# See: https://github.com/readthedocs/sphinx_rtd_theme/issues/766
+def setup(app):
+    app.add_stylesheet("basic.css")

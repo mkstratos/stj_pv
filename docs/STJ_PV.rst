@@ -4,40 +4,33 @@ STJ_PV package
 Submodules
 ----------
 
-STJ_PV.run_stj module
----------------------
+Runtime Configuration: run_stj
+------------------------------
 
 .. automodule:: STJ_PV.run_stj
     :members:
     :undoc-members:
     :show-inheritance:
 
-STJ_PV.stj_metric module
-------------------------
+Metric Definitions: stj_metric
+------------------------------
 
 .. automodule:: STJ_PV.stj_metric
     :members:
     :undoc-members:
     :show-inheritance:
 
-STJ_PV.input_data module
-------------------------
+Input Data: input_data
+----------------------
 
 .. automodule:: STJ_PV.input_data
     :members:
     :undoc-members:
     :show-inheritance:
 
-STJ_PV.data_out module
-----------------------
 
-.. automodule:: STJ_PV.data_out
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-STJ_PV.utils module
--------------------
+General Utilities: utils
+------------------------
 
 .. automodule:: STJ_PV.utils
     :members:

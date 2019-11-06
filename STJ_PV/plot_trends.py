@@ -7,7 +7,12 @@ import numpy as np
 from seaborn import despine
 
 __author__ = 'Michael Kelleher, Penny Maher'
-
+COLORS = {
+    "MERRA2": "#0BA00B",
+    "ERA-I": "#ff7f0e",
+    "JRA55": "#0069B5",
+    "CFSR": "#AF2525",
+}
 
 def invert_coords(coords, coord_key):
     """Invert coordinates to map labels to values."""
@@ -45,12 +50,13 @@ def plot_data(info):
             'ERA-I': {'marker': 'o', 's': info['ms'], 'zorder': 8},
             'MERRA2': {'marker': 'o', 's': info['ms'], 'zorder': 9},
         }
-
+        color = COLORS[row['Reanalysis']]
         if row['Upper'] * row['Lower'] > 0:
-            sct_args[row['Reanalysis']]['c'] = 'C{}'.format(cix)
+            sct_args[row['Reanalysis']]['c'] = color
         else:
             sct_args[row['Reanalysis']]['facecolor'] = 'white'
-            sct_args[row['Reanalysis']]['edgecolor'] = 'C{}'.format(cix)
+            sct_args[row['Reanalysis']]['edgecolor'] = color
+
 
         if ax_ix == 0 and coords['x'][row[xkey]] == 1:
             sct_args[row['Reanalysis']]['label'] = row['Reanalysis']
@@ -63,17 +69,17 @@ def plot_data(info):
             x_ix,
             row['Lower'],
             row['Upper'],
-            'C{}'.format(cix),
+            color,
             lw=2.5,
             zorder=2,
         )
         capsize = 0.07
 
         axes[ax_ix].hlines(
-            row['Lower'], x_ix - capsize, x_ix + capsize, 'C{}'.format(cix)
+            row['Lower'], x_ix - capsize, x_ix + capsize, color
         )
         axes[ax_ix].hlines(
-            row['Upper'], x_ix - capsize, x_ix + capsize, 'C{}'.format(cix)
+            row['Upper'], x_ix - capsize, x_ix + capsize, color
         )
 
     xlabels, xticks = invert_coords(coords, 'x')
@@ -130,7 +136,7 @@ def main():
         },
     }
 
-    plot_data(info['means'])
+    plot_data(info['trends'])
 
 
 if __name__ == '__main__':

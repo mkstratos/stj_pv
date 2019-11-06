@@ -11,9 +11,9 @@ setup(
     name='STJ_PV',
     version='1.0',
     author=AUTHOR,
-    author_email='p.maher@exeter.ac.uk, m.kelleher@exeter.ac.uk',
+    author_email='p.maher@exeter.ac.uk, kelleherme@ornl.gov',
     packages=['STJ_PV', ],
-    license='Creative Commons Attribution-Noncommercial-Share Alike license',
+    license='BSD',
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     install_requires=[

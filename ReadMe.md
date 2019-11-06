@@ -1,11 +1,17 @@
-Information on how to run the code and how it works.
-# Running the code
+# STJ-PV
+A subtropical jet finding framework, including the STJPV method introduced in
+
+Maher, et al. (2019): *Is the subtropical jet shifting poleward?* submitted to *Climate Dynamics*.
+
+
+## Running the code
 We reccomend:
 
 * [Anaconda Python](https://www.anaconda.com/download/) distribution
-* Python >= 3.6
+* Python >= 3.6 (>= 3.5 required)
 * Creating a new Anaconda environment (so package versions do not conflict between this and other projects)
 
+### SETUP
 Create a new Anaconda environment using:
 
 `conda create -n stjpv python`
@@ -16,29 +22,23 @@ Activate your new environment with
 
 Then install the required packages as below.
 
-### Setup for Python 3+
+### Installing STJ_PV
+Clone (or [fork](https://github.com/mkstratos/stj_pv/fork)) this repository
 
-`conda install --file requirements_36.txt -c conda-forge`
+`git clone git@github.com:mkstratos/stj_pv.git`
+
+Enter the code's top level directory
+
+`cd stj_pv`
+
+Install the prerequisites
+`conda install --file requirements.txt -c conda-forge`
 
 **Note**: `basemap==1.0.7` available from Anaconda is not compatible with Python >= 3. Thus the `conda-forge` channel with `v1.1.0` must be used.
 
+Install this module (STJ_PV) in development mode (`-e`)
 
-### Setup for Python 2.7
-`conda install --file requirements_27.txt`
-
-### Installing STJ_PV
-
-1. Once the Python environment is set up download the source code:
-
-    A. clone this repository with: `git clone git@bitbucket.org:penmaher/stj_pv.git`
-
-    B. Or create your own fork [here](https://bitbucket.org/penmaher/stj_pv/fork)
-
-2. Change into this directory, and install in development mode (using the `-e` flag for `pip`)
-
----
-    cd stj_pv
-    pip install -e .
+`pip install -e .`
 
 **Note the trailing "."** this will use the `setup.py` file to install this module, and allow it
 to be imported using `import STJ_PV` or `from STJ_PV import run_stj` for example
@@ -61,12 +61,13 @@ which has the latitude and theta position, and intensity in northern and souther
 #### Required for running the jet metric:
 ---
 
-    netCDF4
-    numpy
-    psutil
-    PyYAML
-    scipy
-    xarray
+	dask
+	netCDF4
+	numpy
+	psutil
+	PyYAML
+	scipy
+	xarray
 
 #### Required for diagnostic plots:
 ----
@@ -113,7 +114,7 @@ The highest level code is `run_stj.py`. Within this file the following changes a
 
 ### STJ finding Configuration: `stj_config_default.yml`
 
-    
+
 | Variable Name | Description
 | ---           | ---
 |`data_cfg`     | Location of data config file
@@ -135,7 +136,7 @@ The highest level code is `run_stj.py`. Within this file the following changes a
 
 ### Data configuration: `data_config_default.yml`
 
-    
+
 | Variable Name     | Description
 | ---               | ---
 |`path`             | Absolute path of input data

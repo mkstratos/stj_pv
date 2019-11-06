@@ -54,6 +54,7 @@ class NDSlicer(object):
          [-0.56431067  0.62833728 -0.04101542]]
 
     """
+
     def __init__(self, axis, ndim, start=None, stop=None, step=None):
         """N-Dimensional slice class for numpy arrays."""
         self.axis = axis
@@ -298,7 +299,7 @@ def inc_with_z(vcoord, levname):
 
 
 def _xrvinterp_single(data, vcoord, lev, levname='lev'):
-    """
+    r"""
     Perform linear interpolation along vertical axis on an :class:`xarray.DataArray`.
 
     Parameters
@@ -374,8 +375,8 @@ def _xrvinterp_single(data, vcoord, lev, levname='lev'):
 
 
 def xrvinterp(data, vcoord, vlevs, levname, newlevname):
-    """
-    Perform vertical interpolation for several levels for an :class:`xarray.DataArray`
+    r"""
+    Perform vertical interpolation for several levels for an :class:`xarray.DataArray`.
 
     Parameters
     ----------
@@ -1199,7 +1200,7 @@ def dlon_dlat(lon, lat, cyclic=True):
 
 def xr_dlon_dlat(data, vlon='lon', vlat='lat', cyclic=True):
     """
-    Calculate distance on lat/lon axes on spherical grid for :class:`xarray.DataArray`
+    Calculate distance on lat/lon axes on spherical grid for :class:`xarray.DataArray`.
 
     Parameters
     ----------
@@ -1377,7 +1378,7 @@ def dth_dp(theta_in, data_in):
         raise ValueError('Incorrect number of dimensons: {}'.format(data_in.shape))
 
 
-def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
+def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=None):
     """
     Calculate isentropic PV on theta surfaces.
 
@@ -1399,8 +1400,8 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
         1D latitude in degrees
     lon : array_like
         1D longitude in degrees
-    th_levels : array_like
-        1D Theta levels on which to calculate PV
+    th_levels : array_like, optional
+        1D Theta levels on which to calculate PV. Defaults to 300K - 500K by 5K.
 
 
     Returns
@@ -1414,6 +1415,8 @@ def ipv(uwnd, vwnd, tair, pres, lat, lon, th_levels=TH_LEV):
         Zonal wind on isentropic levels [m/s]
 
     """
+    if th_levels is None:
+        th_levels = TH_LEV
     # Calculate potential temperature on isobaric (pressure) levels
     thta = theta(tair, pres)
     # Interpolate zonal, meridional wind, pressure to isentropic from isobaric levels
@@ -1517,7 +1520,7 @@ def xripv_theta(uwnd, vwnd, pres, dimvars):
     return ipv_out
 
 
-def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
+def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=None):
     """
     Calculate isentropic PV on theta surfaces from :class:`xarray.DataArray`.
 
@@ -1536,8 +1539,8 @@ def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
     dimvars : dict
         Mapping of variable names for standard coordinates. This will default
         to 'lev' -> 'level', 'lat' -> 'lat', 'lon' -> 'lon'
-    th_levels : array_like
-        1D array of Theta levels on which to calculate PV
+    th_levels : array_like, optional
+        1D array of Theta levels on which to calculate PV.  Defaults to 300K - 500K by 5K.
 
 
     Returns
@@ -1551,6 +1554,8 @@ def xripv(uwnd, vwnd, tair, dimvars=None, th_levels=TH_LEV):
         Zonal wind on isentropic levels [m/s]
 
     """
+    if th_levels is None:
+        th_levels = TH_LEV
     # import pdb;pdb.set_trace()
     th_levels = np.float32(th_levels)
     if dimvars is None:
