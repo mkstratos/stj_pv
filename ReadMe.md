@@ -4,6 +4,8 @@ A subtropical jet finding framework, including the STJPV method introduced in
 Maher, et al. (2019): *Is the subtropical jet shifting poleward?* submitted to *Climate Dynamics*.
 
 
+[![Documentation Status](https://readthedocs.org/projects/stj-pv/badge/?version=latest)](https://stj-pv.readthedocs.io/en/latest/?badge=latest)
+
 ## Running the code
 We reccomend:
 
