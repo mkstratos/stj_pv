@@ -22,6 +22,16 @@ import sys
 sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath('../../'))
 
+# a hack to get basemap to work
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+if on_rtd:
+    os.environ['PROJ_LIB'] = (
+        '{}/{}/share/proj'.format(
+            os.environ['CONDA_ENVS_PATH'], os.environ['CONDA_DEFAULT_ENV']
+        )
+    )
+else:
+    os.environ['PROJ_LIB'] = '{}/share/proj'.format(os.environ['CONDA_PREFIX'])
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
