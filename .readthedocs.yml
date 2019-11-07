@@ -1,0 +1,18 @@
+# .readthedocs.yml
+# readthedocs configuration file
+# see https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# required
+version: 2
+
+# conda setup
+conda:
+  environment: docs/rtd_env.yml
+
+# Python requirements
+python:
+  version: 3.7
+
+sphinx:
+  builder: html
+  configuration: conf.py
