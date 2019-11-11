@@ -49,15 +49,19 @@ class InputData:
         self.in_data = {}
         self.out_data = {}
 
-        self.sel = {self.data_cfg['time']: slice(None),
-                    self.data_cfg['lev']: slice(None),
-                    self.data_cfg['lat']: slice(None),
-                    self.data_cfg['lon']: slice(None)}
+        self.sel = {
+            self.data_cfg['time']: slice(None),
+            self.data_cfg['lev']: slice(None),
+            self.data_cfg['lat']: slice(None),
+            self.data_cfg['lon']: slice(None),
+        }
 
-        self.chunk = {self.data_cfg['time']: None,
-                      self.data_cfg['lev']: None,
-                      self.data_cfg['lat']: None,
-                      self.data_cfg['lon']: None}
+        self.chunk = {
+            self.data_cfg['time']: None,
+            self.data_cfg['lev']: None,
+            self.data_cfg['lat']: None,
+            self.data_cfg['lon']: None,
+        }
 
         if date_s is not None or date_e is not None:
             self.sel[self.data_cfg['time']] = slice(date_s, date_e)
@@ -72,8 +76,15 @@ class InputData:
             # labeled as lon_s, lon_e (for longitude as an example)
             _start = '{}_s'.format(cvar)
             _end = '{}_e'.format(cvar)
-            if _start and _end in cfg:
-                self.sel[cfg[cvar]] = slice(cfg[_start], cfg[_end])
+            _skip = '{}_skp'.format(cvar)
+            _slice = (
+                cfg.get(_start, None),
+                cfg.get(_end, None),
+                cfg.get(_skip, None),
+            )
+            self.sel[cfg[cvar]] = slice(*_slice)
+            # if _start and _end in cfg:
+            #     self.sel[cfg[cvar]] = slice(cfg[_start], cfg[_end])
 
     def _load_data(self):
         """Load all required data."""
@@ -92,8 +103,11 @@ class InputData:
         shape = data.shape
         npoints = np.prod(shape)
         excl_n = [self.data_cfg[excldim] for excldim in excldims]
-        dims = [coord for coord in data.coords
-                if coord in data.dims and coord not in excl_n]
+        dims = [
+            coord
+            for coord in data.coords
+            if coord in data.dims and coord not in excl_n
+        ]
         chunks = {dim: data[dim].shape[0] for dim in dims}
         divis = {dim: 1 for dim in dims}
         n_iter = 0
@@ -135,8 +149,9 @@ class InputData:
         except KeyError:
             file_name = cfg['file_paths']['all'].format(year=self.year)
 
-        self.props.log.info('OPEN: {}'.format(os.path.join(cfg['path'],
-                                                           file_name)))
+        self.props.log.info(
+            'OPEN: {}'.format(os.path.join(cfg['path'], file_name))
+        )
         try:
             nc_file = xr.open_dataset(os.path.join(cfg['path'], file_name))
         except FileNotFoundError:
@@ -150,12 +165,14 @@ class InputData:
             # netCDF file (e.g. ask for 2013-07-14 00:00, but the netCDF
             # file has 2013-07-14 09:00)
             _day = dt.timedelta(hours=23)
-            self.sel[cfg['time']] = slice(self.sel[cfg['time']].start,
-                                          self.sel[cfg['time']].stop + _day)
+            self.sel[cfg['time']] = slice(
+                self.sel[cfg['time']].start, self.sel[cfg['time']].stop + _day
+            )
             self.in_data[var] = nc_file[vname].sel(**self.sel)
-            self.props.log.info('UPDATING TIME SLICE BY 1 DAY %s',
-                                (self.sel[cfg['time']].stop
-                                 .strftime('%Y-%m-%d %HZ')))
+            self.props.log.info(
+                'UPDATING TIME SLICE BY 1 DAY %s',
+                (self.sel[cfg['time']].stop.strftime('%Y-%m-%d %HZ')),
+            )
 
             # Iterate, but don't get stuck here
             _fails += 1
@@ -167,15 +184,17 @@ class InputData:
 
     def get_data(self):
         """Get a single xarray.Dataset of required components for metric."""
-        data = xr.Dataset(self.out_data,
-                          attrs={'cfg': self.data_cfg, 'year': self.year})
+        data = xr.Dataset(
+            self.out_data, attrs={'cfg': self.data_cfg, 'year': self.year}
+        )
         return data
 
     def write_data(self, out_file=None):
         """Write netCDF file of the out_data."""
         if out_file is None:
-            file_name = (self.data_cfg['file_paths']['ipv']
-                         .format(year=self.year))
+            file_name = self.data_cfg['file_paths']['ipv'].format(
+                year=self.year
+            )
             out_file = os.path.join(self.data_cfg['wpath'], file_name)
 
         if not os.access(out_file, os.W_OK):
@@ -203,6 +222,7 @@ class InputDataSTJPV(InputData):
         Year of data to load, not used when all years are in a single file
 
     """
+
     load_vars = ['uwnd', 'vwnd', 'tair', 'epv', 'ipv']
 
     def __init__(self, props, date_s=None, date_e=None):
@@ -217,8 +237,9 @@ class InputDataSTJPV(InputData):
 
     def _find_pv_update(self):
         """Determine if PV needs to be computed/re-computed."""
-        pv_file_name = (self.data_cfg['file_paths']['ipv']
-                        .format(year=self.year))
+        pv_file_name = self.data_cfg['file_paths']['ipv'].format(
+            year=self.year
+        )
         pv_file = os.path.join(self.data_cfg['wpath'], pv_file_name)
         return self.props.config['update_pv'] or not os.path.exists(pv_file)
 
@@ -233,25 +254,32 @@ class InputDataSTJPV(InputData):
         if cfg['ztype'] == 'pres':
             if 'epv' not in self.in_data:
                 self.props.log.info('USING U, V, T TO COMPUTE IPV')
-                ipv, _, uwnd = utils.xripv(self.in_data['uwnd'],
-                                           self.in_data['vwnd'],
-                                           self.in_data['tair'],
-                                           dimvars=dimvars,
-                                           th_levels=self.props.th_levels
-                                           )
+                ipv, _, uwnd = utils.xripv(
+                    self.in_data['uwnd'],
+                    self.in_data['vwnd'],
+                    self.in_data['tair'],
+                    dimvars=dimvars,
+                    th_levels=self.props.th_levels,
+                )
 
             else:
                 self.props.log.info('USING ISOBARIC PV TO COMPUTE IPV')
                 thta = utils.xrtheta(self.in_data['tair'], pvar=cfg['lev'])
-                ipv = utils.xrvinterp(self.in_data['epv'], thta,
-                                      self.props.th_levels,
-                                      levname=cfg['lev'],
-                                      newlevname=cfg['lev'])
+                ipv = utils.xrvinterp(
+                    self.in_data['epv'],
+                    thta,
+                    self.props.th_levels,
+                    levname=cfg['lev'],
+                    newlevname=cfg['lev'],
+                )
 
-                uwnd = utils.xrvinterp(self.in_data['uwnd'], thta,
-                                       self.props.th_levels,
-                                       levname=cfg['lev'],
-                                       newlevname=cfg['lev'])
+                uwnd = utils.xrvinterp(
+                    self.in_data['uwnd'],
+                    thta,
+                    self.props.th_levels,
+                    levname=cfg['lev'],
+                    newlevname=cfg['lev'],
+                )
 
             self.out_data['ipv'] = ipv
             self.out_data['uwnd'] = uwnd
@@ -259,17 +287,25 @@ class InputDataSTJPV(InputData):
             self.th_lev = self.props.th_levels
 
         elif cfg['ztype'] == 'theta':
-            ipv = utils.xripv_theta(self.in_data['uwnd'], self.in_data['vwnd'],
-                                    self.in_data['pres'], dimvars)
+            ipv = utils.xripv_theta(
+                self.in_data['uwnd'],
+                self.in_data['vwnd'],
+                self.in_data['pres'],
+                dimvars,
+            )
             self.out_data['ipv'] = ipv
             self.out_data['uwnd'] = self.in_data['uwnd']
 
-        ipv_attrs = {'units': '10^-6 PVU',
-                     'standard_name': 'isentropic_potential_vorticity',
-                     'descr': 'Potential vorticity on isentropic levels'}
-        uwnd_attrs = {'units': 'm s-1',
-                      'standard_name': 'zonal_wind_component',
-                      'descr': 'Zonal wind on isentropic levels'}
+        ipv_attrs = {
+            'units': '10^-6 PVU',
+            'standard_name': 'isentropic_potential_vorticity',
+            'descr': 'Potential vorticity on isentropic levels',
+        }
+        uwnd_attrs = {
+            'units': 'm s-1',
+            'standard_name': 'zonal_wind_component',
+            'descr': 'Zonal wind on isentropic levels',
+        }
 
         self.out_data['ipv'] = self.out_data['ipv'].assign_attrs(ipv_attrs)
         self.out_data['uwnd'] = self.out_data['uwnd'].assign_attrs(uwnd_attrs)
@@ -293,15 +329,16 @@ class InputDataSTJPV(InputData):
 
     def _write_ipv(self):
         """Write generated IPV data to file."""
-        pv_file_name = (self.data_cfg['file_paths']['ipv']
-                        .format(year=self.year))
+        pv_file_name = self.data_cfg['file_paths']['ipv'].format(
+            year=self.year
+        )
         pv_file = os.path.join(self.data_cfg['wpath'], pv_file_name)
         self.props.log.info('WRITING PV FILE %s', pv_file)
         encoding = {'zlib': True, 'complevel': 9}
 
         dsout = xr.Dataset(self.out_data)
         dsout[self.data_cfg['lev']] = dsout[self.data_cfg['lev']].assign_attrs(
-                {'units': 'K', 'standard_name': 'potential_temperature'}
+            {'units': 'K', 'standard_name': 'potential_temperature'}
         )
         dsout.encoding = dict((var, encoding) for var in dsout.data_vars)
         dsout.to_netcdf(pv_file, encoding=dsout.encoding)
@@ -327,8 +364,9 @@ class InputDataSTJPV(InputData):
                 self.out_data[data_var] = self.out_data[data_var][:, ::-1]
             self.th_lev = self.th_lev[::-1]
 
-        return xr.Dataset(self.out_data,
-                          attrs={'cfg': self.data_cfg, 'year': self.year})
+        return xr.Dataset(
+            self.out_data, attrs={'cfg': self.data_cfg, 'year': self.year}
+        )
 
 
 class InputDataUWind(InputData):
@@ -345,6 +383,7 @@ class InputDataUWind(InputData):
         Year of data to load, not used when all years are in a single file
 
     """
+
     load_vars = ['uwnd']
 
     def __init__(self, props, date_s=None, date_e=None):
@@ -357,10 +396,13 @@ class InputDataUWind(InputData):
 
     def _calc_interp(self, var_name):
         lev = self.props.p_levels
-        data_interp = utils.xrvinterp(self.in_data[var_name],
-                                      self.in_data['pres'],
-                                      lev, levname=self.data_cfg['lev'],
-                                      newlevname='pres')
+        data_interp = utils.xrvinterp(
+            self.in_data[var_name],
+            self.in_data['pres'],
+            lev,
+            levname=self.data_cfg['lev'],
+            newlevname='pres',
+        )
 
         self.out_data[var_name] = data_interp
 
@@ -374,5 +416,6 @@ class InputDataUWind(InputData):
             self._load_data()
             self.out_data = self.in_data
 
-        return xr.Dataset(self.out_data,
-                          attrs={'cfg': self.data_cfg, 'year': self.year})
+        return xr.Dataset(
+            self.out_data, attrs={'cfg': self.data_cfg, 'year': self.year}
+        )
