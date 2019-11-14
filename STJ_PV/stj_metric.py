@@ -92,7 +92,7 @@ class STJMetric:
         out_dset.to_netcdf(self.props['output_file'] + '.nc')
 
     def set_hemis(self, shemis):
-        """
+        r"""
         Select hemisphere data.
 
         This function sets `self.hemis` to be an length N list of slices such that only
@@ -112,31 +112,38 @@ class STJMetric:
             Function used to identify extrema in meridional PV gradient, either
             :func:`scipy.signal.argrelmax` if SH, or :func:`scipy.signal.argrelmin`
             for NH
-
-        lat : array_like
-            Latitude array from selected hemisphere
-        hidx : int
-            Hemisphere index 0 for SH, 1 for NH
+        lats : tuple
+            (start, end) of latitude, for use with
+            `xarray.DataArray.sel(lat=slice(\*lats))`
+        hem_s : string
+            Abbreviation for hemisphere (NH or SH)
 
         """
-        lats = [self.props['min_lat'], self.props['max_lat']]
+        lats = [self.props.get('min_lat', 0), self.props.get('max_lat', 90)]
+        lat_dec = self.data[self.data.cfg['lat']][0] > self.data[self.data.cfg['lat']][-1]
 
         if shemis:
-            self.hemis = self.data[self.data.cfg['lat']] < 0
+            _lstart = -90
+            _lend = 0
             extrema = sig.argrelmax
             hem_s = 'sh'
-            if lats[0] > 0 and lats[1] > 0:
+            if lats[0] >= 0 and lats[1] >= 0:
                 # Lats are positive, multiply by -1 to get positive for SH
-                lats = [-lats[0], -lats[1]]
+                lats = (-lats[0], -lats[1])
         else:
-            self.hemis = self.data[self.data.cfg['lat']] > 0
+            _lstart = 0
+            _lend = 90
             extrema = sig.argrelmin
             hem_s = 'nh'
-            if lats[0] < 0 and lats[1] < 0:
+            if lats[0] <= 0 and lats[1] <= 0:
                 # Lats are negative, multiply by -1 to get positive for NH
-                lats = [-lats[0], -lats[1]]
+                lats = (-lats[0], -lats[1])
 
-        return extrema, tuple(lats), hem_s
+        if lat_dec:
+            _lstart, _lend = _lend, _lstart
+
+        self.hemis = {self.data.cfg['lat']: slice(_lstart, _lend)}
+        return extrema, lats, hem_s
 
     def compute(self):
         """Compute all dask arrays in `self.out_data`."""
@@ -237,59 +244,6 @@ class STJPV(STJMetric):
         poly_der = self.peval(lat, self.pder(poly_fit, deriv))
 
         return poly_der, (poly_fit, lat[valid])
-
-    def set_hemis(self, shemis):
-        """
-        Select hemisphere data.
-
-        This function sets `self.hemis` to be an length N list of slices such that only
-        the desired hemisphere is selected with N-D data (e.g. uwind and ipv) along all
-        other axes. It also returns the latitude for the selected hemisphere, an index
-        to select the hemisphere in output arrays, and the extrema function to find
-        min/max of PV derivative in a particular hemisphere.
-
-        Parameters
-        ----------
-        shemis : boolean
-            If true - use southern hemisphere data, if false, use NH data
-
-        Returns
-        -------
-        lat : array_like
-            Latitude array from selected hemisphere
-        hidx : int
-            Hemisphere index 0 for SH, 1 for NH
-        extrema : function
-            Function used to identify extrema in meridional PV gradient, either
-            :func:`scipy.signal.argrelmax` if SH, or :func:`scipy.signal.argrelmin`
-            for NH
-
-        """
-        lats = (self.props['min_lat'], self.props['max_lat'])
-        lat_dec = self.data[self.data.cfg['lat']][0] > self.data[self.data.cfg['lat']][-1]
-
-        if shemis:
-            _lstart = -90
-            _lend = 0
-            extrema = sig.argrelmax
-            hem_s = 'sh'
-            if lats[0] > 0 and lats[1] > 0:
-                # Lats are positive, multiply by -1 to get positive for SH
-                lats = (-lats[0], -lats[1])
-        else:
-            _lstart = 0
-            _lend = 90
-            extrema = sig.argrelmin
-            hem_s = 'nh'
-            if lats[0] < 0 and lats[1] < 0:
-                # Lats are negative, multiply by -1 to get positive for NH
-                lats = (-lats[0], -lats[1])
-
-        if lat_dec:
-            _lstart, _lend = _lend, _lstart
-
-        self.hemis = {self.data.cfg['lat']: slice(_lstart, _lend)}
-        return extrema, lats, hem_s
 
     def isolate_pv(self, pv_lev):
         """
@@ -847,23 +801,8 @@ class STJKangPolvani(STJMetric):
         """Initialise Metric using Kang and Polvani Method."""
         name = 'KangPolvani'
         super(STJKangPolvani, self).__init__(name=name, props=props, data=data)
-
-        self.dates = pd.DatetimeIndex(num2date(self.data.time[:], self.data.time_units))
-
-        self.jet_intens_daily = np.zeros([2, self.dates.shape[0]])
-        # Seasonal mean is expected
-        self.jet_lat_daily = np.zeros([2, self.dates.shape[0]])
-
-        # Seasonal and monthly mean positions
-        # self.jet_lat_sm = np.zeros([2, 4])
-        # self.jet_lat_mm = np.zeros([2, 12])
-
-        # Output monthly means for comparison
-        num_mon = len(np.unique(self.dates.year)) * 12
-        self.jet_lat = np.zeros([2, num_mon])
-        self.jet_intens = np.zeros([2, num_mon])
-        self.wh_1000 = None
-        self.wh_200 = None
+        self.wh_200 = 20000.0 / self.data.cfg["pfac"]
+        self.wh_1000 = 100000.0 / self.data.cfg["pfac"]
 
     def find_jet(self, shemis=True):
         """
@@ -875,134 +814,71 @@ class STJKangPolvani(STJMetric):
             If True, find jet position in Southern Hemisphere, if False, find N.H. jet
 
         """
-        lat_elem, hidx = self.set_hemis(shemis)
+        _, hlats, hem_s = self.set_hemis(shemis)
 
-        uwnd, vwnd = self._prep_data(lat_elem)
-        del_f = self.get_flux_div(uwnd, vwnd, lat_elem)
-        self.get_jet_lat(del_f, np.mean(uwnd, axis=-1), self.data.lat[lat_elem], hidx)
+        del_f = self.get_flux_div(hlats)
+        self.get_jet_lat(del_f, hem_s)
 
-    def set_hemis(self, shemis):
-        """
-        Select hemisphere data.
-
-        This function sets `self.hemis` to be an length N list of slices such that only
-        the desired hemisphere is selected with N-D data (e.g. uwind and ipv) along all
-        other axes. It also returns the latitude for the selected hemisphere, an index
-        to select the hemisphere in output arrays, and the extrema function to find
-        min/max of PV derivative in a particular hemisphere.
-
-        Parameters
-        ----------
-        shemis : boolean
-            If true - use southern hemisphere data, if false, use NH data
-
-        Returns
-        -------
-        lat_elem : array_like
-            Latitude element locations for given hemisphere
-        hidx : int
-            Hemisphere index 0 for SH, 1 for NH
-
-        """
-        lat_axis = self.data.uwnd.shape.index(self.data.lat.shape[0])
-
-        if self.data.uwnd.shape.count(self.data.lat.shape[0]) > 1:
-            # Log a message about which matching dimension used since this
-            # could be time or lev or lon if ntimes, nlevs or nlons == nlats
-            self.log.info(
-                'ASSUMING LAT DIM IS: {} ({})'.format(lat_axis, self.data.uwnd.shape)
-            )
-
-        self.hemis = [slice(None)] * self.data.uwnd.ndim
-
-        if shemis:
-            self.hemis[lat_axis] = self.data.lat < 0
-            lat_elem = np.where(self.data.lat < 0)[0]
-            # needed to find the seasonal mean jet let from each zero crossing latitude
-            hidx = 0
-        else:
-            self.hemis[lat_axis] = self.data.lat > 0
-            lat_elem = np.where(self.data.lat > 0)[0]
-            hidx = 1
-
-        return lat_elem, hidx
-
-    def _prep_data(self, lat_elem):
-
-        # Test if pressure is in Pa or hPa
-        if self.data.lev.max() < 1100.0:
-            self.data.lev = self.data.lev * 100.0
-
-        # Only compute flux div at 200hpa
-        self.wh_200 = np.where(self.data.lev == 20000.0)[0]
-        assert len(self.wh_200) != 0, 'Cant find 200 hpa level'
-
-        # Need surface data for calc shear
-        self.wh_1000 = np.where(self.data.lev == 100000.0)[0]
-        assert len(self.wh_1000) != 0, 'Cant find 1000 hpa level'
-
-        uwnd = xr.DataArray(
-            self.data.uwnd[:, :, lat_elem, :],
-            coords=[self.dates, self.data.lev, self.data.lat[lat_elem], self.data.lon],
-            dims=['time', 'pres', 'lat', 'lon'],
-        )
-
-        vwnd = xr.DataArray(
-            self.data.vwnd[:, :, lat_elem, :],
-            coords=[self.dates, self.data.lev, self.data.lat[lat_elem], self.data.lon],
-            dims=['time', 'pres', 'lat', 'lon'],
-        )
-
-        return uwnd, vwnd
-
-    def get_flux_div(self, uwnd, vwnd, lat_elem):
+    def get_flux_div(self, lats):
         """Calculate the meridional eddy momentum flux divergence."""
-        lat = self.data.lat[lat_elem]
+        _select = {self.data.cfg["lev"]: self.wh_200}
+        _select.update(self.hemis)
+        uwnd = self.data["uwnd"].sel(**_select)
+        vwnd = self.data["vwnd"].sel(**_select)
+        lat = uwnd[self.data.cfg["lat"]].values
 
-        k_e = Kinetic_Eddy_Energies(
-            uwnd.values[:, self.wh_200, :, :],
-            vwnd.values[:, self.wh_200, :, :],
-            lat,
-            self.props['pres_level'],
-            self.data.lon,
-        )
+        k_e = Kinetic_Eddy_Energies(uwnd, vwnd, self.data.cfg)
         k_e.get_components()
         k_e.calc_momentum_flux()
+        del_f = k_e.del_f
 
-        del_f = xr.DataArray(
-            np.squeeze(k_e.del_f),
-            coords=[self.dates, self.data.lat[lat_elem]],
-            dims=['time', 'lat'],
-        )
         return del_f
 
-    def get_jet_lat(self, del_f, uwnd, lat, hidx):
+    def get_jet_lat(self, del_f, hem_s):
         """Find the 200hpa zero crossing of meridional eddy momentum flux divergence."""
-        signchange = ((np.roll(np.sign(del_f), 1) - np.sign(del_f)) != 0).values
-        signchange[:, 0], signchange[:, -1] = False, False
+        uwnd = self.data["uwnd"].sel(**self.hemis).mean(dim=self.data.cfg["lon"])
+        _vlat = self.data.cfg["lat"]
+        lat = uwnd[_vlat]
+
+        # signchange = ((np.roll(np.sign(del_f), 1) - np.sign(del_f)) != 0).values
+        _delsign = del_f.pipe(np.sign)
+        signchange = (_delsign.roll({_vlat: 1}, roll_coords=False) - _delsign) != 0
+        # signchange[:, 0], signchange[:, -1] = False, False
 
         stj_lat = np.zeros(uwnd.shape[0])
         stj_int = np.zeros(uwnd.shape[0])
+        _uwnd200 = uwnd.sel(**{self.data.cfg["lev"]: self.wh_200})
+        _uwnd1000 = uwnd.sel(**{self.data.cfg["lev"]: self.wh_1000})
 
-        for t in range(uwnd.shape[0]):
-            shear = (
-                uwnd[t, self.wh_200, signchange[t, :]].values
-                - uwnd[t, self.wh_1000, signchange[t, :]].values
-            )
-            stj_lat[t] = lat[signchange[t, :]][np.argmax(shear)]
-            stj_int[t] = uwnd[t, self.wh_200[0], np.where(lat == stj_lat[t])[0]].values
+        stj_lat = xr.apply_ufunc(
+            self.find_single_jet,
+            _uwnd200,
+            _uwnd1000,
+            _uwnd200[_vlat],
+            signchange,
+            input_core_dims=[[_vlat], [_vlat], [_vlat], [_vlat]],
+            vectorize=True,
+            dask='allowed',
+        )
 
         # Output the monthly mean of daily S for comparing the method
-        jet_data = xr.DataArray(stj_lat, coords=[self.dates], dims=['time'])
-        jet_data_mm = jet_data.resample(freq='MS', dim='time')
-        self.jet_lat[hidx, :] = jet_data_mm.values
+        jet_data = xr.DataArray(
+            stj_lat,
+            coords=[self.data["uwnd"][self.data.cfg["time"]]],
+            dims=[self.data.cfg["time"]],
+        )
+        jet_intens = _uwnd200.sel(**{_vlat: jet_data})
 
-        jet_data = xr.DataArray(stj_int, coords=[self.dates], dims=['time'])
-        jet_data_mm = jet_data.resample(freq='MS', dim='time')
-        self.jet_intens[hidx, :] = jet_data_mm.values
+        _resample = {self.data.cfg["time"]: "MS"}
+        jet_data_mm = jet_data.resample(**_resample).mean()
+        jet_intens_mm = jet_intens.resample(**_resample).mean()
 
-        dtimes = [dtime.to_pydatetime() for dtime in jet_data_mm.time.to_index()]
-        self.time = date2num(dtimes, self.data.time_units, self.data.calendar)
+        self.out_data["lat_{}".format(hem_s)] = jet_data_mm
+        self.out_data["intens_{}".format(hem_s)] = jet_intens_mm
+
+    def find_single_jet(self, u_high, u_low, lat, sign_change):
+        shear = u_high[sign_change] - u_low[sign_change]
+        return lat[sign_change][shear.argmax()]
 
     def get_jet_loc(self, data, expected_lat, lat):
         """Get jet location based on sign changes of Del(f)."""
