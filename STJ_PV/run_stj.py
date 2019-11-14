@@ -212,7 +212,7 @@ class JetFindRun:
         elif self.config['method'] in ['STJUMax', 'DavisBirner']:
             data = inp.InputDataUWind(self, date_s, date_e)
         else:
-            data = inp.InputDataUWind(self, ['uwnd', 'vwnd'], date_s, date_e)
+            data = inp.InputDataUWind(self, date_s, date_e, vwnd=True)
 
         return data.get_data()
 

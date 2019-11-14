@@ -71,7 +71,7 @@ class InputData:
     def _select_setup(self):
         """Set up selection dictionary to be passed to xarray.DataArray.sel."""
         cfg = self.data_cfg
-        for cvar in ['lon', 'lev']:
+        for cvar in ['lon', 'lev', 'lat']:
             # In the data config file, the start and end values will be
             # labeled as lon_s, lon_e (for longitude as an example)
             _start = '{}_s'.format(cvar)
@@ -384,15 +384,19 @@ class InputDataUWind(InputData):
 
     """
 
-    load_vars = ['uwnd']
 
-    def __init__(self, props, date_s=None, date_e=None):
+    def __init__(self, props, date_s=None, date_e=None, vwnd=False):
         """Initialize InputData object, using JetFindRun class."""
+        self.load_vars = ['uwnd']
+        if vwnd:
+            self.load_vars.append("vwnd")
         super(InputDataUWind, self).__init__(props, date_s, date_e)
 
         # Each UWind input data _must_ have u-wind
         # but _might_ also need the pressure calculate isobaric uwind
-        self.out_data = {'uwnd': None}
+        self.out_data = {}
+        for var_name in self.load_vars:
+            self.out_data[var_name] = None
 
     def _calc_interp(self, var_name):
         lev = self.props.p_levels
@@ -411,7 +415,8 @@ class InputDataUWind(InputData):
         if self.data_cfg == 'theta':
             self.load_vars.append('pres')
             self._load_data()
-            self._calc_interp('uwnd')
+            for var_name in self.out_data:
+                self._calc_interp(var_name)
         else:
             self._load_data()
             self.out_data = self.in_data
