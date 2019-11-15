@@ -843,12 +843,19 @@ class STJKangPolvani(STJMetric):
         # signchange = ((np.roll(np.sign(del_f), 1) - np.sign(del_f)) != 0).values
         _delsign = del_f.pipe(np.sign)
         signchange = (_delsign.roll({_vlat: 1}, roll_coords=False) - _delsign) != 0
-        # signchange[:, 0], signchange[:, -1] = False, False
+
 
         stj_lat = np.zeros(uwnd.shape[0])
         stj_int = np.zeros(uwnd.shape[0])
         _uwnd200 = uwnd.sel(**{self.data.cfg["lev"]: self.wh_200})
         _uwnd1000 = uwnd.sel(**{self.data.cfg["lev"]: self.wh_1000})
+
+        # Don't consider endpoints as having a sign change
+        _no_endpoints = {_vlat: slice(1, -1)}
+        signchange = signchange.isel(**_no_endpoints)
+        # And restrict the wind in the same way
+        _uwnd200 = _uwnd200.isel(**_no_endpoints)
+        _uwnd1000 = _uwnd1000.isel(**_no_endpoints)
 
         stj_lat = xr.apply_ufunc(
             self.find_single_jet,
@@ -877,6 +884,10 @@ class STJKangPolvani(STJMetric):
         self.out_data["intens_{}".format(hem_s)] = jet_intens_mm
 
     def find_single_jet(self, u_high, u_low, lat, sign_change):
+        """
+        Get streamfunction inflection point with the largest zonal-mean zonal wind shear.
+
+        """
         shear = u_high[sign_change] - u_low[sign_change]
         return lat[sign_change][shear.argmax()]
 
