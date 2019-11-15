@@ -37,6 +37,14 @@ General Utilities: utils
     :undoc-members:
     :show-inheritance:
 
+Eddy Kinetic Energy Terms: eddy_terms
+-------------------------------------
+
+.. automodule:: STJ_PV.eddy_terms_xr
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Comparison Utilities
 --------------------
 
