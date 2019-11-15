@@ -40,7 +40,7 @@ General Utilities: utils
 Eddy Kinetic Energy Terms: eddy_terms
 -------------------------------------
 
-.. automodule:: STJ_PV.eddy_terms_xr
+.. automodule:: STJ_PV.eddy_terms
     :members:
     :undoc-members:
     :show-inheritance:

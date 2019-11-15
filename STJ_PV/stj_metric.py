@@ -828,7 +828,7 @@ class STJKangPolvani(STJMetric):
         lat = uwnd[self.data.cfg["lat"]].values
 
         k_e = Kinetic_Eddy_Energies(uwnd, vwnd, self.data.cfg)
-        k_e.get_components()
+        k_e.get_components(zonal=True, time=False)
         k_e.calc_momentum_flux()
         del_f = k_e.del_f
 
