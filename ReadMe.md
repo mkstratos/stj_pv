@@ -7,7 +7,7 @@ Maher, et al. (2019): *Is the subtropical jet shifting poleward?* *Climate Dynam
 
 
 [![Documentation Status](https://readthedocs.org/projects/stj-pv/badge/?version=latest&style=flat-square)](https://stj-pv.readthedocs.io/en/latest/?badge=latest)
-[![GitHub](https://img.shields.io/github/license/mkstratos/stj_pv?color=1E5AAF&label=License&style=flat-square&logo=Open\ Source\ Initiative)](https://github.com/mkstratos/stj_pv/blob/master/LICENSE)
+[![GitHub](https://img.shields.io/github/license/mkstratos/stj_pv?color=1E5AAF&label=License&style=flat-square&logo=Open%20Source%20Initiative)](https://github.com/mkstratos/stj_pv/blob/master/LICENSE)
 [![Code DOI](https://img.shields.io/badge/Code_DOI_(v1.0.0)-10.11578%2Fdc.20191106.1-red/?style=flat-square&color=007833)](https://doi.org/10.11578/dc.20191106.1)
 
 
