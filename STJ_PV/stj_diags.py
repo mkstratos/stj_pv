@@ -162,9 +162,12 @@ class DiagPlots(object):
         ax3_c = axes[3].get_position().bounds
         ax2_c = axes[2].get_position().bounds
         axes[2].set_position([ax2_c[0] + 0.03, ax3_c[1], ax2_c[2], ax2_c[3]])
-        out_file = ('plt_stj_diag_{}_{:.0f}K_{}'
-                    .format(self.props.data_cfg['short_name'],
-                            data['level'][zix].values, date.strftime('%Y-%m-%d')))
+        out_file = 'plt_stj_diag_{}_{:.0f}K_{}'.format(
+            self.props.data_cfg['short_name'],
+            data[self.props.data_cfg["lev"]][zix].values,
+            date.strftime('%Y-%m-%d')
+        )
+
         out_file = out_file.replace('.', 'p')
         if self.ilon is None:
             plt.savefig('{}.{}'.format(out_file, EXTN))
